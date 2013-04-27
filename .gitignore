@@ -1,0 +1,8 @@
+/**/target/
+/**/.settings/
+.classpath
+.cache
+/**/.project
+**/*.log
+
+modules/main/databases

@@ -25,8 +25,8 @@ case object Point {
   def ofCaptured(piece: Piece): Point = {
     piece match {
       case ◯.OU => (9, 0)
-      case ◯.FU => (9, 1)
-      case ◯.KI => (9, 2)
+      case ◯.KI => (9, 1)
+      case ◯.FU => (9, 2)
       case ◯.GI => (9, 3)
       case ◯.HI => (9, 4)
       case ◯.KA => (9, 5)
@@ -58,8 +58,8 @@ case class Point(y: Int, x: Int) extends Serializable {
       s"持駒: ${
         x match {
           case 0 => "玉"
-          case 1 => "歩"
-          case 2 => "金"
+          case 1 => "金"
+          case 2 => "歩"
           case 3 => "銀"
           case 4 => "飛"
           case 5 => "角"
@@ -79,11 +79,20 @@ case object Squares {
   } yield Point(y, x)
 }
 
-private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 * maxPieceSize)) {
+// 0           1           2           3           4           5               
+// 01234 56789 01234 56789 01234 56789 01234 56789 01234 56789 01234 56789 0123
+// 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 ----
+// 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 ----
+// 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 ----
+private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 * 5)) {
   import Squares._
 
-  private def posOfBits(p: Point): Int = ((p.y * 9) + p.x) * maxPieceSize
-  private def pieceIndexOfBits(piece: Piece, p: Point) = posOfBits(p) + pieceIndex(piece)
+  val bitsSpan = 5
+
+  @inline private def posOfBits(p: Point): Int = {
+    val s = (p.y * 9) + p.x
+    (s * bitsSpan) + ((s / 12) * 4)
+  }
 
   def <+(piece: Piece, p: Point): Squares = {
     assert(p.y < 9)
@@ -97,26 +106,34 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
   def id(): String = bits.id()
 
   // 指定した位置にある駒を返す
-  def get(p: Point): Piece = bits.intValue(posOfBits(p), maxPieceSize)
+  def get(p: Point): Piece = {
+    bits.intValue(posOfBits(p), bitsSpan)
+  }
 
   // 指定した位置に駒を配置して元あった駒を返す
   def setAndGet(piece: Piece, p: Point): Piece = {
     val result = get(p) // 現在の駒を取る
-    bits.clear(posOfBits(p), maxPieceSize) // 駒のあった場所をクリア
     set(piece, p) // 駒のあった場所に新しい駒を配置
     result
   }
 
-  // x = 0, y = 0   x = 1, y = 0
-  // 00000000000000 00000000000000
-  private def set(piece: Int, p: Point): Unit = if (piece != ❏) bits.set(pieceIndexOfBits(piece, p), true)
+  // (0, 0) (0, 1) … (y, x)
+  // 00000  00000
+  private def set(piece: Int, p: Point): Unit = {
+    if (piece != ❏) {
+      if (piece == 31) {
+        println("s")
+      }
+      bits.setInt(piece, posOfBits(p), bitsSpan)
+    } else bits.clear(posOfBits(p), bitsSpan)
+  }
 
   // (rowIndex, columnIndex)
   def find(piece: Piece): Option[Point] = allPoints.find(get(_) == piece)
 
   def allPieces(turn: Turn): List[Block] = allPoints.foldLeft(List[Block]()) { (xs, point) =>
     val piece = get(point)
-    if ((turn == PlayerA && ▲(piece)) || (turn == PlayerB && △(piece))) Block(point, piece) :: xs else xs
+    if (▲△(piece, turn)) Block(point, piece) :: xs else xs
   }
 
   def allEmptyPoints(): List[Point] = allPoints.foldLeft(List[Point]()) { (xs, point) =>
@@ -173,10 +190,15 @@ case class CapturedPieces(var playerA: Int = 0, var playerB: Int = 0) {
     val captured = if (▲(piece)) playerA else playerB
     val gpiece = generalize(piece)
     val amount = count(captured, find(gpiece))
-    if (amount > 0) Some(piece)
-    else None
+    if (amount > 0) {
+      if (piece == 31) {
+        println(piece)
+      }
+      Some(piece)
+    } else None
   }
 
+  // 1つ減らす
   def remove(pos: Point, turn: Turn): Option[Piece] = {
     val piece = pointToPiece(pos, turn)
     val player = if (▲(piece)) playerA else playerB
@@ -199,7 +221,7 @@ case class CapturedPieces(var playerA: Int = 0, var playerB: Int = 0) {
     cleared | shifted
   }
 
-  def find(generalized: Int) = generalized match {
+  def find(gpiece: Piece) = gpiece match {
     case ❏ => (0, 1)
     // 011
     case ◯.OU => (1, 2)
@@ -220,41 +242,25 @@ case class CapturedPieces(var playerA: Int = 0, var playerB: Int = 0) {
   }
 
   def pointToPiece(pos: Point, turn: Turn): Piece = {
-    if (turn == PlayerA) pos.x match {
-      case 0 => ▲.OU
-      case 1 => ▲.FU
-      case 2 => ▲.KI
-      case 3 => ▲.GI
-      case 4 => ▲.HI
-      case 5 => ▲.KA
-      case 6 => ▲.KE
-      case 7 => ▲.KY
-    }
-    else pos.x match {
-      case 0 => △.OU
-      case 1 => △.FU
-      case 2 => △.KI
-      case 3 => △.GI
-      case 4 => △.HI
-      case 5 => △.KA
-      case 6 => △.KE
-      case 7 => △.KY
-    }
+    if (turn == PlayerA) pos.x else pos.x | 16
   }
 
   def count(turn: Turn, piece: Piece): Int = count(if (turn == PlayerA) playerA else playerB, find(piece))
 
-  def count(captured: Int, pos: Point): Int = (captured >>> (32 - (pos.y + pos.x))) & ((1 << pos.x) - 1)
+  def count(captured: Int, pos: (Int, Int)): Int = (captured >>> (32 - (pos._1 + pos._2))) & ((1 << pos._2) - 1)
 
   def allPieceKinds(turn: Turn): List[Block] = {
     val player = if (turn == PlayerA) playerA else playerB
-    ◯.all.foldLeft(List[Block]()) { (xs, x) =>
-      if (count(player, find(x)) > 0)
-        Block(Point.ofCaptured(x), invert(x, turn)) :: xs else xs
+    if (player == 0) {
+      Nil
+    } else {
+      ◯.all.foldLeft(List[Block]()) { (xs, x) =>
+        if (count(player, find(x)) > 0)
+          Block(Point.ofCaptured(x), invert(x, turn)) :: xs else xs
+      }
     }
   }
 
-  // FIXME OUをとってもカウントUPされない
   override def toString(): String = {
     val s = new StringBuilder
     s.append("△ 持駒[")
@@ -366,7 +372,9 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
     Some(State(Transition(oldPos, newPos, nari, pieceOldPos) :: state.history, state.turn.change))
   }
 
-  def piece(pos: Point, turn: Turn): Piece = if (isCaptured(pos)) capturedPieces.get(pos, turn).get else squares.get(pos)
+  def piece(pos: Point, turn: Turn): Piece = if (isCaptured(pos))
+    capturedPieces.get(pos, turn).get
+  else squares.get(pos)
 
   def pieceOnBoard(pos: Point): Option[Piece] = if (isCaptured(pos)) None else Option(squares.get(pos))
   def pieceOnBoardNotEmpty(pos: Point): Option[Piece] = pieceOnBoard(pos).collect { case p if p != ❏ => p }
@@ -404,7 +412,7 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   def allEmptyPoints(): List[Point] = squares.allEmptyPoints
   def isFinish(turn: Turn): Boolean = capturedPieces.count(turn, ◯.OU) != 0
   def isFinish(): Boolean = isFinish(PlayerA) || isFinish(PlayerB)
-  def isCaptured(pos: Point) = !(pos.x >= 0 && pos.x <= 8 && pos.y >= 0 && pos.y <= 8)
+  def isCaptured(pos: Point) = Point.isCaptured(pos)
   def copy(): Board = {
     new Board(squares.copy(), capturedPieces.copy())
   }

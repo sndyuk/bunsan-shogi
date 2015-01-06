@@ -21,11 +21,11 @@ class UCB extends AI {
 
   // 最後のn手を探索
   private val overflowEnd = 3
-  private val overflowEndK = 4
+  private val overflowEndK = 2
 
   // 最初の探索
   private val overflowStart = 3
-  private val overflowStartK = 4
+  private val overflowStartK = 30
 
   private val tsumeroMaxDepth = 3
 
@@ -96,7 +96,7 @@ class UCB extends AI {
     if (ou.isDefined) {
       return ou.get
     }
-    val score = moves.par.map { transition =>
+    val score = moves.map { transition =>
       val result = simulate(board.copy(), state, transition, PlayerB, 0)
       (result._1.toDouble / result._2.toDouble, transition, result._2, result._3)
     }.seq.sortBy(_._1)

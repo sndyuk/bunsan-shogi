@@ -5,25 +5,51 @@ object BitSet {
 }
 case class BitSet(nbits: Int)(private val bits: Array[Long] = Array.fill(nbits / 64 + 1)(0L)) {
   val length = nbits
-  def set(index: Int, value: Boolean): Unit = {
+
+  // value: [0 | 1 ]
+  @inline private def set(index: Int, value: Int): Unit = {
     //     println(s"$index, ${(1L << 64 - (index % 64)).toBinaryString}")
-    if (value) {
-      bits(index / 64) |= (1L << 64 - (index % 64))
+    if (value == 0) {
+      bits(index / 64) &= ~(1L << (64 - (index % 64)))
     } else {
-      bits(index / 64) &= ~(1L << 64 - (index % 64))
+      bits(index / 64) |= 1L << (64 - (index % 64))
     }
   }
 
-  def value(index: Int): Boolean = {
-    (bits(index / 64) >> (64 - (index % 64)) & 1) == 1
+  private def updateBits(l: Long, num: Long, i: Int, span: Int): Long = {
+    val mask = if (i == 0) {
+      (1L << 64 - (i + span)) - 1
+    } else {
+      val left = ~0L << (64 - i)
+      val right = (1L << 64 - (i + span)) - 1
+      left | right
+    }
+    val cleared = l & mask
+    val shifted = num << (64 - (i + span))
+
+    cleared | shifted
   }
 
-  def intValue(pos: Int, span: Int): Int = {
-    assert(span <= 32)
-    (0 to span - 1).foldLeft(0) { (v, i) => v | ((if (value(pos + i)) 1 else 0) << i) }
+  def setInt(updates: Int, index: Int, span: Int): Unit = {
+    assert((index % 64 + span) < 64, index) // 複数のLongに跨がらないこと
+    bits(index / 64) = updateBits(bits(index / 64), updates, index % 64, span)
   }
 
-  def clear(pos: Int, span: Int): Unit = (0 to span - 1).foreach(i => set(pos + i, false))
+  def value(index: Int): Int = {
+    (bits(index / 64) >> (64 - (index % 64)) & 1).toInt
+  }
+
+  def intValue(i: Int, span: Int): Int = {
+    assert(span <= 31)
+    assert((i % 64 + span) < 64) // 複数のLongに跨がらないこと
+    val l = bits(i / 64)
+    ((l >>> (64 - ((i % 64) + span))) & ((1 << span) - 1)).toInt
+  }
+
+  def clear(index: Int, span: Int): Unit = {
+    assert((index % 64 + span) < 64) // 複数のLongに跨がらないこと
+    setInt(0, index, span)
+  }
 
   def copy(): BitSet = {
     new BitSet(nbits)(bits.clone())

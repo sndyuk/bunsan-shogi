@@ -14,7 +14,7 @@ object Rule {
       println("Select an another point.")
       false
     }
-    if (!(turn == PlayerA ^ △(piece))) {
+    if (▲△(piece, turn.change)) {
       println("It's not your piece.")
       false
     } else {
@@ -58,7 +58,7 @@ object Rule {
     }
   }
 
-  private def generateMovablePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, scopes: List[Scope], originalScopes: List[Scope], points: List[Point], ignoreNextTurnValidation: Boolean = false): List[Point] = scopes match {
+  @tailrec private def generateMovablePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, scopes: List[Scope], originalScopes: List[Scope], points: List[Point], ignoreNextTurnValidation: Boolean = false): List[Point] = scopes match {
     case x :: xs => {
       if (x._3 == ∞) {
         // 1つずつ進めて駒の移動先が有効である限り再帰
@@ -164,7 +164,7 @@ object Rule {
       // 2歩チェック
       _0_8.exists { y =>
         val p = Point(y, pos.x)
-        board.pieceOnBoard(p).exists(np => !isPromoted(np) && generalize(np) == ◯.FU)
+        board.pieceOnBoard(p).exists(_ == piece)
       }
     } else false
   }
@@ -204,7 +204,7 @@ object Rule {
    */
   def canBePromoted(board: Board, oldPos: Point, newPos: Point, piece: Piece): Boolean = {
     // 既に成っていない、かつ...
-    !isPromoted(piece) && (
+    !board.isCaptured(oldPos) && !isPromoted(piece) && (
       // 敵陣に居る or 持駒以外が敵陣に入る
       (if (▲(piece)) oldPos.y <= 2 else oldPos.y >= 6) ||
       (!board.isCaptured(oldPos) && (if (▲(piece)) {

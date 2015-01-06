@@ -12,7 +12,7 @@ import jp.sndyuk.shogi.player.CommandReader
 
 object Console extends App with Shogi {
 
-  override val board = new Board()
+  override val board = Board()
 
   val commandReader = new CommandReader {
 

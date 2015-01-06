@@ -6,7 +6,6 @@ import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Rectangle
 import java.util.concurrent.CountDownLatch
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.swing.BoxPanel
@@ -26,15 +25,14 @@ import scala.swing.event.Key.Value
 import scala.swing.event.MouseClicked
 import scala.swing.event.MouseDragged
 import scala.swing.event.MouseReleased
-
 import jp.sndyuk.shogi.core.Block
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
 import jp.sndyuk.shogi.core.Piece
 import jp.sndyuk.shogi.core.Piece.generalize
-import jp.sndyuk.shogi.core.Piece.{▲ => ▲}
-import jp.sndyuk.shogi.core.Piece.{△ => △}
-import jp.sndyuk.shogi.core.Piece.{◯ => ◯}
+import jp.sndyuk.shogi.core.Piece.{ ▲ => ▲ }
+import jp.sndyuk.shogi.core.Piece.{ △ => △ }
+import jp.sndyuk.shogi.core.Piece.{ ◯ => ◯ }
 import jp.sndyuk.shogi.core.PlayerA
 import jp.sndyuk.shogi.core.PlayerB
 import jp.sndyuk.shogi.core.Point
@@ -47,6 +45,7 @@ import jp.sndyuk.shogi.player.AIPlayer
 import jp.sndyuk.shogi.player.CommandReader
 import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.Player
+import scala.swing.event.MouseEntered
 
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: Seq[Block], piecesOfPlayerB: Seq[Block])
 
@@ -99,7 +98,7 @@ object Swing extends SimpleSwingApplication with Shogi {
   }
 
   val playerA = new HumanPlayer("playerA", board, commandReader, false)
-  //  val playerB = new HumanPlayer("playerB", board, commandReader, false)
+//  val playerB = new HumanPlayer("playerB", board, commandReader, false)
   val playerB = new AIPlayer()
 
   @volatile private var player: Player = playerA
@@ -110,6 +109,7 @@ object Swing extends SimpleSwingApplication with Shogi {
   val view: BoardView = BoardView(board.allBlocks, board.allMovablePieces(PlayerA), board.allMovablePieces(PlayerB))
 
   val piecesOnViewByComponent = scala.collection.mutable.HashMap[java.awt.Component, PiecePanel]()
+  val capturedPiecesByComponent = scala.collection.mutable.HashMap[java.awt.Component, CapturedPiecePanel]()
   val piecesOnViewByPiece = scala.collection.mutable.HashMap[Piece, PiecePanel]()
 
   class PiecePanel(val block: Block) extends Panel {
@@ -136,7 +136,8 @@ object Swing extends SimpleSwingApplication with Shogi {
     listenTo(mouse.moves)
 
     reactions += {
-      case MouseClicked(source, point, modifiers, clicks, triggersPopup) =>
+      case MouseEntered(source, point, modifiers) =>
+
       case MouseDragged(source, point, modifiers) =>
         // ドラッグ中は通過中のパネルの見た目を変える
         val loc = location
@@ -195,15 +196,9 @@ object Swing extends SimpleSwingApplication with Shogi {
     }
   }
 
-  class CapturedPiecePanel(turn: Turn, val block: Block, count: Int) extends Panel {
+  class CapturedPiecePanel(turn: Turn, val block: Block, val count: Int) extends Panel {
     private val turnA = turn == PlayerA
     preferredSize = capturedPieceSizeDimension
-
-    listenTo(mouse.clicks)
-
-    reactions += {
-      case MouseClicked(source, point, modifiers, clicks, triggersPopup) =>
-    }
 
     override def paintComponent(g: Graphics2D) {
       super.paintComponent(g)
@@ -218,12 +213,10 @@ object Swing extends SimpleSwingApplication with Shogi {
           if (turn == PlayerB) {
             g.rotate(Math.PI, blockSize / 2, blockSize / 2)
           }
-
           g setFont fontOfPiece
           g setColor colorLightBlack
           g drawString (s + "   x " + count, if (!turnA) (-1 * xMergin) + x else xMergin + x, y)
           g.setTransform(orig)
-
         }
 
         g setColor colorOcher
@@ -234,15 +227,45 @@ object Swing extends SimpleSwingApplication with Shogi {
   }
 
   override def top = new MainFrame {
-    title = "shogi"
+    title = "将棋"
     resizable = false
 
-    contents = new BoxPanel(Orientation.Horizontal) {
-      contents += turnBInfoPanel
-      contents += boardPanel
-      contents += turnAInfoPanel
-    }
+    contents = new Board
+  }
 
+  class Board extends BoxPanel(Orientation.Horizontal) {
+
+    contents += turnBInfoPanel
+    contents += boardPanel
+    contents += turnAInfoPanel
+
+    var selected: Option[CapturedPiecePanel] = None
+
+    listenTo(mouse.clicks)
+    listenTo(mouse.moves)
+
+    reactions += {
+      case MouseDragged(source, point, modifiers) =>
+        val loc = location
+        Option(peer.getParent.findComponentAt(loc.x + point.x, loc.y + point.y)).foreach { c =>
+          val destOpt = capturedPiecesByComponent.get(c)
+          if (destOpt.isDefined && destOpt.exists(_.count > 0)) {
+            selected = destOpt
+          }
+        }
+
+      case MouseReleased(source, point, modifiers, clicks, triggersPopup) =>
+        selected.foreach { capturedPiecePanel =>
+          selected = None
+          val loc = location
+          Option(peer.getParent.findComponentAt(loc.x + point.x, loc.y + point.y)).foreach { c =>
+            val destOpt = piecesOnViewByComponent.get(c)
+            destOpt.foreach { destPanel =>
+              onSelect(capturedPiecePanel.block.piece, capturedPiecePanel.block.point, destPanel.block.point)
+            }
+          }
+        }
+    }
   }
 
   class InfoPanel(turn: Turn) extends GridPanel(9, 2) {
@@ -253,17 +276,19 @@ object Swing extends SimpleSwingApplication with Shogi {
       (blockSize + blockMargin) * 2,
       (blockSize + blockMargin) * 9)
 
-    contents ++= buildAllCapturedBlocks
-
-    listenTo(mouse.clicks)
-
-    reactions += {
-      case MouseClicked(source, point, modifiers, clicks, triggersPopup) =>
+    var capturedPiecePanels = buildAllCapturedBlocks
+    contents ++= capturedPiecePanels
+    capturedPiecePanels.map { c =>
+      capturedPiecesByComponent += c.peer -> c
     }
 
     def rebuild = {
       contents.clear
-      contents ++= buildAllCapturedBlocks
+      capturedPiecePanels = buildAllCapturedBlocks
+      contents ++= capturedPiecePanels
+      capturedPiecePanels.map { c =>
+        capturedPiecesByComponent += c.peer -> c
+      }
       peer.invalidate
     }
 
@@ -272,9 +297,9 @@ object Swing extends SimpleSwingApplication with Shogi {
     }
 
     private def buildAllCapturedBlocks: Seq[CapturedPiecePanel] = {
-
       ◯.all.filterNot(_ == ◯.OU).map { (piece) =>
-        new CapturedPiecePanel(turn, Block(Point(9, generalize(piece)), piece), board.capturedPieces.count(turn, piece))
+        val p = Piece.invert(piece, turn)
+        new CapturedPiecePanel(turn, Block(Point(9, p), p), board.capturedPieces.count(turn, piece))
       }
     }
   }
@@ -403,6 +428,7 @@ object Swing extends SimpleSwingApplication with Shogi {
   override def afterMove(player: Player, oldPos: Point, newPos: Point) {
     println(board.toString)
     boardPanel.rebuild
+    capturedPiecesByComponent.clear
     turnAInfoPanel.rebuild
     turnBInfoPanel.rebuild
 

@@ -16,16 +16,16 @@ class UCB extends AI {
   private val rnd = new Random(666667)
 
   private val size = 1
-  private var maxDepth = 81
+  private var maxDepth = 71
   private val depthOverMaxDepth = 10
 
   // 最後のn手を探索
   private val overflowEnd = 3
-  private val overflowEndK = 4
+  private val overflowEndK = 20
 
   // 最初の探索
   private val overflowStart = 3
-  private val overflowStartK = 4
+  private val overflowStartK = 6
 
   private val tsumeroMaxDepth = 3
 

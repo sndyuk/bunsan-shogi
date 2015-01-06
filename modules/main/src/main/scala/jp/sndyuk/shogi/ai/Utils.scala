@@ -2,36 +2,26 @@ package jp.sndyuk.shogi.ai
 
 import jp.sndyuk.shogi.core.Block
 import jp.sndyuk.shogi.core.Board
+import jp.sndyuk.shogi.core.Piece
+import jp.sndyuk.shogi.core.Piece.generalize
+import jp.sndyuk.shogi.core.Piece.{▲△ => ▲△}
+import jp.sndyuk.shogi.core.Piece.{◯ => ◯}
+import jp.sndyuk.shogi.core.Point
 import jp.sndyuk.shogi.core.Rule
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
-import jp.sndyuk.shogi.core.Piece._
-import jp.sndyuk.shogi.core.Turn
-import jp.sndyuk.shogi.core.Piece
-import jp.sndyuk.shogi.core.Point
-import java.util.concurrent.ConcurrentHashMap
-import jp.sndyuk.shogi.core.PlayerA
 
 object Utils {
 
-//  private val planCache = new ConcurrentHashMap[String, List[Transition]]()
-
   def plans(board: Board, state: State): List[Transition] = {
-//    val currId = board.id() + (if (state.turn == PlayerA) "0" else "1")
-//    val cache = planCache.get(currId)
-//    if (cache != null) {
-//      cache
-//    } else {
-      val pieces = board.allMovablePieces(state.turn)
+    val pieces = board.allMovablePieces(state.turn)
 
-      val plans = pieces.flatMap {
-        case Block(point, piece) =>
-          val nari = if (Piece.isPromoted(piece)) board.pieceOnBoard(point).map { !Piece.isPromoted(_) }.getOrElse(false) else false
-          Rule.generateMovablePointsWithPromote(board, point, piece, state.turn).map { case (a, b) => Transition(point, a, b, None) }
-      }
-//      planCache.put(currId, plans)
-      plans
-//    }
+    val plans = pieces.flatMap {
+      case Block(point, piece) =>
+        val nari = if (Piece.isPromoted(piece)) board.pieceOnBoard(point).map { !Piece.isPromoted(_) }.getOrElse(false) else false
+        Rule.generateMovablePointsWithPromote(board, point, piece, state.turn).map { case (a, b) => Transition(point, a, b, None) }
+    }
+    plans
   }
 
   def isEffectiveMove(transition: Transition, state: State, board: Board): Boolean = {

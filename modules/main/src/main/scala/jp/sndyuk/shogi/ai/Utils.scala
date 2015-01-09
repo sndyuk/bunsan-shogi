@@ -3,76 +3,67 @@ package jp.sndyuk.shogi.ai
 import jp.sndyuk.shogi.core.Block
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
-import jp.sndyuk.shogi.core.Piece.generalize
-import jp.sndyuk.shogi.core.Piece.{▲△ => ▲△}
-import jp.sndyuk.shogi.core.Piece.{◯ => ◯}
+import jp.sndyuk.shogi.core.Piece._
 import jp.sndyuk.shogi.core.Point
 import jp.sndyuk.shogi.core.Rule
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
+import jp.sndyuk.shogi.core.Turn
+import scala.annotation.tailrec
+import jp.sndyuk.shogi.core.Move
+import scala.util.Random
 
 object Utils {
 
-  def plans(board: Board, state: State): List[Transition] = {
-    val pieces = board.allMovablePieces(state.turn)
+  private class MovePointIterator(board: Board, state: State, availableBlocks: List[Block], includePromoted: Boolean, random: Boolean) extends Iterator[Transition] {
+    private var rest = if (random) Random.shuffle(availableBlocks) else availableBlocks
+    private var nextMove: Transition = _
+    private var cache: Iterator[Transition] = _
+    private var full = false
 
-    val plans = pieces.flatMap {
-      case Block(point, piece) =>
-        val nari = if (Piece.isPromoted(piece)) board.pieceOnBoard(point).map { !Piece.isPromoted(_) }.getOrElse(false) else false
-        Rule.generateMovablePointsWithPromote(board, point, piece, state.turn).map { case (a, b) => Transition(point, a, b, None) }
+    def next: Transition = {
+      if (hasNext) {
+        full = false
+        nextMove
+      } else throw new NoSuchElementException
     }
-    plans
+    def hasNext: Boolean = if (full)
+      true
+    else {
+      full = false
+      if (cache == null || cache.isEmpty) {
+        rest match {
+          case Block(point, piece) :: xs =>
+            rest = xs
+            cache = Rule.generateMovablePoints(board, point, piece, state.turn, true, random).map {
+              case (newPos, nari) => Transition(point, newPos, nari, None)
+            }
+            hasNext
+          case _ => false
+        }
+      } else {
+        nextMove = cache.next
+        full = true
+        true
+      }
+    }
   }
 
-  def isEffectiveMove(transition: Transition, state: State, board: Board): Boolean = {
-    if (Rule.isThreefoldRepetition(board, state)) {
-      return false
-    }
-
-    val piece = board.piece(transition.oldPos, state.turn)
-    val gpiece = generalize(piece)
-    val oldPos = transition.oldPos
-    val newPos = transition.newPos
-
-    // 成れるのに成らない歩、角、飛、香は不要
-    if (!transition.nari && (gpiece == ◯.FU || gpiece == ◯.KA || gpiece == ◯.HI || gpiece == ◯.KY) && Rule.canBePromoted(board, oldPos, newPos, piece)) {
-      return false
-    }
-
-    val around = for {
-      x <- newPos.x - 1 to newPos.x + 1
-      y <- newPos.y - 1 to newPos.y + 1
-      if x <= 8 && y <= 8 && x >= 0 && y >= 0 && !(x == newPos.x && y == newPos.y)
-      p <- board.pieceOnBoardNotEmpty(Point(y, x))
-    } yield p
-
-    // 飛ばない駒(歩、銀、金)の周り8マスに駒があること
-    if ((gpiece == ◯.FU || gpiece == ◯.GI || gpiece == ◯.KI) && around.isEmpty) {
-      return false
-    }
-
-    // 王の周り8マスに自駒があること
-    if ((gpiece == ◯.OU) && !around.exists(▲△(_, state.turn))) {
-      return false
-    }
-
-    // 王が取られる位置に移動しないこと
-    //    if (isCaptureOuAtNextTurn(transition, state, board)) {
-    //      return false
-    //    }
-
-    true
+  def plans(board: Board, state: State, random: Boolean): Iterator[Transition] = {
+    val pieces = board.allMovablePieces(state.turn)
+    new MovePointIterator(board, state, pieces, true, random)
   }
 
   private def isCaptureOuAtNextTurn(transition: Transition, state: State, board: Board): Boolean = {
     val nextState = board.move(state, transition.oldPos, transition.newPos, false, transition.nari)
-    val nextTransitions = plans(board, nextState)
+    val nextTransitions = plans(board, nextState, true)
     val result = findTransitionCaputuringOu(nextTransitions, nextState, board).isDefined
+
     board.rollback(nextState)
     result
   }
 
-  def findTransitionCaputuringOu(xs: Seq[Transition], state: State, board: Board): Option[Transition] = xs.find(isCaptureOu(_, state, board))
+  def findTransitionCaputuringOu(xs: TraversableOnce[Transition], state: State, board: Board): Option[Transition] = xs.find(isCaptureOu(_, state, board))
   def isCaptureOu(transition: Transition, state: State, board: Board): Boolean = {
     val nextState = board.move(state, transition.oldPos, transition.newPos, false, transition.nari)
     // Get OU if the transition can capture it.
@@ -84,4 +75,24 @@ object Utils {
       false
     }
   }
+
+  // 詰めろであることを証明する
+  def simulateTsumero(board: Board, nextState: State, playerTurn: Turn, tsumeroMaxDepth: Int): (Int, Int, Int) = {
+    val boardCp = board.copy()
+    val prevState = boardCp.rollback(nextState)
+    simulateTsumero(boardCp, prevState, nextState.history.head, playerTurn, nextState.history.length, 0, Math.min(nextState.history.length, tsumeroMaxDepth))
+  }
+  @tailrec private def simulateTsumero(board: Board, nextState: State, transition: Transition, playerTurn: Turn, depth: Int, tsumeroDepth: Int, tsumeroMaxDepth: Int): (Int, Int, Int) = {
+    if (tsumeroDepth >= tsumeroMaxDepth) {
+      (1, 1, depth)
+    } else if (nextState.turn != playerTurn && !Utils.isCaptureOuAtNextTurn(transition, nextState, board)) {
+      // 王手になっていなければ無効な手とする
+      (0, 1, depth)
+    } else {
+      val boardCp = board.copy()
+      val prevState = boardCp.rollback(nextState)
+      simulateTsumero(boardCp, prevState, nextState.history.head, playerTurn, depth + 1, tsumeroDepth + 1, tsumeroMaxDepth)
+    }
+  }
+
 }

@@ -12,12 +12,12 @@ trait Shogi {
   def playerA: Player
   def playerB: Player
 
-  def beforeMove(player: Player)
-  def afterMove(player: Player, oldPos: Point, newPos: Point)
+  def beforeMove(player: Player): Unit
+  def afterMove(player: Player, oldPos: Point, newPos: Point): Unit
   // Validationの結果がfalseの場合に呼ばれる
-  def failToMove(player: Player, oldPos: Point, newPos: Point)
-  def done(player: Player, oldPos: Point, newPos: Point, winner: Player)
-  def onError(e: Exception)
+  def failToMove(player: Player, oldPos: Point, newPos: Point): Unit
+  def done(player: Player, oldPos: Point, newPos: Point, winner: Player): Unit
+  def onError(e: Exception): Unit
 
   @tailrec private def readWhile(state: State): Unit = {
     val player = if (state.turn == PlayerA) playerA else playerB
@@ -42,7 +42,7 @@ trait Shogi {
     }
   }
 
-  def start() {
+  def start(): Unit = {
     while (true) {
       Try(readWhile(State(Nil, PlayerA))).recover {
         case e: Exception => {

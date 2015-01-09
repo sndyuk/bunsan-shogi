@@ -21,14 +21,14 @@ class HashStorage[K, V] {
   val docName = "Board"
   val queryFindSingleResult: OSQLSynchQuery[ODocument] = new OSQLSynchQuery[ODocument](s"select v from $docName where k = ? limit 1")
 
-  private[core] def onStart() {
+  private[core] def onStart(): Unit = {
     val schema = db.getMetadata().getSchema().getClass(docName)
     if (!schema.areIndexed("k")) {
       schema.createIndex("k", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX)
     }
   }
 
-  def close() {
+  def close(): Unit = {
     db.close()
   }
   sys.ShutdownHookThread {
@@ -63,7 +63,7 @@ class HashStorage[K, V] {
 
 object HashStorage {
 
-  def start() {
+  def start(): Unit = {
     import ExecutionContext.Implicits.global
     val latch = new CountDownLatch(1)
     val f = Future {

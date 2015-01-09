@@ -1,23 +1,9 @@
 package jp.sndyuk.shogi.core
 
 import Piece._
-
-trait Turn {
-  def change: Turn
-}
-
-// 先手
-case object PlayerA extends Turn {
-  def change = PlayerB
-  override def toString() = "▲"
-}
-
-// 後手
-case object PlayerB extends Turn {
-  def change = PlayerA
-  override def toString() = "△"
-}
-case class Transition(oldPos: Point, newPos: Point, nari: Boolean, captured: Option[Piece]) extends Serializable
+import java.security.MessageDigest
+import scala.collection.immutable.Iterable
+import scala.util.Random
 
 case class Block(point: Point, piece: Piece)
 
@@ -73,10 +59,10 @@ case class Point(y: Int, x: Int) extends Serializable {
 }
 
 case object Squares {
-  val allPoints: Seq[Point] = for {
+  val allPoints: List[Point] = (for {
     y <- 0 to 8
     x <- 0 to 8
-  } yield Point(y, x)
+  } yield Point(y, x)).toList
 }
 
 // 0           1           2           3           4           5               
@@ -84,14 +70,12 @@ case object Squares {
 // 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 ----
 // 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 ----
 // 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 ----
-private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 * 5)) {
+private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 * BitSet.span)) {
   import Squares._
-
-  val bitsSpan = 5
 
   @inline private def posOfBits(p: Point): Int = {
     val s = (p.y * 9) + p.x
-    (s * bitsSpan) + ((s / 12) * 4)
+    (s * BitSet.span) + ((s / 12) * 4)
   }
 
   def <+(piece: Piece, p: Point): Squares = {
@@ -107,22 +91,18 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
 
   // 指定した位置にある駒を返す
   def get(p: Point): Piece = {
-    bits.intValue(posOfBits(p), bitsSpan)
+    bits.intValue(posOfBits(p))
   }
 
   // 指定した位置に駒を配置して元あった駒を返す
   def setAndGet(piece: Piece, p: Point): Piece = {
-    val result = get(p) // 現在の駒を取る
-    set(piece, p) // 駒のあった場所に新しい駒を配置
-    result
+    bits.replaceIntValue(piece, posOfBits(p))
   }
 
   // (0, 0) (0, 1) … (y, x)
   // 00000  00000
   private def set(piece: Int, p: Point): Unit = {
-    if (piece != ❏) {
-      bits.setInt(piece, posOfBits(p), bitsSpan)
-    } else bits.clear(posOfBits(p), bitsSpan)
+    bits.setInt(piece, posOfBits(p))
   }
 
   // (rowIndex, columnIndex)
@@ -133,10 +113,34 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
     if (▲△(piece, turn)) Block(point, piece) :: xs else xs
   }
 
-  def allEmptyPoints(): List[Point] = allPoints.foldLeft(List[Point]()) { (xs, point) =>
-    val piece = get(point)
-    if (piece == ❏) point :: xs else xs
+  private class EmptyPointIterator(random: Boolean) extends Iterator[Point] {
+    private var rest = if (random) Random.shuffle(allPoints) else allPoints
+    private var nextPoint: Point = _
+    private var full = false
+    def next: Point = {
+      if (hasNext) {
+        full = false
+        nextPoint
+      } else throw new NoSuchElementException
+    }
+    def hasNext: Boolean = if (full) {
+      true
+    } else {
+      full = false
+      rest match {
+        case Nil => false
+        case x :: xs =>
+          val piece = get(x)
+          rest = xs
+          if (piece == ❏) {
+            nextPoint = x
+            full = true
+            true
+          } else hasNext
+      }
+    }
   }
+  def allEmptyPoints(random: Boolean): Iterator[Point] = new EmptyPointIterator(random)
 
   def copy(): Squares = {
     new Squares(bits.copy())
@@ -145,7 +149,7 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
   override def toString(): String = bits.toString
 }
 
-case class CapturedPieces(var playerA: Int = 0, var playerB: Int = 0) {
+case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var playerB: Int = 0) {
   // OU(2bit): 00
   // FU(6bit): 000000
   // KI(3bit): 000
@@ -155,6 +159,7 @@ case class CapturedPieces(var playerA: Int = 0, var playerB: Int = 0) {
   // KE(3bit): 000
   // KY(3bit): 000
   // 計 24bit
+  def longValue: Long = playerA.toLong << 32 | playerB
 
   def id(): String = {
     java.lang.Long.toString(((playerA.toLong << 24) + playerB.toLong), 36)
@@ -164,14 +169,13 @@ case class CapturedPieces(var playerA: Int = 0, var playerB: Int = 0) {
     new CapturedPieces(playerA + 0, playerB + 0)
   }
 
-  def put(piece: Piece): Unit = {
-    if (piece == ❏) {
-    } else if (▲(piece)) {
+  def put(piece: Piece): Unit = piece match {
+    case ❏ =>
+    case _ if ▲(piece) =>
       // 先手側の駒なので後手の手駒に加える
       playerB = add(playerB, generalize(piece))
-    } else {
+    case _ =>
       playerA = add(playerA, generalize(piece))
-    }
   }
 
   private def add(captured: Int, generalized: Piece, amount: Int = 1): Int = {
@@ -322,8 +326,13 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   import Board._
 
   def init(): Unit = {
-    // 将棋盤に駒を並べる
-    Board.table.zipWithIndex.foreach { case (row, y) => row.zipWithIndex.foreach { case (piece, x) => squares <+ (piece, (y, x)) } }
+    init2(Board.table)
+  }
+
+  // 将棋盤に駒を並べる
+  def init2(pieces: Seq[Seq[Piece]], captured: Seq[(Piece, Int)] = Nil): Unit = {
+    pieces.zipWithIndex.foreach { case (row, y) => row.zipWithIndex.foreach { case (piece, x) => squares <+ (piece, (y, x)) } }
+    captured.foreach { case (p, c) => for (i <- 1 to c) capturedPieces.put(p) }
   }
 
   def allBlocks: Seq[Block] = {
@@ -406,7 +415,8 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   def allMovablePieces(turn: Turn): List[Block] = {
     capturedPieces.allPieceKinds(turn) ::: squares.allPieces(turn)
   }
-  def allEmptyPoints(): List[Point] = squares.allEmptyPoints
+
+  def allEmptyPoints(random: Boolean): Iterator[Point] = squares.allEmptyPoints(random)
   def isFinish(turn: Turn): Boolean = capturedPieces.count(turn, ◯.OU) != 0
   def isFinish(): Boolean = isFinish(PlayerA) || isFinish(PlayerB)
   def isCaptured(pos: Point) = Point.isCaptured(pos)

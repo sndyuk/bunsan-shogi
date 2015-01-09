@@ -37,25 +37,25 @@ object Console extends App with Shogi {
   println("(筋,段)(筋,段)")
   println("持駒([0 = 玉, 1 = 歩, 2 = 金, 3 = 銀, 4 = 飛, 5 = 角, 6 = 桂, 7 = 香], 0)")
 
-  override def afterMove(player: Player, oldPos: Point, newPos: Point) {
+  override def afterMove(player: Player, oldPos: Point, newPos: Point): Unit = {
     println(board.toString)
   }
 
-  override def beforeMove(player: Player) {
+  override def beforeMove(player: Player): Unit = {
     println(s"Turn: $player")
   }
 
-  override def done(player: Player, oldPos: Point, newPos: Point, winner: Player) {
+  override def done(player: Player, oldPos: Point, newPos: Point, winner: Player): Unit = {
     println(s"Done. Winner: $winner")
   }
 
-  override def failToMove(player: Player, oldPos: Point, newPos: Point) {
+  override def failToMove(player: Player, oldPos: Point, newPos: Point): Unit = {
     println(s"Could not move: $oldPos -> $newPos")
   }
 
-  override def onError(e: Exception) {
+  override def onError(e: Exception): Unit = {
     println("Could not parse your command. Retry?(Y|n) or show the error and exit (x)")
-    readLine.toUpperCase() match {
+    scala.io.StdIn.readLine().toUpperCase() match {
       case "N" => sys.exit
       case "X" => {
         e.printStackTrace()

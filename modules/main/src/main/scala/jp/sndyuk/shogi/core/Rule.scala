@@ -1,8 +1,16 @@
 package jp.sndyuk.shogi.core
 
 import scala.annotation.tailrec
+import scala.util.Random
 
-import jp.sndyuk.shogi.core.Piece._
+import jp.sndyuk.shogi.core.Piece.generalize
+import jp.sndyuk.shogi.core.Piece.isPromoted
+import jp.sndyuk.shogi.core.Piece.toBePromoted
+import jp.sndyuk.shogi.core.Piece.{▲ => ▲}
+import jp.sndyuk.shogi.core.Piece.{▲△ => ▲△}
+import jp.sndyuk.shogi.core.Piece.{△ => △}
+import jp.sndyuk.shogi.core.Piece.{◯ => ◯}
+import jp.sndyuk.shogi.core.Piece.{❏ => ❏}
 
 object Rule {
 
@@ -19,78 +27,116 @@ object Rule {
       false
     } else {
       isValidPosition(board, piece, newPos, true) &&
-        generateMovablePoints(board, oldPos, piece, turn).contains(newPos) &&
+        generateMovablePoints(board, oldPos, piece, turn, false, true).exists(_._1 == newPos) &&
         (!nari || canBePromoted(board, oldPos, newPos, piece))
     }
   }
 
   /**
    * 駒が移動可能な場所を返す
-   * 駒が成るケースは含めない.
    */
-  def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn): List[Point] = {
+  def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn, includePromoted: Boolean, random: Boolean): Iterator[Move] = {
     val scopes = movableScopes(piece)
-    if (Point.isCaptured(oldPos)) {
-      board.allEmptyPoints.filter { np =>
-        !is2FU(board, piece, np, turn) && !generateMovablePoints(board, piece, np, turn, scopes, scopes, Nil).isEmpty
-      }
+    (if (Point.isCaptured(oldPos)) {
+      board.allEmptyPoints(random).filter { np =>
+        !is2FU(board, piece, np, turn) && canMoveAtNextTurn(np, scopes)
+      }.map { (_, false) }
     } else {
-      generateMovablePoints(board, piece, oldPos, turn, scopes, scopes, Nil)
-    }
+      generateMovePoints(board, piece, oldPos, turn, includePromoted, scopes, scopes, random)
+    })
   }
 
-  /**
-   * 駒が移動可能な場所を返す.
-   * 駒が成るケースも含める.
-   */
-  def generateMovablePointsWithPromote(board: Board, oldPos: Point, piece: Piece, turn: Turn): List[(Point, Boolean)] = {
-    val xs = generateMovablePoints(board, oldPos, piece, turn)
-    if (Point.isCaptured(oldPos)) {
-      xs.map { (_, false) }
+  private class MovePointIterator(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope], random: Boolean) extends Iterator[Move] {
+    private var rest = if (random) Random.shuffle(originalScopes) else originalScopes
+    private var nextMove: Move = _
+    private var cache: List[Move] = Nil
+    private var full = false
+
+    def next: Move = {
+      if (hasNext) {
+        full = false
+        nextMove
+      } else throw new NoSuchElementException
+    }
+
+    def hasNext: Boolean = if (full) {
+      true
     } else {
-      xs.flatMap { p =>
-        if (canBePromoted(board, oldPos, p, piece)) {
-          List((p, false), (p, true))
-        } else {
-          List((p, false))
+      full = false
+      if (cache.isEmpty) {
+        rest match {
+          case Nil => false
+          case x :: xs => {
+            rest = xs
+            if (x._3 == ∞) {
+              // 1つずつ進めて駒の移動先が有効である限り再帰
+              @tailrec def f(pos: Point, acceptCapturing: Boolean, tmpPoints: List[Move]): List[Move] = {
+                val newPos = Point(pos.y + x._1, pos.x + x._2)
+                if (acceptCapturing && isValidPosition(board, piece, newPos, acceptCapturing)) {
+                  // 敵の駒を通りすぎないように1回敵の駒に届いたあとは acceptCapturing を falseにする
+                  f(newPos, !board.pieceOnBoardNotEmpty(newPos).isDefined,
+                    (if (includePromoted && canBePromoted(board, oldPos, newPos, piece)) {
+                      val gpiece = generalize(piece)
+                      if (gpiece == ◯.FU || gpiece == ◯.KA || gpiece == ◯.HI || gpiece == ◯.KY) {
+                        (newPos, true) :: tmpPoints // 無駄に成らない歩、角、飛、香は不要
+                      } else (newPos, true) :: (newPos, false) :: tmpPoints
+                    } else (newPos, false) :: tmpPoints))
+                } else tmpPoints
+              }
+              // 飛べる駒は元の場所に遷移できるので更にもう1手進められることを確認する必要はない
+              f(oldPos, true, Nil) match {
+                case Nil => hasNext
+                case l =>
+                  if (random) {
+                    val sl = Random.shuffle(l)
+                    nextMove = sl.head
+                    cache = sl.tail
+                  } else {
+                    nextMove = l.head
+                    cache = l.tail
+                  }
+                  full = true
+                  true
+              }
+            } else {
+              val newPos = Point(oldPos.y + x._1, oldPos.x + x._2)
+              if (isValidPosition(board, piece, newPos, true) && (canMoveAtNextTurn(newPos, originalScopes) || canMoveIfPromoted(piece, oldPos, newPos))) {
+                if (includePromoted && canBePromoted(board, oldPos, newPos, piece)) {
+                  nextMove = (newPos, true)
+                  cache = (newPos, false) :: Nil
+                } else {
+                  nextMove = (newPos, false)
+                }
+                full = true
+                true
+              } else hasNext
+            }
+          }
         }
+      } else cache match {
+        case Nil => hasNext
+        case x :: xs =>
+          nextMove = x
+          cache = xs
+          full = true
+          true
       }
     }
   }
 
-  @tailrec private def generateMovablePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, scopes: List[Scope], originalScopes: List[Scope], points: List[Point], ignoreNextTurnValidation: Boolean = false): List[Point] = scopes match {
-    case x :: xs => {
-      if (x._3 == ∞) {
-        // 1つずつ進めて駒の移動先が有効である限り再帰
-        @tailrec def f(pos: Point, acceptCapturing: Boolean, tmpPoints: List[Point]): List[Point] = {
-          val newPos = Point(pos.y + x._1, pos.x + x._2)
-          if (acceptCapturing && isValidPosition(board, piece, newPos, acceptCapturing)) {
-            // 敵の駒を通りすぎないように1回敵の駒に届いたあとは acceptCapturing を falseにする
-            f(newPos, !board.pieceOnBoardNotEmpty(newPos).isDefined, newPos :: tmpPoints)
-          } else tmpPoints
-        }
-        // 飛べる駒は元の場所に遷移できるので更にもう1手進められることを確認する必要はない
-        generateMovablePoints(board, piece, oldPos, turn, xs, originalScopes, f(oldPos, true, Nil) ::: points)
-      } else {
-        val newPos = Point(oldPos.y + x._1, oldPos.x + x._2)
-        generateMovablePoints(
-          board, piece, oldPos, turn, xs, originalScopes,
-          if (isValidPosition(board, piece, newPos, true)
-            // 更にもう1手進められること
-            && (ignoreNextTurnValidation || canMoveAtNextTurn(newPos, originalScopes) || canMoveIfPromoted(piece, newPos)))
-            newPos :: points
-          else points)
-      }
-    }
-    case _ => points
+  private def generateMovePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope], random: Boolean): Iterator[Move] = {
+    new MovePointIterator(board, piece, oldPos, turn, includePromoted, scopes, originalScopes, random)
   }
 
-  private def canMoveIfPromoted(piece: Piece, pos: Point): Boolean = {
-    val promoted = toBePromoted(piece)
-    if (promoted == piece) {
-      false
+  private def canMoveIfPromoted(piece: Piece, oldPos: Point, newPos: Point): Boolean = {
+    if (Point.isCaptured(oldPos)) false
+    else {
+      val promoted = toBePromoted(piece)
+      if (promoted == piece) {
+        false
+      }
+      canMoveAtNextTurn(newPos, movableScopes(promoted))
     }
-    canMoveAtNextTurn(pos, movableScopes(promoted))
   }
 
   private def canMoveAtNextTurn(pos: Point, scopes: List[Scope]): Boolean = scopes.exists(p => isOnBoard(Point(pos.y + p._1, pos.x + p._2)))

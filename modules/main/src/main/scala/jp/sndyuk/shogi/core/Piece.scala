@@ -82,6 +82,7 @@ object Piece {
     }
   }
 
+  // 左から6bit目がtrue
   object ◯ {
     @inline val OU = Integer.parseInt("101000", 2)
     @inline val KI = Integer.parseInt("100001", 2)
@@ -91,10 +92,10 @@ object Piece {
     @inline val KA = Integer.parseInt("100101", 2)
     @inline val KE = Integer.parseInt("100110", 2)
     @inline val KY = Integer.parseInt("100111", 2)
-
     val all = Seq(OU, FU, KI, GI, HI, KA, KE, KY)
   }
 
+  // 左から5bit目がfalse
   object ▲ {
     @inline val OU = Integer.parseInt("1000", 2)
     @inline val KI = Integer.parseInt("0001", 2)
@@ -113,6 +114,7 @@ object Piece {
     @inline val NY = KY | Integer.parseInt("1000", 2)
   }
 
+  // 左から5bit目がtrue
   object △ {
     @inline val OU = Integer.parseInt("11000", 2)
     @inline val KI = Integer.parseInt("10001", 2)
@@ -132,30 +134,11 @@ object Piece {
   }
 
   def invert(piece: Piece, turn: Turn): Piece = {
-    if (turn == PlayerA) {
-      piece match {
-        case ❏ => ❏
-        case ◯.OU => ▲.OU
-        case ◯.FU => ▲.FU
-        case ◯.KI => ▲.KI
-        case ◯.GI => ▲.GI
-        case ◯.HI => ▲.HI
-        case ◯.KA => ▲.KA
-        case ◯.KE => ▲.KE
-        case ◯.KY => ▲.KY
-      }
+    if (piece == ❏) piece
+    else if (turn == PlayerA) {
+      piece & 15 // & 1111
     } else {
-      piece match {
-        case ❏ => ❏
-        case ◯.OU => △.OU
-        case ◯.FU => △.FU
-        case ◯.KI => △.KI
-        case ◯.GI => △.GI
-        case ◯.HI => △.HI
-        case ◯.KA => △.KA
-        case ◯.KE => △.KE
-        case ◯.KY => △.KY
-      }
+      piece & 15 | 16 // & 1111 | 10000
     }
   }
 

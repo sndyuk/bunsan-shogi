@@ -46,11 +46,14 @@ import jp.sndyuk.shogi.player.CommandReader
 import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.Player
 import scala.swing.event.MouseEntered
+import scala.swing.Button
+import jp.sndyuk.shogi.ai.Utils
+import scala.swing.event.ButtonClicked
 
-case class BoardView(blocks: Seq[Block], piecesOfPlayerA: Seq[Block], piecesOfPlayerB: Seq[Block])
+case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])
 
 abstract class BoardPanel extends GridPanel(9, 9) {
-  def rebuild
+  def rebuild: Unit
 }
 
 object Swing extends SimpleSwingApplication with Shogi {
@@ -93,7 +96,9 @@ object Swing extends SimpleSwingApplication with Shogi {
     def read(state: State): Transition = {
       boardLatch.await
       boardLatch = new CountDownLatch(1)
-      Transition(oldPos, newPos, nari, board.pieceOnBoardNotEmpty(newPos))
+      val nextTransition = Transition(oldPos, newPos, nari, board.pieceOnBoardNotEmpty(newPos))
+      currState = State(nextTransition :: state.history, state.turn.change)
+      nextTransition
     }
   }
 
@@ -105,6 +110,7 @@ object Swing extends SimpleSwingApplication with Shogi {
   @volatile private var oldPos: Point = (0, 0)
   @volatile private var newPos: Point = (0, 0)
   @volatile private var nari = false
+  @volatile private var currState: State = _
 
   val view: BoardView = BoardView(board.allBlocks, board.allMovablePieces(PlayerA), board.allMovablePieces(PlayerB))
 
@@ -122,12 +128,12 @@ object Swing extends SimpleSwingApplication with Shogi {
 
     background = colorLightOcher
 
-    def enterDragOver(block: Block) {
+    def enterDragOver(block: Block): Unit = {
       potantiallyRelpaceWith = Option(block)
       repaint
     }
 
-    def exitDragOver {
+    def exitDragOver: Unit = {
       potantiallyRelpaceWith = None
       repaint
     }
@@ -164,10 +170,10 @@ object Swing extends SimpleSwingApplication with Shogi {
         dragOver = None
     }
 
-    override def paintComponent(g: Graphics2D) {
+    override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
 
-      def drawPiece {
+      def drawPiece: Unit = {
         def $(block: Block) = {
           g fill buildPiece(▲(block.piece))
           val (s, x, y) = buildPieceString(block.piece, ▲(block.piece))
@@ -200,10 +206,10 @@ object Swing extends SimpleSwingApplication with Shogi {
     private val turnA = turn == PlayerA
     preferredSize = capturedPieceSizeDimension
 
-    override def paintComponent(g: Graphics2D) {
+    override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
 
-      def drawPiece {
+      def drawPiece: Unit = {
         def $(block: Block) = {
           val xMergin = if (turnA) 0 else blockSize + blockMargin
           g fill buildPiece(turnA, xMergin)
@@ -276,23 +282,31 @@ object Swing extends SimpleSwingApplication with Shogi {
       (blockSize + blockMargin) * 2,
       (blockSize + blockMargin) * 9)
 
-    var capturedPiecePanels = buildAllCapturedBlocks
-    contents ++= capturedPiecePanels
-    capturedPiecePanels.map { c =>
-      capturedPiecesByComponent += c.peer -> c
+    val tumeroButton = new Button("詰判定") {
+      reactions += {
+        case ButtonClicked(source) =>
+          if (currState != null && !currState.history.isEmpty) {
+            val (win, _, depth) = Utils.simulateTsumero(board, currState, turn, 3)
+            println(s"詰: $win")
+          } else {
+            println(s"詰: 0")
+          }
+      }
     }
 
     def rebuild = {
       contents.clear
-      capturedPiecePanels = buildAllCapturedBlocks
+      var capturedPiecePanels = buildAllCapturedBlocks
       contents ++= capturedPiecePanels
+      contents += tumeroButton
       capturedPiecePanels.map { c =>
         capturedPiecesByComponent += c.peer -> c
       }
       peer.invalidate
     }
+    rebuild
 
-    override def paintComponent(g: Graphics2D) {
+    override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
     }
 
@@ -326,7 +340,7 @@ object Swing extends SimpleSwingApplication with Shogi {
       peer.invalidate
     }
 
-    override def paintComponent(g: Graphics2D) {
+    override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
       g setColor colorLightBlack
       g fillRect (0, 0, size.width, size.height)
@@ -400,7 +414,7 @@ object Swing extends SimpleSwingApplication with Shogi {
       blockSize / 2 + textSize / 2)
   }
 
-  private def onSelect(piece: Piece, oldPos: Point, newPos: Point) {
+  private def onSelect(piece: Piece, oldPos: Point, newPos: Point): Unit = {
     if (oldPos != newPos) {
       if (Rule.canMove(board, piece, oldPos, newPos, turn(player))) {
         this.oldPos = oldPos
@@ -425,7 +439,7 @@ object Swing extends SimpleSwingApplication with Shogi {
     } else false
   }
 
-  override def afterMove(player: Player, oldPos: Point, newPos: Point) {
+  override def afterMove(player: Player, oldPos: Point, newPos: Point): Unit = {
     println(board.toString)
     boardPanel.rebuild
     capturedPiecesByComponent.clear
@@ -439,19 +453,19 @@ object Swing extends SimpleSwingApplication with Shogi {
     boardPanel.repaint
   }
 
-  override def beforeMove(player: Player) {
+  override def beforeMove(player: Player): Unit = {
     this.player = player
   }
 
-  override def done(player: Player, oldPos: Point, newPos: Point, winner: Player) {
+  override def done(player: Player, oldPos: Point, newPos: Point, winner: Player): Unit = {
     Dialog.showMessage(title = "終了", message = "終わりです。")
   }
 
-  override def failToMove(player: Player, oldPos: Point, newPos: Point) {
+  override def failToMove(player: Player, oldPos: Point, newPos: Point): Unit = {
     Dialog.showMessage(title = "移動不可", message = "置けません。")
   }
 
-  override def onError(e: Exception) {
+  override def onError(e: Exception): Unit = {
     Dialog.showMessage(title = "エラー", message = e.getMessage)
     // TODO for debug. remove
     e.printStackTrace

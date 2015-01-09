@@ -2,11 +2,15 @@ package jp.sndyuk.shogi
 
 package kifu {
 
+import jp.sndyuk.shogi.core.Turn
+import jp.sndyuk.shogi.core.Piece
+import jp.sndyuk.shogi.core.Point
+
   trait KifuStatement
 
   case class Kifu(version: Option[Version], kifuData: List[KifuStatement], startState: StartState, moves: Option[Moves]) extends KifuStatement
 
-  case class Move(player: String, oldPos: String, newPos: String, piece: String, elapsed: Option[Elapsed]) extends KifuStatement
+  case class Move(player: Turn, oldPos: Point, newPos: Point, piece: Piece, elapsed: Option[Elapsed]) extends KifuStatement
   case class SpMove(command: String) extends KifuStatement
   case class Elapsed(sec: Int) extends KifuStatement
 

@@ -47,7 +47,7 @@ import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.Player
 import scala.swing.event.MouseEntered
 import scala.swing.Button
-import jp.sndyuk.shogi.ai.Utils
+import jp.sndyuk.shogi.ai.simulator.Utils
 import scala.swing.event.ButtonClicked
 
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])

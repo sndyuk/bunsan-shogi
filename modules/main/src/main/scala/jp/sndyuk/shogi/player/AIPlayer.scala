@@ -1,7 +1,7 @@
 package jp.sndyuk.shogi.player
 
 import scala.concurrent.duration.DurationInt
-import jp.sndyuk.shogi.ai.AI
+import jp.sndyuk.shogi.ai.simulator.AI
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.config

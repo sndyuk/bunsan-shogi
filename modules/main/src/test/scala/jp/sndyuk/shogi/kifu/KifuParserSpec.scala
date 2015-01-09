@@ -1,10 +1,11 @@
 package jp.sndyuk.shogi.kifu
 
-import org.scalatest._
-import scala.util.parsing.input.PagedSeqReader
-import scala.collection.immutable.PagedSeq
-import scala.io.Source
-import scala.util.parsing.input.CharSequenceReader
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import jp.sndyuk.shogi.core.PlayerA
+import jp.sndyuk.shogi.core.PlayerB
+import jp.sndyuk.shogi.core.Board
+import jp.sndyuk.shogi.core.Piece
 
 class KifuParserSpec extends FlatSpec with Matchers {
 
@@ -51,7 +52,7 @@ class KifuParserSpec extends FlatSpec with Matchers {
       |%CHUDAN
       """.stripMargin.split("\n").tail.iterator
 
-    val parseResult = CSAParser.parseCSA(lines)
+    val parseResult = CSAParser.parse(lines)
 
     parseResult.isEmpty should be(false)
     val kifu = parseResult.get
@@ -80,9 +81,9 @@ class KifuParserSpec extends FlatSpec with Matchers {
       "P9+KY+KE+GI+KI+OU+KI+GI+KE+KY"))), None, "+"))
 
     kifu.moves should be(Option(Moves(List(
-      Move("+", "27", "26", "FU", Option(Elapsed(12))),
+      Move(PlayerA, Board.humanReadableToPoint(2, 7), Board.humanReadableToPoint(2, 6), Piece.▲.FU, Option(Elapsed(12))),
       SpMove("UNKNOWN"),
-      Move("-", "33", "34", "FU", Option(Elapsed(6))),
+      Move(PlayerB, Board.humanReadableToPoint(3, 3), Board.humanReadableToPoint(3, 4), Piece.△.FU, Option(Elapsed(6))),
       SpMove("CHUDAN")
     ))))
   }

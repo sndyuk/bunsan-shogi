@@ -1,8 +1,12 @@
 package jp.sndyuk.shogi.kifu
 
 import util.parsing.combinator._
-
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
+import jp.sndyuk.shogi.core.PlayerA
+import jp.sndyuk.shogi.core.PlayerB
+import jp.sndyuk.shogi.core.Point
+import jp.sndyuk.shogi.core.Board
+import jp.sndyuk.shogi.core.Piece
 
 object CSAParser extends RegexParsers {
 
@@ -53,8 +57,30 @@ object CSAParser extends RegexParsers {
   private def move: Parser[KifuStatement] = comment.? ~> (transition | specialMove)
 
   private def transition: Parser[Move] =
-    ("-" | "+") ~ s"[1-9]{4}$char{2}".r ~ sep ~ elapsed.? ^^ {
-      case p ~ s ~ _ ~ elaplsed => Move(p, s.substring(0, 2), s.substring(2, 4), s.substring(4, 6), elaplsed)
+    ("-" | "+") ~ "[1-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ s"$char{2}".r ~ sep ~ elapsed.? ^^ {
+      case p ~ s1 ~ s2 ~ s3 ~ s4 ~ s5 ~ _ ~ elaplsed => {
+        val turn = if (p == "+") PlayerA else PlayerB
+        val piece = s5 match {
+          case "OU" => Piece.invert(Piece.◯.OU, turn)
+          case "FU" => Piece.invert(Piece.◯.FU, turn)
+          case "KI" => Piece.invert(Piece.◯.KI, turn)
+          case "GI" => Piece.invert(Piece.◯.GI, turn)
+          case "HI" => Piece.invert(Piece.◯.HI, turn)
+          case "KA" => Piece.invert(Piece.◯.KA, turn)
+          case "KE" => Piece.invert(Piece.◯.KE, turn)
+          case "KY" => Piece.invert(Piece.◯.KY, turn)
+          case "TO" => Piece.toBePromoted(Piece.invert(Piece.◯.FU, turn))
+          case "NG" => Piece.toBePromoted(Piece.invert(Piece.◯.GI, turn))
+          case "RY" => Piece.toBePromoted(Piece.invert(Piece.◯.HI, turn))
+          case "UM" => Piece.toBePromoted(Piece.invert(Piece.◯.KA, turn))
+          case "NK" => Piece.toBePromoted(Piece.invert(Piece.◯.KE, turn))
+          case "NY" => Piece.toBePromoted(Piece.invert(Piece.◯.KY, turn))
+        }
+        Move(turn,
+          Board.humanReadableToPoint(s1.toInt, s2.toInt),
+          Board.humanReadableToPoint(s3.toInt, s4.toInt),
+          piece, elaplsed)
+      }
     }
 
   private def moves: Parser[Moves] = rep(move) ^^ Moves
@@ -74,7 +100,7 @@ object CSAParser extends RegexParsers {
   }
   private def kifu: Parser[Kifu] = statement
 
-  def parseCSA(lines: Iterator[String]): ParseResult[Kifu] = {
+  def parse(lines: Iterator[String]): ParseResult[Kifu] = {
     parseAll(kifu, lines.mkString(","))
   }
 }

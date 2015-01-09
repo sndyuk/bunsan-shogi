@@ -3,7 +3,7 @@ package jp.sndyuk.shogi
 import jp.sndyuk.shogi.core._
 import jp.sndyuk.shogi.core.Piece._
 import jp.sndyuk.shogi.algorithm.core._
-import jp.sndyuk.shogi.ai.Utils
+import jp.sndyuk.shogi.ai.simulator.Utils
 import jp.sndyuk.shogi.core.Transition
 import scala.collection.immutable.Queue
 

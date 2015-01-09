@@ -1,11 +1,9 @@
-package jp.sndyuk.shogi.ai
+package jp.sndyuk.shogi.ai.simulator
 
 import java.util.ArrayDeque
-import java.util.Queue
 
 import scala.annotation.tailrec
 import scala.collection.immutable.HashSet
-import scala.language.higherKinds
 import scala.util.Random
 
 import jp.sndyuk.shogi.core.Board
@@ -32,8 +30,8 @@ class UCB extends AI {
   private val overflowEndK = 4
 
   // 最初の探索
-  private val overflowStart = 30
-  private val overflowStartK = 40
+  private val overflowStart = 4
+  private val overflowStartK = 30
 
   private val tsumeroMaxDepth = 3
 
@@ -48,7 +46,7 @@ class UCB extends AI {
     val start = System.currentTimeMillis
 
     val acc = plans.map((0, 0, _)).toArray
-    val queue = new ArrayDeque[BS](Math.min(Math.pow(4, overflowStart), maxBoardCount).toInt) 
+    val queue = new ArrayDeque[BS](Math.min(Math.pow(overflowStartK, overflowStart), maxBoardCount).toInt) 
     plans.zipWithIndex.foreach { p =>
       queue.addLast((board, state, p._1, 0, p._2))
     }

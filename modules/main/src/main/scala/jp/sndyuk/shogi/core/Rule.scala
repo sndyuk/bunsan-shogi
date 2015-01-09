@@ -6,11 +6,11 @@ import scala.util.Random
 import jp.sndyuk.shogi.core.Piece.generalize
 import jp.sndyuk.shogi.core.Piece.isPromoted
 import jp.sndyuk.shogi.core.Piece.toBePromoted
-import jp.sndyuk.shogi.core.Piece.{▲ => ▲}
-import jp.sndyuk.shogi.core.Piece.{▲△ => ▲△}
-import jp.sndyuk.shogi.core.Piece.{△ => △}
-import jp.sndyuk.shogi.core.Piece.{◯ => ◯}
-import jp.sndyuk.shogi.core.Piece.{❏ => ❏}
+import jp.sndyuk.shogi.core.Piece.{ ▲ => ▲ }
+import jp.sndyuk.shogi.core.Piece.{ ▲△ => ▲△ }
+import jp.sndyuk.shogi.core.Piece.{ △ => △ }
+import jp.sndyuk.shogi.core.Piece.{ ◯ => ◯ }
+import jp.sndyuk.shogi.core.Piece.{ ❏ => ❏ }
 
 object Rule {
 
@@ -250,7 +250,7 @@ object Rule {
    */
   def canBePromoted(board: Board, oldPos: Point, newPos: Point, piece: Piece): Boolean = {
     // 既に成っていない、かつ...
-    !board.isCaptured(oldPos) && !isPromoted(piece) && (
+    toBePromoted(piece) != piece && !board.isCaptured(oldPos) && !isPromoted(piece) && (
       // 敵陣に居る or 持駒以外が敵陣に入る
       (if (▲(piece)) oldPos.y <= 2 else oldPos.y >= 6) ||
       (!board.isCaptured(oldPos) && (if (▲(piece)) {

@@ -1,17 +1,14 @@
-package jp.sndyuk.shogi.ai
+package jp.sndyuk.shogi.ai.simulator
+
+import scala.annotation.tailrec
+import scala.util.Random
 
 import jp.sndyuk.shogi.core.Block
 import jp.sndyuk.shogi.core.Board
-import jp.sndyuk.shogi.core.Piece
-import jp.sndyuk.shogi.core.Piece._
-import jp.sndyuk.shogi.core.Point
 import jp.sndyuk.shogi.core.Rule
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.core.Turn
-import scala.annotation.tailrec
-import jp.sndyuk.shogi.core.Move
-import scala.util.Random
 
 object Utils {
 

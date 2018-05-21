@@ -80,11 +80,11 @@ class KifuParserSpec extends FlatSpec with Matchers {
       "P8 * +KA *  *  *  *  * +HI * ",
       "P9+KY+KE+GI+KI+OU+KI+GI+KE+KY"))), None, "+"))
 
-    kifu.moves should be(Option(Moves(List(
+    kifu.moves should be(Option(List(
       Move(PlayerA, Board.humanReadableToPoint(2, 7), Board.humanReadableToPoint(2, 6), Piece.▲.FU, Option(Elapsed(12))),
       SpMove("UNKNOWN"),
       Move(PlayerB, Board.humanReadableToPoint(3, 3), Board.humanReadableToPoint(3, 4), Piece.△.FU, Option(Elapsed(6))),
       SpMove("CHUDAN")
-    ))))
+    )))
   }
 }

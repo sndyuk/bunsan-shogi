@@ -87,7 +87,7 @@ class UCB extends AI {
     }
     val score = acc(i)
     if (boardCp.isFinish(player)) {
-      acc(i) = (score._1 + 1, score._2 + 1, score._3)
+      acc(i) = (if (Utils.isTsumero(boardCp, nextState, nextState.turn.change, tsumeroMaxDepth)) score._1 + 1 else 0, score._2 + 1, score._3)
     } else if (boardCp.isFinish(player.change)) {
       acc(i) = (score._1, score._2 + 1, score._3)
     } else if (depth == maxDepth) {

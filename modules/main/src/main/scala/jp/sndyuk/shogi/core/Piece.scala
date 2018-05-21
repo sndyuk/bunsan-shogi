@@ -41,7 +41,7 @@ object Piece {
     else piece
   }
 
-  @inline def isPromoted(piece: Piece): Boolean = (piece & 8) == 8
+  @inline def isPromoted(piece: Piece): Boolean = (piece & 15) > 8
 
   // 先手
   @inline def ▲(piece: Piece): Boolean = (piece & 16) == 0

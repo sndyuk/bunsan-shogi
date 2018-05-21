@@ -39,29 +39,30 @@ object Main extends App {
       }
     }
 
-  if (false) {
+  if (true) {
     // Orion DB
     HashStorage.start
-    val storage = new HashStorage[String, Number]()
+    val storage = new HashDocument[Int, String]("TestDoc17")
+    val p = Utils.plans(board2, State(), true).toList
     println()
 
     {
       val start = System.currentTimeMillis()
       for (i <- 0 until 10000) {
-        storage += 1.toString -> 1
+        storage.put(i % p.length, p(i % p.length).toString)
       }
       println((System.currentTimeMillis() - start))
     }
     {
       val start = System.currentTimeMillis()
-      for (i <- 0 until 100) {
-        storage(i.toString)
+      for (i <- 0 until 10000) {
+        assert(storage.get(i % p.length).isDefined)
       }
       println((System.currentTimeMillis() - start))
     }
   }
 
-  if (true) {
+  if (false) {
     // Warm up
     for (i <- 0 to 50000) {
       val plans = Utils.plans(board2, State(), true)
@@ -114,8 +115,8 @@ object Main extends App {
       val plans = Utils.plans(defaultBoard, state, false)
       plans.foreach { p =>
         count += 1
-//        val s = board.move(state, p.oldPos, p.newPos, false, p.nari)
-//        board.rollback(s)
+        //        val s = board.move(state, p.oldPos, p.newPos, false, p.nari)
+        //        board.rollback(s)
       }
     }
 
@@ -128,8 +129,8 @@ object Main extends App {
       val plans = Utils.plans(board, state, false)
       plans.foreach { p =>
         count2 += 1
-//        val s = board.move(state, p.oldPos, p.newPos, false, p.nari)
-//        board.rollback(s)
+        //        val s = board.move(state, p.oldPos, p.newPos, false, p.nari)
+        //        board.rollback(s)
       }
       //      if (i == 0) {
       //        plans.filter { t => !Point.isCaptured(t.oldPos) }.foreach { println(_) }
@@ -166,6 +167,5 @@ object Main extends App {
     // Loop: 300,000 移動込
     // 初期盤面: count: 9000000, 2859, 3147953/sec
     // 中盤盤面: count: 54600000, 10324, 5288647/sec
-
   }
 }

@@ -3,14 +3,7 @@ package jp.sndyuk.shogi.core
 import scala.annotation.tailrec
 import scala.util.Random
 
-import jp.sndyuk.shogi.core.Piece.generalize
-import jp.sndyuk.shogi.core.Piece.isPromoted
-import jp.sndyuk.shogi.core.Piece.toBePromoted
-import jp.sndyuk.shogi.core.Piece.{ ▲ => ▲ }
-import jp.sndyuk.shogi.core.Piece.{ ▲△ => ▲△ }
-import jp.sndyuk.shogi.core.Piece.{ △ => △ }
-import jp.sndyuk.shogi.core.Piece.{ ◯ => ◯ }
-import jp.sndyuk.shogi.core.Piece.{ ❏ => ❏ }
+import jp.sndyuk.shogi.core.Piece._
 
 object Rule {
 

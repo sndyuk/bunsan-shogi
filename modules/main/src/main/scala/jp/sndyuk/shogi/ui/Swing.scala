@@ -29,10 +29,7 @@ import jp.sndyuk.shogi.core.Block
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
 import jp.sndyuk.shogi.core.Piece
-import jp.sndyuk.shogi.core.Piece.generalize
-import jp.sndyuk.shogi.core.Piece.{ ▲ => ▲ }
-import jp.sndyuk.shogi.core.Piece.{ △ => △ }
-import jp.sndyuk.shogi.core.Piece.{ ◯ => ◯ }
+import jp.sndyuk.shogi.core.Piece._
 import jp.sndyuk.shogi.core.PlayerA
 import jp.sndyuk.shogi.core.PlayerB
 import jp.sndyuk.shogi.core.Point
@@ -286,8 +283,8 @@ object Swing extends SimpleSwingApplication with Shogi {
       reactions += {
         case ButtonClicked(source) =>
           if (currState != null && !currState.history.isEmpty) {
-            val (win, _, depth) = Utils.simulateTsumero(board, currState, turn, 3)
-            println(s"詰: $win")
+            val tsumi = Utils.isTsumero(board, currState, turn, 3)
+            println(s"詰: $tsumi")
           } else {
             println(s"詰: 0")
           }

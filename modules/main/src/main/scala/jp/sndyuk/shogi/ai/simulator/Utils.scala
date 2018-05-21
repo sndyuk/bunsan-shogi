@@ -74,21 +74,21 @@ object Utils {
   }
 
   // 詰めろであることを証明する
-  def simulateTsumero(board: Board, nextState: State, playerTurn: Turn, tsumeroMaxDepth: Int): (Int, Int, Int) = {
+  def isTsumero(board: Board, nextState: State, playerTurn: Turn, tsumeroMaxDepth: Int): Boolean = {
     val boardCp = board.copy()
     val prevState = boardCp.rollback(nextState)
-    simulateTsumero(boardCp, prevState, nextState.history.head, playerTurn, nextState.history.length, 0, Math.min(nextState.history.length, tsumeroMaxDepth))
+    isTsumero(boardCp, prevState, nextState.history.head, playerTurn, nextState.history.length, 0, Math.min(nextState.history.length, tsumeroMaxDepth))
   }
-  @tailrec private def simulateTsumero(board: Board, nextState: State, transition: Transition, playerTurn: Turn, depth: Int, tsumeroDepth: Int, tsumeroMaxDepth: Int): (Int, Int, Int) = {
+  @tailrec private def isTsumero(board: Board, nextState: State, transition: Transition, playerTurn: Turn, depth: Int, tsumeroDepth: Int, tsumeroMaxDepth: Int): Boolean = {
     if (tsumeroDepth >= tsumeroMaxDepth) {
-      (1, 1, depth)
+      true
     } else if (nextState.turn != playerTurn && !Utils.isCaptureOuAtNextTurn(transition, nextState, board)) {
       // 王手になっていなければ無効な手とする
-      (0, 1, depth)
+      false
     } else {
       val boardCp = board.copy()
       val prevState = boardCp.rollback(nextState)
-      simulateTsumero(boardCp, prevState, nextState.history.head, playerTurn, depth + 1, tsumeroDepth + 1, tsumeroMaxDepth)
+      isTsumero(boardCp, prevState, nextState.history.head, playerTurn, depth + 1, tsumeroDepth + 1, tsumeroMaxDepth)
     }
   }
 

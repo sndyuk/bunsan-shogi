@@ -83,7 +83,7 @@ object CSAParser extends RegexParsers {
       }
     }
 
-  private def moves: Parser[Moves] = rep(move) ^^ Moves
+  private def moves: Parser[List[KifuStatement]] = rep(move)
 
   // 特殊な指し手
   private def specialMove: Parser[KifuStatement] = "%" ~> s"$char+".r <~ sep ^^ SpMove
@@ -94,8 +94,8 @@ object CSAParser extends RegexParsers {
   // コメント
   private def comment: Parser[List[Comment]] = rep(s"'$char*".r <~ sep ^^ Comment)
 
-  private def statement: Parser[Kifu] = comment.? ~> version.? ~ kifDataFactors ~ startState ~ moves.? <~ comment.? ^^ {
-    case version ~ kifDataFactors ~ startState ~ moves => Kifu(version, kifDataFactors, startState, moves)
+  private def statement: Parser[Kifu] = comment.? ~> version.? ~ kifDataFactors ~ startState ~ moves <~ comment.? ^^ {
+    case version ~ kifDataFactors ~ startState ~ moves => Kifu(version, kifDataFactors, startState, moves, moves.collectFirst { case Move(p, _, _, _, _) => p }.get)
 
   }
   private def kifu: Parser[Kifu] = statement

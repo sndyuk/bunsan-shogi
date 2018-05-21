@@ -1,25 +1,21 @@
 package jp.sndyuk.shogi.kifu
 
-import scala.annotation.migration
 import scala.util.parsing.combinator.RegexParsers
+import jp.sndyuk.shogi.ai.simulator.Utils
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
 import jp.sndyuk.shogi.core.PlayerA
 import jp.sndyuk.shogi.core.PlayerB
 import jp.sndyuk.shogi.core.Point
 import jp.sndyuk.shogi.core.State
-import scala.io.Source
-import jp.sndyuk.shogi.core.Rule
-import jp.sndyuk.shogi.ai.simulator.Utils
-import jp.sndyuk.shogi.core.Transition
+import jp.sndyuk.shogi.core.Turn
+import jp.sndyuk.shogi.core.PlayerA
 
 object KI2Parser extends App {
-  def parse(lines: Iterator[String]) = {
+  def parse(lines: Iterator[String]): KI2Parser#ParseResult[Kifu] = {
     val parser = new KI2Parser
     parser.parse(lines)
   }
-
-  parse(Source.fromFile("龍王戦2014-27_1 藤井深浦.ki2", "windows-31j").getLines)
 }
 
 class KI2Parser(board: Board = Board()) extends RegexParsers {
@@ -51,7 +47,7 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
   private def move: Parser[Move] =
     ("▲" | "△") ~ ("１" | "２" | "３" | "４" | "５" | "６" | "７" | "８" | "９" | "同") ~ ("一" | "二" | "三" | "四" | "五" | "六" | "七" | "八" | "九").? ~
       "　".? ~ ("玉" | "歩" | "金" | "銀" | "飛" | "角" | "桂" | "香" | "と" | "成銀" | "龍" | "馬" | "成桂" | "成香") ~
-      ("右" | "左" | "直" | "寄" | "引" | "打").? ~ ("右" | "左" | "直" | "引" | "寄").? ~ ("成" | "不成").? ~ ("    " | "  ").? ~ sep.? ^^ {
+      ("右" | "左" | "直" | "寄" | "引" | "打" | "上").? ~ ("右" | "左" | "直" | "引" | "寄" | "上").? ~ ("成" | "不成").? ~ ("    " | "  ").? ~ sep.? ^^ {
         case p ~ x ~ yOpt ~ _ ~ pieceStr ~ detailOpt1 ~ detailOpt2 ~ nariOpt ~ _ ~ _ => {
           val turn = if (p == "▲") PlayerA else PlayerB
           val newPos = if (x == "同") {
@@ -125,45 +121,61 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
                     Some(point)
                   } else currOpt
                 } else {
-                  if (right && ((turn == PlayerA && point.x > curr.x) || (turn == PlayerB && point.x < curr.x))) {
-                    Some(point)
-                  } else if (left && ((turn == PlayerA && point.x < curr.x) || (turn == PlayerB && point.x > curr.x))) {
-                    Some(point)
-                  } else if (up && ((turn == PlayerA && point.y > curr.y) || (turn == PlayerB && point.y < curr.y))) {
-                    Some(point)
-                  } else if (near && point.y == newPos.y) {
-                    Some(point)
-                  } else if (down && ((turn == PlayerA && point.y < curr.y) || (turn == PlayerB && point.y > curr.y))) {
-                    Some(point)
-                  } else if (side && point.x == newPos.x) {
-                    Some(point)
+                  if (right) {
+                    if ((turn == PlayerA && point.x > curr.x) || (turn == PlayerB && point.x < curr.x)) {
+                      Some(point)
+                    } else currOpt
+                  } else if (left) {
+                    if ((turn == PlayerA && point.x < curr.x) || (turn == PlayerB && point.x > curr.x)) {
+                      Some(point)
+                    } else currOpt
+                  } else if (up) {
+                    if ((turn == PlayerA && point.y > curr.y) || (turn == PlayerB && point.y < curr.y)) {
+                      Some(point)
+                    } else currOpt
+                  } else if (near) {
+                    if (point.x == newPos.x) {
+                      Some(point)
+                    } else currOpt
+                  } else if (down) {
+                    if ((turn == PlayerA && point.y < curr.y) || (turn == PlayerB && point.y > curr.y)) {
+                      Some(point)
+                    } else currOpt
+                  } else if (side) {
+                    if (point.y == newPos.y) {
+                      Some(point)
+                    } else currOpt
                   } else if (nari && transition.nari) {
                     Some(point)
                   } else currOpt
                 }
               }
             }.get
-          } else candidates.head.oldPos
+          } else {
+            candidates.head.oldPos
+          }
 
           s = board.move(s, oldPos, newPos, true, nari)
-          Move(turn, oldPos, newPos, piece, None)
+          Move(turn, oldPos, newPos, if (nari) Piece.toBePromoted(piece) else piece, None)
         }
       }
 
-  private def moves: Parser[Moves] = rep(move) ^^ Moves
+  private def moves: Parser[List[Move]] = rep(move)
 
-  // 特殊な指し手
-  private def specialMove: Parser[KifuStatement] = "%" ~> s"$char+".r <~ sep ^^ SpMove
+  private def comment: Parser[String] = s"\\*$char*".r <~ sep
 
-  private def statement: Parser[Kifu] = kifDataFactors ~ sep ~ moves.? ^^ {
-    case kifDataFactors ~ _ ~ moves => Kifu(None, kifDataFactors, StartState(None, None, None, "+"), moves)
+  private def winner: Parser[Turn] = s"まで[0-9]+手で".r ~ ("先手" | "後手") ~ "の勝ち" ^^ {
+    case _ ~ p ~ _ =>
+      if (p == "先手") PlayerA else PlayerB
+  }
+
+  private def statement: Parser[Kifu] = kifDataFactors ~ sep ~ rep(comment).? ~ moves ~ rep(comment).? ~ winner ^^ {
+    case kifDataFactors ~ _ ~ _ ~ moves ~ _ ~ winner => Kifu(None, kifDataFactors, StartState(None, None, None, "+"), moves, winner)
 
   }
   private def kifu: Parser[Kifu] = statement
 
   def parse(lines: Iterator[String]): ParseResult[Kifu] = {
-    val a = lines.mkString(",")
-    println(a)
-    parseAll(kifu, a)
+    parseAll(kifu, lines.mkString(","))
   }
 }

@@ -1,60 +1,91 @@
 package jp.sndyuk.shogi.algorithm.core
 
-import com.orientechnologies.orient.server.OServerMain
-import com.orientechnologies.orient.`object`.db.OObjectDatabaseTx
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
-import com.orientechnologies.orient.core.sql.query.OResultSet
-import com.orientechnologies.orient.core.record.ORecord
-import com.orientechnologies.orient.core.record.ORecordStringable
-import com.orientechnologies.orient.core.record.impl.ORecordBytes
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.reflect.ClassTag
+
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
+import com.orientechnologies.orient.core.db.record.OTrackedList
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.query.OResultSet
+import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
+import com.orientechnologies.orient.server.OServerMain
+import scala.collection.JavaConverters._
 
-class HashStorage[K, V] {
-  val db: ODatabaseDocumentTx = new ODatabaseDocumentTx("remote:localhost/databases/shogi_v2").open("root", "1234")
-  val docName = "Board"
-  val queryFindSingleResult: OSQLSynchQuery[ODocument] = new OSQLSynchQuery[ODocument](s"select v from $docName where k = ? limit 1")
+import jp.sndyuk.shogi.core.config
 
-  private[core] def onStart(): Unit = {
-    val schema = db.getMetadata().getSchema().getClass(docName)
+class HashDocument[K, V](docName: String)(implicit kTag: ClassTag[K], vTag: ClassTag[V]) {
+  import HashStorage._
+
+  val db: ODatabaseDocumentTx = new ODatabaseDocumentTx(s"remote:localhost/databases/shogi_$version").open("root", "1234")
+  val queryFind: OSQLSynchQuery[ODocument] = new OSQLSynchQuery[ODocument](s"select from $docName where k = ? limit 1")
+  val array = vTag.runtimeClass.isArray()
+  val componentType = vTag.runtimeClass.getComponentType
+
+  def onStart(): Unit = {
+    var schema = db.getMetadata().getSchema().getClass(docName)
+
+    if (schema == null) {
+      schema = db.getMetadata().getSchema().createClass(docName)
+      schema.createProperty("k", OType.getTypeByClass(kTag.runtimeClass))
+      schema.createProperty("v", OType.getTypeByClass(vTag.runtimeClass))
+    }
     if (!schema.areIndexed("k")) {
-      schema.createIndex("k", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX)
+      schema.createIndex(s"$docName-kIdx", OClass.INDEX_TYPE.UNIQUE_HASH_INDEX, "k")
     }
   }
 
   def close(): Unit = {
     db.close()
   }
+
   sys.ShutdownHookThread {
     close()
   }
+  onStart()
 
-  def +=(kv: (K, V)) = {
-    if (!contains(kv._1)) {
+  def put(k: K, v: V): Unit = {
+    val iter = getResult(k).iterator()
+    if (iter.hasNext()) {
+      val doc = iter.next()
+      doc.field("v", v)
+      doc.save()
+    } else {
       val doc = new ODocument(docName)
-      doc.field("k", kv._1)
-      doc.field("v", kv._2)
+      doc.field("k", k)
+      doc.field("v", v)
       doc.save()
     }
   }
 
-  def contains(key: K): Boolean = {
-    val result: OResultSet[ODocument] = db.command(queryFindSingleResult).execute(key.asInstanceOf[Object])
-    result.iterator().hasNext()
+  def commit(): Unit = {
+    db.commit()
   }
 
-  def apply(key: K): Option[V] = {
-    val result: OResultSet[ODocument] = db.command(queryFindSingleResult).execute(key.asInstanceOf[Object])
-    val iter = result.iterator()
+  private def getResult(key: K): OResultSet[ODocument] = db.query(queryFind, key.asInstanceOf[Object])
+
+  def contains(key: K): Boolean = {
+    getResult(key).iterator().hasNext()
+  }
+
+  def get(key: K): Option[V] = {
+    val iter = getResult(key).iterator()
     if (iter.hasNext()) {
-      val doc = iter.next()
-      Some(doc.field("v"))
+      val doc = iter.next().field[V]("v")
+      if (array) {
+        if (componentType == classOf[Long]) {
+          Some(Array(doc.asInstanceOf[OTrackedList[Long]].asScala: _*).asInstanceOf[V])
+        } else if (componentType == classOf[Int]) {
+          Some(Array(doc.asInstanceOf[OTrackedList[Int]].asScala: _*).asInstanceOf[V])
+        } else {
+          Some(Array(doc.asInstanceOf[OTrackedList[Double]].asScala: _*).asInstanceOf[V])
+        }
+      } else Some(doc)
     } else {
       None
     }
@@ -62,13 +93,14 @@ class HashStorage[K, V] {
 }
 
 object HashStorage {
+  val version = config.getString("shogi.struct-version")
 
-  def start(): Unit = {
+  def start: Unit = {
     import ExecutionContext.Implicits.global
     val latch = new CountDownLatch(1)
     val f = Future {
       val server = OServerMain.create()
-      server.startup("""
+      server.startup(s"""
       <orient-server>
         <network>"
           <protocols>
@@ -91,16 +123,12 @@ object HashStorage {
         <storages>
           <storage
               name="shogi_board"
-              path="plocal:./databases/shogi_v2"
+              path="plocal:./databases/shogi_$version"
               loaded-at-startup="true" />
         </storages>
       </orient-server>
     """)
       server.activate()
-
-      val db = new HashStorage()
-      db.onStart()
-      db.close()
 
       latch.countDown()
       sys.ShutdownHookThread {
@@ -108,5 +136,6 @@ object HashStorage {
       }
     }
     latch.await(30, TimeUnit.SECONDS)
+    println()
   }
 }

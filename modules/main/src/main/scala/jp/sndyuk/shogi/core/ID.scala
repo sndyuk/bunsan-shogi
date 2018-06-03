@@ -19,7 +19,7 @@ class ID(
   private val v5: Long, // ...
   private val v6: Long, // ...
   private val v7: Long, // squares.bits(6)
-  private val v8: Long // capturedPieces    
+  private val v8: Long // capturedPieces
   ) {
 
   override val hashCode: Int =

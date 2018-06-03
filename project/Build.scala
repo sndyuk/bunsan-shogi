@@ -42,7 +42,7 @@ object ApplicationBuild extends Build {
       "com.typesafe" % "config" % "1.3.3",
       "org.scala-lang" % "scala-compiler" % appScalaVersion,
       "org.scala-lang" % "scala-reflect" % appScalaVersion,
-      "org.scala-lang.modules" %% "scala-swing" % "2.0.2",
+      "org.scala-lang.modules" %% "scala-swing" % "2.0.3",
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-kernel" % akkaVersion,
       "com.typesafe.akka" %% "akka-remote" % akkaVersion)

@@ -1,8 +1,11 @@
+.DS_Store
 /**/target/
 /**/.settings/
 .classpath
 .cache
 /**/.project
 **/*.log
-
+.idea
+.cache-main
+.cache-tests
 modules/main/databases

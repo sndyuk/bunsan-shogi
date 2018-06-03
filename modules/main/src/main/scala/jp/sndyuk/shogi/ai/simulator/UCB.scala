@@ -14,11 +14,8 @@ import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.core.Turn
 
 class UCB extends AI {
-  private val rnd = new Random(666667)
-
   private val size = 1
-  private var maxDepth = 71
-  private val depthOverMaxDepth = 10
+  private var maxDepth = 255
 
   // overflowStart: 30, k: 10
   // 5,000,000: 1.3G MEM, 11.5sec
@@ -40,11 +37,12 @@ class UCB extends AI {
   // Board, Transition, Depth, Index of acc
   type BS = (Board, State, Transition, Int, Int)
 
-  // _1 = [ loose: 0 | win: 1 ]
-  // _2 = branch size
   private def simulate(board: Board, state: State, player: Turn, plans: List[Transition]): Transition = {
     val start = System.currentTimeMillis
 
+    // _1 = [ loose: 0 | win: 1 ]
+    // _2 = branch size
+    // _3 = Transition
     val acc = plans.map((0, 0, _)).toArray
     val queue = new ArrayDeque[BS](Math.min(Math.pow(overflowStartK, overflowStart), maxBoardCount).toInt) 
     plans.zipWithIndex.foreach { p =>
@@ -63,7 +61,7 @@ class UCB extends AI {
 
     score.foreach { println _ }
     val msec = System.currentTimeMillis - start
-    println(s"Selected: $max, playout: $playoutCount(${(playoutCount.toDouble / msec * 1000).toInt}/sec), board: $totalBoardCount(${(totalBoardCount.toDouble / msec * 1000).toInt}/sec), $msec")
+    println(s"Selected: $max, playout: $playoutCount(${(playoutCount.toDouble / msec * 1000).toInt}/sec), board: $totalBoardCount(${(totalBoardCount.toDouble / msec * 1000).toInt}/sec), Elapsed: ${msec / 1000} sec")
 
     max._3
   }
@@ -117,14 +115,16 @@ class UCB extends AI {
   }
 
   private[ai] def next(board: Board, state: State, plans: List[Transition]): Transition = {
-    if ((state.history.length + depthOverMaxDepth) > maxDepth) {
-      maxDepth += depthOverMaxDepth
-    }
+    // Get OU if it can.
     val ou = Utils.findTransitionCaputuringOu(plans, state, board)
     if (ou.isDefined) {
       return ou.get
     }
 
+    if ((state.history.length + 1) > maxDepth) {
+      println("Unexpected depth")
+      maxDepth += 1
+    }
     simulate(board, state, PlayerB, plans)
   }
 }

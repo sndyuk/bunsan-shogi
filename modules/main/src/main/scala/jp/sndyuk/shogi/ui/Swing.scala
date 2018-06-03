@@ -429,7 +429,7 @@ object Swing extends SimpleSwingApplication with Shogi {
   private def chooseIfPieceCanBePromoted(piece: Piece, oldPos: Point, newPos: Point): Boolean = {
     if (Rule.canBePromoted(board, oldPos, newPos, piece)) {
       if (Rule.canMoveAtNextTurn(piece, newPos)) {
-        Dialog.showConfirmation(title = "成駒確認", message = "成りますか。") == Dialog.Result.Yes
+        Dialog.showConfirmation(title = "成駒確認", message = "成りますか。") == Dialog.Result.Ok
       } else {
         true
       }

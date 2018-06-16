@@ -113,8 +113,8 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
     if (▲△(piece, turn)) Block(point, piece) :: xs else xs
   }
 
-  private class EmptyPointIterator(random: Boolean) extends Iterator[Point] {
-    private var rest = if (random) Random.shuffle(allPoints) else allPoints
+  private class EmptyPointIterator() extends Iterator[Point] {
+    private var rest = allPoints
     private var nextPoint: Point = _
     private var full = false
     def next: Point = {
@@ -140,7 +140,7 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
       }
     }
   }
-  def allEmptyPoints(random: Boolean): Iterator[Point] = new EmptyPointIterator(random)
+  def allEmptyPoints(): Iterator[Point] = new EmptyPointIterator()
 
   def copy(): Squares = {
     new Squares(bits.copy())
@@ -322,7 +322,7 @@ object Board {
   }
 }
 
-case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = CapturedPieces()) {
+case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = CapturedPieces(), var freeze: Boolean = false) {
   import Board._
 
   def init(): Unit = {
@@ -333,6 +333,11 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   def init2(pieces: Seq[Seq[Piece]], captured: Seq[(Piece, Int)] = Nil): Unit = {
     pieces.zipWithIndex.foreach { case (row, y) => row.zipWithIndex.foreach { case (piece, x) => squares <+ (piece, (y, x)) } }
     captured.foreach { case (p, c) => for (i <- 1 to c) capturedPieces.put(p) }
+  }
+
+  lazy val id: ID = {
+    freeze = true
+    ID(this)
   }
 
   def allBlocks: Seq[Block] = {
@@ -363,6 +368,7 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   }
 
   def move(state: State, oldPos: Point, newPos: Point, validation: Boolean, nari: Boolean): State = {
+    if (freeze) throw new IllegalStateException
     val pieceOldPos = pieceOnBoardNotEmpty(newPos)
     if (!move(oldPos, newPos, state.turn, validation, nari)) {
       throw new IllegalStateException(s"Cound not move $oldPos to $newPos, Turn: ${state.turn}")
@@ -371,6 +377,7 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   }
 
   def moveOpt(state: State, oldPos: Point, newPos: Point, validation: Boolean, nari: Boolean): Option[State] = {
+    if (freeze) throw new IllegalStateException
     val pieceOldPos = pieceOnBoardNotEmpty(newPos)
     if (!move(oldPos, newPos, state.turn, validation, nari)) {
       None
@@ -387,6 +394,7 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
 
   // true: 移動, false: 移動不可
   private def move(oldPos: Point, newPos: Point, turn: Turn, validation: Boolean, nari: Boolean = false): Boolean = {
+    if (freeze) throw new IllegalStateException
     val p = piece(oldPos, turn)
     if (!validation || Rule.canMove(this, p, oldPos, newPos, turn, nari)) {
       if (Point.isCaptured(oldPos)) {
@@ -401,6 +409,7 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   }
 
   private def moveRollback(transition: Transition, turn: Turn): Unit = {
+    if (freeze) throw new IllegalStateException
     if (Point.isCaptured(transition.oldPos)) {
       capturedPieces.put(capturedPieces.pointToPiece(transition.oldPos, turn.change))
       squares.setAndGet(❏, transition.newPos)
@@ -416,7 +425,7 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
     capturedPieces.allPieceKinds(turn) ::: squares.allPieces(turn)
   }
 
-  def allEmptyPoints(random: Boolean): Iterator[Point] = squares.allEmptyPoints(random)
+  def allEmptyPoints(): Iterator[Point] = squares.allEmptyPoints()
   def isFinish(turn: Turn): Boolean = capturedPieces.count(turn, ◯.OU) != 0
   def isFinish(): Boolean = isFinish(PlayerA) || isFinish(PlayerB)
   def isCaptured(pos: Point) = Point.isCaptured(pos)
@@ -436,12 +445,9 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
    * 1手巻き戻す.
    */
   def rollback(state: State): State = {
+    if (freeze) throw new IllegalStateException
     moveRollback(state.history.head, state.turn.change)
     state.previous
-  }
-
-  def id(): String = {
-    squares.id() + capturedPieces.id()
   }
 
   def getString(p: Point): String = pieceString(squares.get(p))

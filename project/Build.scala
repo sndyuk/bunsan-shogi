@@ -29,13 +29,12 @@ object ApplicationBuild extends Build {
       "-encoding", "utf-8")
 
       val akkaVersion = "2.4.20"
-      val orientdbVersion = "2.1.25"
+      val orientdbVersion = "2.2.35"
 
   val appDependencies = Seq(
       "org.scalatest" %% "scalatest" % "2.2.6" % "test",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
       "com.twitter" %% "util-core" % "18.5.0",
-      "com.orientechnologies" % "orientdb-enterprise" % orientdbVersion,
       "com.orientechnologies" % "orientdb-object" % orientdbVersion,
       "com.orientechnologies" % "orientdb-server" % orientdbVersion,
       "com.orientechnologies" % "orientdb-client" % orientdbVersion,

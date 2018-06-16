@@ -43,7 +43,7 @@ object Main extends App {
     // Orion DB
     HashStorage.start
     val storage = new HashDocument[Int, String]("TestDoc17")
-    val p = Utils.plans(board2, State(), true).toList
+    val p = Utils.plans(board2, State()).toList
     println()
 
     {
@@ -65,7 +65,7 @@ object Main extends App {
   if (false) {
     // Warm up
     for (i <- 0 to 50000) {
-      val plans = Utils.plans(board2, State(), true)
+      val plans = Utils.plans(board2, State())
     }
 
     // 198手
@@ -112,7 +112,7 @@ object Main extends App {
     var count = 0
     val state = State(Nil, PlayerB)
     for (i <- 0 until 100000) {
-      val plans = Utils.plans(defaultBoard, state, false)
+      val plans = Utils.plans(defaultBoard, state)
       plans.foreach { p =>
         count += 1
         //        val s = board.move(state, p.oldPos, p.newPos, false, p.nari)
@@ -126,7 +126,7 @@ object Main extends App {
     val start2 = System.currentTimeMillis()
     var count2 = 0
     for (i <- 0 until 100000) {
-      val plans = Utils.plans(board, state, false)
+      val plans = Utils.plans(board, state)
       plans.foreach { p =>
         count2 += 1
         //        val s = board.move(state, p.oldPos, p.newPos, false, p.nari)
@@ -144,7 +144,7 @@ object Main extends App {
     var q = Queue[Board]()
 
     for (i <- 0 until 1) {
-      val plans = Utils.plans(board, state, true)
+      val plans = Utils.plans(board, state)
       plans.foreach { p =>
         count3 += 1
         println(p)

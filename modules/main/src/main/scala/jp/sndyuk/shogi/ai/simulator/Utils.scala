@@ -12,8 +12,8 @@ import jp.sndyuk.shogi.core.Turn
 
 object Utils {
 
-  private class MovePointIterator(board: Board, state: State, availableBlocks: List[Block], includePromoted: Boolean, random: Boolean) extends Iterator[Transition] {
-    private var rest = if (random) Random.shuffle(availableBlocks) else availableBlocks
+  private class MovePointIterator(board: Board, state: State, availableBlocks: List[Block], includePromoted: Boolean) extends Iterator[Transition] {
+    private var rest = availableBlocks
     private var nextMove: Transition = _
     private var cache: Iterator[Transition] = _
     private var full = false
@@ -32,7 +32,7 @@ object Utils {
         rest match {
           case Block(point, piece) :: xs =>
             rest = xs
-            cache = Rule.generateMovablePoints(board, point, piece, state.turn, true, random).map {
+            cache = Rule.generateMovablePoints(board, point, piece, state.turn, true).map {
               case (newPos, nari) => Transition(point, newPos, nari, None)
             }
             hasNext
@@ -46,14 +46,14 @@ object Utils {
     }
   }
 
-  def plans(board: Board, state: State, random: Boolean): Iterator[Transition] = {
+  def plans(board: Board, state: State): Iterator[Transition] = {
     val pieces = board.allMovablePieces(state.turn)
-    new MovePointIterator(board, state, pieces, true, random)
+    new MovePointIterator(board, state, pieces, true)
   }
 
   private def isCaptureOuAtNextTurn(transition: Transition, state: State, board: Board): Boolean = {
     val nextState = board.move(state, transition.oldPos, transition.newPos, false, transition.nari)
-    val nextTransitions = plans(board, nextState, true)
+    val nextTransitions = plans(board, nextState)
     val result = findTransitionCaputuringOu(nextTransitions, nextState, board).isDefined
 
     board.rollback(nextState)

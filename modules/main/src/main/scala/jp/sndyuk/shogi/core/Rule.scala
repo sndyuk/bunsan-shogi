@@ -20,7 +20,7 @@ object Rule {
       false
     } else {
       isValidPosition(board, piece, newPos, true) &&
-        generateMovablePoints(board, oldPos, piece, turn, false, true).exists(_._1 == newPos) &&
+        generateMovablePoints(board, oldPos, piece, turn, false).exists(_._1 == newPos) &&
         (!nari || canBePromoted(board, oldPos, newPos, piece))
     }
   }
@@ -28,19 +28,19 @@ object Rule {
   /**
    * 駒が移動可能な場所を返す
    */
-  def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn, includePromoted: Boolean, random: Boolean): Iterator[Move] = {
+  def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn, includePromoted: Boolean): Iterator[Move] = {
     val scopes = movableScopes(piece)
     (if (Point.isCaptured(oldPos)) {
-      board.allEmptyPoints(random).filter { np =>
+      board.allEmptyPoints().filter { np =>
         !is2FU(board, piece, np, turn) && canMoveAtNextTurn(np, scopes)
       }.map { (_, false) }
     } else {
-      generateMovePoints(board, piece, oldPos, turn, includePromoted, scopes, scopes, random)
+      generateMovePoints(board, piece, oldPos, turn, includePromoted, scopes, scopes)
     })
   }
 
-  private class MovePointIterator(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope], random: Boolean) extends Iterator[Move] {
-    private var rest = if (random) Random.shuffle(originalScopes) else originalScopes
+  private class MovePointIterator(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope]) extends Iterator[Move] {
+    private var rest =  originalScopes
     private var nextMove: Move = _
     private var cache: List[Move] = Nil
     private var full = false
@@ -80,14 +80,8 @@ object Rule {
               f(oldPos, true, Nil) match {
                 case Nil => hasNext
                 case l =>
-                  if (random) {
-                    val sl = Random.shuffle(l)
-                    nextMove = sl.head
-                    cache = sl.tail
-                  } else {
-                    nextMove = l.head
-                    cache = l.tail
-                  }
+                  nextMove = l.head
+                  cache = l.tail
                   full = true
                   true
               }
@@ -117,8 +111,8 @@ object Rule {
     }
   }
 
-  private def generateMovePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope], random: Boolean): Iterator[Move] = {
-    new MovePointIterator(board, piece, oldPos, turn, includePromoted, scopes, originalScopes, random)
+  private def generateMovePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope]): Iterator[Move] = {
+    new MovePointIterator(board, piece, oldPos, turn, includePromoted, scopes, originalScopes)
   }
 
   private def canMoveIfPromoted(piece: Piece, oldPos: Point, newPos: Point): Boolean = {

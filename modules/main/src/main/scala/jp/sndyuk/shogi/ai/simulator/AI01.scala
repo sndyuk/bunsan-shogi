@@ -10,20 +10,18 @@ import jp.sndyuk.shogi.algorithm.core.HashStorage
 
 class AI01 extends AI {
 
-  private val ucb = new UCB()
-
   HashStorage.start
 
   def next(board: Board, state: State): Transition = {
     val id = ID(board)
     val transitions = KifuStrage.nextTransitions.getEffectiveTransitions(id, 1)
-    val plans = Utils.plans(board, state, true).toList
+    val plans = Utils.plans(board, state).toList
     transitions match {
       case x :: xs => {
         println(s"Found effective transition: $x")
         x
       }
-      case _ => ucb.next(board, state, plans)
+//      case _ => ucb.next(board, state, plans)
     }
   }
 }

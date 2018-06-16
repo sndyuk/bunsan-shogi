@@ -22,7 +22,7 @@ class ID(
   private val v8: Long // capturedPieces
   ) {
 
-  override val hashCode: Int =
+  override lazy val hashCode: Int =
     ((v1 ^ (v1 >>> 32)).toInt * 31) +
       ((v2 ^ (v2 >>> 32)).toInt * 31) +
       ((v3 ^ (v3 >>> 32)).toInt * 31) +
@@ -47,5 +47,7 @@ class ID(
         oid.v7 == v7
     }
   }
-  override val toString = Integer.toHexString(hashCode)
+
+  
+  override lazy val toString = Integer.toHexString(hashCode)
 }

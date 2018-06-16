@@ -8,34 +8,17 @@ import scala.util.Random
 
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.ID
+import jp.sndyuk.shogi.core.PlayerA
 import jp.sndyuk.shogi.core.PlayerB
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.core.Turn
+import scala.collection.mutable.PriorityQueue
 
-class UCB extends AI {
-  private val size = 1
-  private var maxDepth = 255
+case class BS(board: Board, state: State, transition: Transition, depth: Int, index: Int)
 
-  // overflowStart: 30, k: 10
-  // 5,000,000: 1.3G MEM, 11.5sec
-  // 1,000,000: 12sec
-  private val maxBoardCount = 10000000
-
-  // 最後のn手を探索
-  private val overflowEnd = 3
-  private val overflowEndK = 4
-
-  // 最初の探索
-  private val overflowStart = 4
-  private val overflowStartK = 30
-
-  private val tsumeroMaxDepth = 3
-
-  private val validate = false
-
-  // Board, Transition, Depth, Index of acc
-  type BS = (Board, State, Transition, Int, Int)
+class UCB(private val priority: Ordering[BS], private val maxQueueSize: Int = 1000) extends AI {
+  private var maxDepth = 100
 
   private def simulate(board: Board, state: State, player: Turn, plans: List[Transition]): Transition = {
     val start = System.currentTimeMillis
@@ -44,73 +27,57 @@ class UCB extends AI {
     // _2 = branch size
     // _3 = Transition
     val acc = plans.map((0, 0, _)).toArray
-    val queue = new ArrayDeque[BS](Math.min(Math.pow(overflowStartK, overflowStart), maxBoardCount).toInt) 
+    val queue = new PriorityQueue[BS]()(priority)
     plans.zipWithIndex.foreach { p =>
-      queue.addLast((board, state, p._1, 0, p._2))
+      queue += BS(board, state, p._1, 0, p._2)
     }
-    val checkedSet = HashSet(ID(board))
-    val totalBoardCount = simulate(player, checkedSet, queue, acc, 1, true)
+    val totalBoardCount = simulate(player, queue, acc, 1)
 
     val score = acc.map { result =>
       (result._1.toDouble / Math.max(result._2.toDouble, 1), result._2, result._3)
     }.sortBy(_._1)
 
-    val playoutCount = score.foldLeft(0) { (a, b) => a + b._2 }
     val last = score.last
     val max = score.collect { case x if x._1 == last._1 => x }.sortBy(_._2).head
 
     score.foreach { println _ }
     val msec = System.currentTimeMillis - start
-    println(s"Selected: $max, playout: $playoutCount(${(playoutCount.toDouble / msec * 1000).toInt}/sec), board: $totalBoardCount(${(totalBoardCount.toDouble / msec * 1000).toInt}/sec), Elapsed: ${msec / 1000} sec")
+    println(s"Selected: $max, total playouts: $totalBoardCount(${(totalBoardCount.toDouble / msec * 1000).toInt}/sec), Elapsed: ${msec / 1000} sec")
 
     max._3
   }
 
-  //  @tailrec private def judgeTsumi(player: Turn, checkedSet: Set[ID], acc: (Int, Int, Transition)): (Int, Int, Transition) = {
-  //    acc
-  //  }
-
-  @tailrec private def simulate(player: Turn, checkedSet: Set[ID], q: ArrayDeque[BS], acc: Array[(Int, Int, Transition)], count: Int, more: Boolean): Int = {
-    val (board, state, transition, depth, i) = q.pollFirst()
+  @tailrec private def simulate(player: Turn, q: PriorityQueue[BS], acc: Array[(Int, Int, Transition)], boardCount: Int): Int = {
+    if (q.isEmpty) {
+      return boardCount
+    }
+    val BS(board, state, transition, depth, i) = q.dequeue()
 
     val boardCp = board.copy()
     val nextState = boardCp.move(state, transition.oldPos, transition.newPos, false, transition.nari)
-    if (validate) {
-      val id = ID(boardCp)
-      if (checkedSet.contains(id)) {
-        throw new Error(s"(!) conflict: $id")
-      } else {
-        checkedSet + id
-      }
-    }
-    val score = acc(i)
-    if (boardCp.isFinish(player)) {
-      acc(i) = (if (Utils.isTsumero(boardCp, nextState, nextState.turn.change, tsumeroMaxDepth)) score._1 + 1 else 0, score._2 + 1, score._3)
-    } else if (boardCp.isFinish(player.change)) {
-      acc(i) = (score._1, score._2 + 1, score._3)
-    } else if (depth == maxDepth) {
-      acc(i) = (score._1, score._2 + 1, score._3)
-    }
-    if (count < maxBoardCount && !q.isEmpty) {
-      if (more && depth != maxDepth) {
-        val sizeK = if (depth < overflowStart) {
-          size * overflowStartK
-        } else size
 
-        val plans = Utils.plans(boardCp, nextState, true)
-        var s = 0
-        for (_ <- 0 until sizeK if plans.hasNext) {
-          s += 1
-          q.addLast((boardCp, nextState, plans.next, depth + 1, i))
+    val score = acc(i)
+    if (boardCp.isFinish(nextState.turn)) {
+      acc(i) = (if (player == nextState.turn) score._1 + 1 else score._1, score._2, score._3)
+    } else {
+      acc(i) = (score._1, score._2 + 1, score._3)
+
+      if (depth < maxDepth) {
+        val plans = Utils.plans(boardCp, nextState)
+        while (plans.hasNext) {
+          q += BS(boardCp, nextState, plans.next, depth + 1, i)
         }
-        s
+        if (q.size >= maxQueueSize) {
+          q.dropRight(maxQueueSize - q.size);
+        }
       }
-      simulate(player, checkedSet, q, acc, count + 1, !(!more || q.size() >= maxBoardCount))
-    } else count
+    }
+
+    return simulate(player, q, acc, boardCount + 1)
   }
 
   def next(board: Board, state: State): Transition = {
-    val plans = Utils.plans(board, state, true).toList
+    val plans = Utils.plans(board, state).toList
     next(board, state, plans)
   }
 
@@ -125,6 +92,6 @@ class UCB extends AI {
       println("Unexpected depth")
       maxDepth += 1
     }
-    simulate(board, state, PlayerB, plans)
+    simulate(board.copy, state, state.turn.change, plans)
   }
 }

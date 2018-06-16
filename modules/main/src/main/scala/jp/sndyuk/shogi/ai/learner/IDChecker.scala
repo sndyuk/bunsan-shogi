@@ -19,7 +19,7 @@ object IDFinder extends App {
   idMap += prevId -> prevBoard
   hashMap += prevId.hashCode -> prevBoard
 
-  val plans = Utils.plans(prevBoard, prevState, false)
+  val plans = Utils.plans(prevBoard, prevState)
 
   def onErr(msg: String, errBoard1: Board, errBoard2: Board): Unit = {
     println("Error----------------------")

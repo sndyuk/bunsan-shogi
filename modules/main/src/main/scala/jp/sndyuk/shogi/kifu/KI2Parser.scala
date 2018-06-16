@@ -98,7 +98,7 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
           }
 
           val nari = nariOpt.exists(_ == "成")
-          val plan = Utils.plans(board, s, false).toList
+          val plan = Utils.plans(board, s).toList
           val candidates = plan.filter(t => t.newPos == newPos && board.piece(t.oldPos, turn) == piece).toList
           val oldPos = if (candidates.length > 1) {
             val right = detailOpt1.exists(_ == "右") || detailOpt2.exists(_ == "右")

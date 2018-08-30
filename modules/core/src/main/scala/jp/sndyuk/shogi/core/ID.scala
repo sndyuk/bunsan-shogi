@@ -48,6 +48,5 @@ class ID(
     }
   }
 
-  
   override lazy val toString = Integer.toHexString(hashCode)
 }

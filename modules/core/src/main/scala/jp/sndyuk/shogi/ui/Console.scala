@@ -5,7 +5,6 @@ import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.AIPlayer
 import jp.sndyuk.shogi.player.Player
-import akka.actor.Actor
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.player.CommandReader

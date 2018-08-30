@@ -9,7 +9,7 @@ import scala.language.reflectiveCalls
 
 class Stady01 extends AI {
 
-  private val ucb = new UCB(Ordering.fromLessThan(_.board.id.hashCode < _.board.id.hashCode))
+  private val ucb = new UCB()
 
   def next(board: Board, state: State): Transition = {
     ucb.next(board, state)

@@ -16,21 +16,22 @@ import scala.collection.mutable.Queue
 
 case class BS(board: Board, state: State, transition: Transition, depth: Int, index: Int)
 
-class UCB(private val maxQueueSize: Int = 30000) extends AI {
+class UCB(private val maxQueueSize: Int = 40000) extends AI {
 
   private var maxDepth = 125
-  private var maxBoard = 3000000
+  private var maxBoard = 4000000
 
   private def simulate(board: Board, state: State, player: Turn, plans: List[Transition]): Transition = {
     val start = System.currentTimeMillis
 
-    // _1 = number of wins
+    // _1 = strength
     // _2 = number of playouts
     // _3 = Transition
     val acc = plans.map((0d, 0, _)).toArray
     val queue = new Queue[BS]()
+    val depth = state.history.size
     plans.zipWithIndex.foreach { p =>
-      queue += BS(board, state, p._1, 0, p._2)
+      queue += BS(board, state, p._1, depth, p._2)
     }
     val totalBoardCount = simulate(player, queue, acc, 1)
 
@@ -58,11 +59,10 @@ class UCB(private val maxQueueSize: Int = 30000) extends AI {
 
     val score = acc(i)
     if (depth == maxDepth) {
-      acc(i) = (score._1 - 1, score._2 + 1, score._3)
+      acc(i) = (score._1, score._2 + 1, score._3)
     } else if (boardCp.isFinish(state.turn)) {
-      val vote = if (player == state.turn) maxDepth - depth else -(maxDepth - depth)
-      val voted = score._1 + vote
-      acc(i) = (voted, score._2 + 1, score._3)
+      val strength = (if (player == state.turn) 1 else -1) * Math.log1p(maxDepth - depth)
+      acc(i) = (score._1 + strength, score._2 + 1, score._3)
     } else {
       acc(i) = (score._1, score._2, score._3)
 

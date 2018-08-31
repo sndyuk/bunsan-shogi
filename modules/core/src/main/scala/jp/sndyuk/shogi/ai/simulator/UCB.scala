@@ -16,10 +16,9 @@ import scala.collection.mutable.Queue
 
 case class BS(board: Board, state: State, transition: Transition, depth: Int, index: Int)
 
-class UCB(private val maxQueueSize: Int = 40000) extends AI {
+class UCB(private val maxQueueSize: Int = 30000) extends AI {
 
-  private var maxDepth = 125
-  private var maxBoard = 4000000
+  private val maxDepth = 125
 
   private def simulate(board: Board, state: State, player: Turn, plans: List[Transition]): Transition = {
     val start = System.currentTimeMillis
@@ -49,7 +48,7 @@ class UCB(private val maxQueueSize: Int = 40000) extends AI {
   }
 
   @tailrec private def simulate(player: Turn, q: Queue[BS], acc: Array[(Double, Int, Transition)], boardCount: Int): Int = {
-    if (q.isEmpty || boardCount >= maxBoard) {
+    if (q.isEmpty) {
       return boardCount
     }
     val BS(board, state, transition, depth, i) = q.dequeue
@@ -63,9 +62,7 @@ class UCB(private val maxQueueSize: Int = 40000) extends AI {
     } else if (boardCp.isFinish(state.turn)) {
       val strength = (if (player == state.turn) 1 else -1) * Math.log1p(maxDepth - depth)
       acc(i) = (score._1 + strength, score._2 + 1, score._3)
-    } else {
-      acc(i) = (score._1, score._2, score._3)
-
+    } else if (q.size < maxQueueSize) {
       val plans = Utils.plans(boardCp, nextState)
       plans.takeWhile(_ => q.size <= maxQueueSize).foreach { p =>
          q += BS(boardCp, nextState, p, depth + 1, i)
@@ -88,8 +85,7 @@ class UCB(private val maxQueueSize: Int = 40000) extends AI {
     }
 
     if ((state.history.length + 1) > maxDepth) {
-      println("Unexpected depth")
-      maxDepth += 1
+      throw new RuntimeException("Unexpected depth")
     }
     simulate(board.copy, state, state.turn, plans)
   }

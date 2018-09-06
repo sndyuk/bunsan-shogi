@@ -5,7 +5,8 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 lazy val orientdbVersion = "3.0.6"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.6"
+  scalaVersion := "2.12.6",
+  EclipseKeys.withSource := true,
 )
 
 lazy val root = (project in file("."))
@@ -29,9 +30,19 @@ lazy val core = (project in file("modules/core"))
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
       "com.twitter" %% "util-core" % "18.5.0",
       "com.typesafe" % "config" % "1.3.3",
-      "org.scala-lang.modules" %% "scala-swing" % "2.0.3",
       "ch.qos.logback" % "logback-classic" % "1.2.3",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0"
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
     )
   )
   .dependsOn(template)
+
+lazy val sample = (project in file("modules/sample"))
+  .settings(
+    commonSettings,
+    name := "bunsan-shogi-sample",
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+      "org.scala-lang.modules" %% "scala-swing" % "2.0.3",
+    )
+  )
+  .dependsOn(core)

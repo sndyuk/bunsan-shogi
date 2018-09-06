@@ -9,3 +9,4 @@
 .cache-main
 .cache-tests
 modules/main/databases
+/**/bin

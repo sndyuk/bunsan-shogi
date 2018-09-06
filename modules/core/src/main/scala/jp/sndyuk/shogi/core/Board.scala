@@ -322,7 +322,7 @@ object Board {
   }
 }
 
-case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = CapturedPieces(), var freeze: Boolean = false) {
+case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPieces = CapturedPieces(), var freeze: Boolean = false) {
   import Board._
 
   def init(): Unit = {
@@ -379,10 +379,11 @@ case class Board(squares: Squares = Squares(), capturedPieces: CapturedPieces = 
   def moveOpt(state: State, oldPos: Point, newPos: Point, validation: Boolean, nari: Boolean): Option[State] = {
     if (freeze) throw new IllegalStateException
     val pieceOldPos = pieceOnBoardNotEmpty(newPos)
-    if (!move(oldPos, newPos, state.turn, validation, nari)) {
+    if (move(oldPos, newPos, state.turn, validation, nari)) {
+      Some(State(Transition(oldPos, newPos, nari, pieceOldPos) :: state.history, state.turn.change))
+    } else {
       None
     }
-    Some(State(Transition(oldPos, newPos, nari, pieceOldPos) :: state.history, state.turn.change))
   }
 
   def piece(pos: Point, turn: Turn): Piece = if (isCaptured(pos))

@@ -17,7 +17,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val result = Board().move(state, oldPos, newPos, true, false)
 
-    result should be(Option(State(List(Transition(oldPos, newPos, false, None)), PlayerB)))
+    result should be(State(List(Transition(oldPos, newPos, false, None)), PlayerB))
   }
 
   "A piece" should "not move to a point" in {
@@ -26,7 +26,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val oldPos = Board.humanReadableToPoint(1, 7)
     val newPos = Board.humanReadableToPoint(1, 5)
 
-    val result = Board().move(state, oldPos, newPos, true, false)
+    val result = Board().moveOpt(state, oldPos, newPos, true, false)
 
     result should be(None)
   }
@@ -48,10 +48,10 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val oldPos = Board.humanReadableToPoint(1, 4)
     val newPos = Board.humanReadableToPoint(1, 3)
-
+    val board = Board().newBoard(state)
     val result = Board().newBoard(state).move(state, oldPos, newPos, true, true)
 
-    result should be(Option(State(Transition(oldPos, newPos, true, None) :: transtions, PlayerB)))
+    result should be(State(Transition(oldPos, newPos, true, Some(△.FU)) :: transtions, PlayerB))
   }
 
   "A piece" should "not be promoted" in {
@@ -60,7 +60,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val oldPos = Board.humanReadableToPoint(1, 7)
     val newPos = Board.humanReadableToPoint(1, 6)
 
-    val result = Board().move(state, oldPos, newPos, true, true)
+    val result = Board().moveOpt(state, oldPos, newPos, true, true)
 
     result should be(None)
   }
@@ -76,9 +76,9 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val board = Board().newBoard(state)
     board.move(state, oldPos, newPos, true, true)
 
-    val result = board.piece((9, 1), PlayerA) // 9: 持駒, 1: 歩
+    val result = board.piece((9, 2), PlayerA) // 9: 持駒, 2: 歩
 
-    result should be(Option(▲.FU))
+    result should be(▲.FU)
   }
 
   private def move17FUTo12TO_93FUTo97FU = {
@@ -92,15 +92,14 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val transtions = move17FUTo12TO_93FUTo97FU
     val state = State(transtions, PlayerB)
 
-    val oldPos = Board.humanReadableToPoint(1, 0) // 歩, 持駒
+    val oldPos = Board.humanReadableToPoint(2, 0) // 歩, 持駒
     val newPos = Board.humanReadableToPoint(1, 3)
 
     val board = Board().newBoard(state)
     val result = board.move(state, oldPos, newPos, true, false)
+    result should be(State(Transition(oldPos, newPos, false, None) :: transtions, PlayerA))
 
-    val capturedPiece = board.piece((9, 1), PlayerB) // 9: 持駒, 1: 歩
-
-    result should be(Option(State(Transition(oldPos, newPos, false, None) :: transtions, PlayerA)))
+    val capturedPiece = board.capturedPieces.get((9, 2), PlayerB) // 9: 持駒, 2: 歩
     capturedPiece should be(None)
   }
 
@@ -109,16 +108,15 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val transtions = move17FUTo12TO_93FUTo97FU
     val state = State(transtions, PlayerB)
 
-    val oldPos = Board.humanReadableToPoint(1, 0) // 歩, 持駒
+    val oldPos = Board.humanReadableToPoint(2, 0) // 歩, 持駒
     val newPos = Board.humanReadableToPoint(9, 5)
 
     val board = Board().newBoard(state)
-    val result = board.move(state, oldPos, newPos, true, false)
+    assertThrows[IllegalStateException] {
+      board.move(state, oldPos, newPos, true, false)
+    }
 
-    val capturedPiece = board.piece((9, 1), PlayerB) // 9: 持駒, 1: 歩
-
-    result should be(None)
-    capturedPiece should be(Some(△.FU))
+    val capturedPiece = board.piece((9, 2), PlayerB) // 9: 持駒, 2: 歩
+    capturedPiece should be(△.FU)
   }
-
 }

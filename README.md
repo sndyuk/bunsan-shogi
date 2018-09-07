@@ -5,3 +5,6 @@
 ```sh
 $ sbt "project sample" run
 ```
+
+### License
+[Apache License, Version 2.0](LICENSE)

@@ -61,20 +61,20 @@ object CSAParser extends RegexParsers {
       case p ~ s1 ~ s2 ~ s3 ~ s4 ~ s5 ~ _ ~ elaplsed => {
         val turn = if (p == "+") PlayerA else PlayerB
         val piece = s5 match {
-          case "OU" => Piece.invert(Piece.◯.OU, turn)
-          case "FU" => Piece.invert(Piece.◯.FU, turn)
-          case "KI" => Piece.invert(Piece.◯.KI, turn)
-          case "GI" => Piece.invert(Piece.◯.GI, turn)
-          case "HI" => Piece.invert(Piece.◯.HI, turn)
-          case "KA" => Piece.invert(Piece.◯.KA, turn)
-          case "KE" => Piece.invert(Piece.◯.KE, turn)
-          case "KY" => Piece.invert(Piece.◯.KY, turn)
-          case "TO" => Piece.toBePromoted(Piece.invert(Piece.◯.FU, turn))
-          case "NG" => Piece.toBePromoted(Piece.invert(Piece.◯.GI, turn))
-          case "RY" => Piece.toBePromoted(Piece.invert(Piece.◯.HI, turn))
-          case "UM" => Piece.toBePromoted(Piece.invert(Piece.◯.KA, turn))
-          case "NK" => Piece.toBePromoted(Piece.invert(Piece.◯.KE, turn))
-          case "NY" => Piece.toBePromoted(Piece.invert(Piece.◯.KY, turn))
+          case "OU" => Piece.convert(Piece.◯.OU, turn)
+          case "FU" => Piece.convert(Piece.◯.FU, turn)
+          case "KI" => Piece.convert(Piece.◯.KI, turn)
+          case "GI" => Piece.convert(Piece.◯.GI, turn)
+          case "HI" => Piece.convert(Piece.◯.HI, turn)
+          case "KA" => Piece.convert(Piece.◯.KA, turn)
+          case "KE" => Piece.convert(Piece.◯.KE, turn)
+          case "KY" => Piece.convert(Piece.◯.KY, turn)
+          case "TO" => Piece.promote(Piece.convert(Piece.◯.FU, turn))
+          case "NG" => Piece.promote(Piece.convert(Piece.◯.GI, turn))
+          case "RY" => Piece.promote(Piece.convert(Piece.◯.HI, turn))
+          case "UM" => Piece.promote(Piece.convert(Piece.◯.KA, turn))
+          case "NK" => Piece.promote(Piece.convert(Piece.◯.KE, turn))
+          case "NY" => Piece.promote(Piece.convert(Piece.◯.KY, turn))
         }
         Move(turn,
           Board.humanReadableToPoint(s1.toInt, s2.toInt),

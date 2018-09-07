@@ -1,22 +1,26 @@
 package jp.sndyuk.shogi.core
 
 import scala.annotation.tailrec
-import scala.util.Random
+
+import org.slf4j.LoggerFactory
+
+import com.typesafe.scalalogging.Logger
 
 import jp.sndyuk.shogi.core.Piece._
 
 object Rule {
+
+  val logger = Logger(LoggerFactory.getLogger(this.getClass().getName()))
 
   /**
    * 駒が指定された場所に移動可能ならtrue
    */
   def canMove(board: Board, piece: Piece, oldPos: Point, newPos: Point, turn: Turn, nari: Boolean = false): Boolean = {
     if (oldPos == newPos) {
-      println("Select an another point.")
+      logger.warn("Select an another point.")
       false
-    }
-    if (▲△(piece, turn.change)) {
-      println("It's not your piece.")
+    } else if (▲△(piece, turn.change)) {
+      logger.warn("It's not your piece.")
       false
     } else {
       isValidPosition(board, piece, newPos, true) &&
@@ -118,7 +122,7 @@ object Rule {
   private def canMoveIfPromoted(piece: Piece, oldPos: Point, newPos: Point): Boolean = {
     if (Point.isCaptured(oldPos)) false
     else {
-      val promoted = toBePromoted(piece)
+      val promoted = promote(piece)
       if (promoted == piece) {
         false
       }
@@ -237,7 +241,7 @@ object Rule {
    */
   def canBePromoted(board: Board, oldPos: Point, newPos: Point, piece: Piece): Boolean = {
     // 既に成っていない、かつ...
-    toBePromoted(piece) != piece && !board.isCaptured(oldPos) && !isPromoted(piece) && (
+    !isPromoted(piece) && !board.isCaptured(oldPos) && (
       // 敵陣に居る or 持駒以外が敵陣に入る
       (if (▲(piece)) oldPos.y <= 2 else oldPos.y >= 6) ||
       (!board.isCaptured(oldPos) && (if (▲(piece)) {

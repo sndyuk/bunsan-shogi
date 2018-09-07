@@ -2,14 +2,19 @@ package jp.sndyuk.shogi.core
 
 object Piece {
 
-  val maxPieceSize = 28
-  val maxGeneralizedPieceSize = 8
-  val ❏ = 0
+  @inline val maxPieceSize = 28
+  @inline val maxGeneralizedPieceSize = 8
+  @inline val ❏ = 0
+  @inline val bitsPiece = Integer.parseInt("1111", 2);
+  @inline val bitsPromotedPiece = Integer.parseInt("1000", 2);
+  @inline val bitsPieceWithoutPromoted = bitsPiece ^ bitsPromotedPiece;
+  @inline val bitsPlayerBPiece = Integer.parseInt("10000", 2);
+  @inline val bitsGeneralPiece = Integer.parseInt("100000", 2);
 
-  def generalize(piece: Piece): Piece = piece match {
+  @inline def generalize(piece: Piece): Piece = piece match {
     case ❏ => piece
     case ▲.OU | △.OU => ◯.OU
-    case _ => piece & 7 | 32
+    case _ => piece & bitsPieceWithoutPromoted | bitsGeneralPiece
   }
 
   def reverseIfPromoted(piece: Piece): Piece = {
@@ -33,32 +38,29 @@ object Piece {
     }
   }
 
-  /**
-   * 成る。成れなかったらそのまま返す。
-   */
-  def toBePromoted(piece: Piece): Int = {
-    if ((piece >= ▲.FU && piece <= ▲.KY) || (piece >= △.FU && piece <= △.KY)) piece | 8
+  // Promote it. If it can't be promoted, returns the original piece.
+  @inline def promote(piece: Piece): Int = {
+    if ((piece >= ▲.FU && piece <= ▲.KY) || (piece >= △.FU && piece <= △.KY)) piece | bitsPromotedPiece
     else piece
   }
 
-  @inline def isPromoted(piece: Piece): Boolean = (piece & 15) > 8
+  @inline def isPromoted(piece: Piece): Boolean = (piece & bitsPromotedPiece) != 0
 
   // 先手
-  @inline def ▲(piece: Piece): Boolean = (piece & 16) == 0
+  @inline def ▲(piece: Piece): Boolean = ! △(piece)
 
   // 後手
-  @inline def △(piece: Piece): Boolean = (piece & 16) == 16
+  @inline def △(piece: Piece): Boolean = (piece & bitsPlayerBPiece) != 0
 
-  // 後手
   @inline def ▲△(piece: Piece, turn: Turn): Boolean = piece != ❏ && turn == PlayerA ^ △(piece)
 
   def pieceString(piece: Piece): String = {
     if (piece == ❏) {
       "　　"
     } else if (▲(piece)) {
-      s"▲${name(piece)}"
-    } else {
       s"△${name(piece)}"
+    } else {
+      s"▽${name(piece)}"
     }
   }
 
@@ -82,20 +84,6 @@ object Piece {
     }
   }
 
-  // 左から6bit目がtrue
-  object ◯ {
-    @inline val OU = Integer.parseInt("101000", 2)
-    @inline val KI = Integer.parseInt("100001", 2)
-    @inline val FU = Integer.parseInt("100010", 2)
-    @inline val GI = Integer.parseInt("100011", 2)
-    @inline val HI = Integer.parseInt("100100", 2)
-    @inline val KA = Integer.parseInt("100101", 2)
-    @inline val KE = Integer.parseInt("100110", 2)
-    @inline val KY = Integer.parseInt("100111", 2)
-    val all = Seq(OU, FU, KI, GI, HI, KA, KE, KY)
-  }
-
-  // 左から5bit目がfalse
   object ▲ {
     @inline val OU = Integer.parseInt("1000", 2)
     @inline val KI = Integer.parseInt("0001", 2)
@@ -106,45 +94,55 @@ object Piece {
     @inline val KE = Integer.parseInt("0110", 2)
     @inline val KY = Integer.parseInt("0111", 2)
 
-    @inline val TO = FU | Integer.parseInt("1000", 2)
-    @inline val NG = GI | Integer.parseInt("1000", 2)
-    @inline val RY = HI | Integer.parseInt("1000", 2)
-    @inline val UM = KA | Integer.parseInt("1000", 2)
-    @inline val NK = KE | Integer.parseInt("1000", 2)
-    @inline val NY = KY | Integer.parseInt("1000", 2)
+    @inline val TO = FU | bitsPromotedPiece
+    @inline val NG = GI | bitsPromotedPiece
+    @inline val RY = HI | bitsPromotedPiece
+    @inline val UM = KA | bitsPromotedPiece
+    @inline val NK = KE | bitsPromotedPiece
+    @inline val NY = KY | bitsPromotedPiece
   }
 
-  // 左から5bit目がtrue
   object △ {
-    @inline val OU = Integer.parseInt("11000", 2)
-    @inline val KI = Integer.parseInt("10001", 2)
-    @inline val FU = Integer.parseInt("10010", 2)
-    @inline val GI = Integer.parseInt("10011", 2)
-    @inline val HI = Integer.parseInt("10100", 2)
-    @inline val KA = Integer.parseInt("10101", 2)
-    @inline val KE = Integer.parseInt("10110", 2)
-    @inline val KY = Integer.parseInt("10111", 2)
+    @inline val OU = ▲.OU | bitsPlayerBPiece
+    @inline val KI = ▲.KI | bitsPlayerBPiece
+    @inline val FU = ▲.FU | bitsPlayerBPiece
+    @inline val GI = ▲.GI | bitsPlayerBPiece
+    @inline val HI = ▲.HI | bitsPlayerBPiece
+    @inline val KA = ▲.KA | bitsPlayerBPiece
+    @inline val KE = ▲.KE | bitsPlayerBPiece
+    @inline val KY = ▲.KY | bitsPlayerBPiece
 
-    @inline val TO = FU | Integer.parseInt("1000", 2)
-    @inline val NG = GI | Integer.parseInt("1000", 2)
-    @inline val RY = HI | Integer.parseInt("1000", 2)
-    @inline val UM = KA | Integer.parseInt("1000", 2)
-    @inline val NK = KE | Integer.parseInt("1000", 2)
-    @inline val NY = KY | Integer.parseInt("1000", 2)
+    @inline val TO = FU | bitsPromotedPiece
+    @inline val NG = GI | bitsPromotedPiece
+    @inline val RY = HI | bitsPromotedPiece
+    @inline val UM = KA | bitsPromotedPiece
+    @inline val NK = KE | bitsPromotedPiece
+    @inline val NY = KY | bitsPromotedPiece
   }
 
-  def invert(piece: Piece, turn: Turn): Piece = {
+  object ◯ {
+    @inline val OU = ▲.OU | bitsGeneralPiece
+    @inline val KI = ▲.KI | bitsGeneralPiece
+    @inline val FU = ▲.FU | bitsGeneralPiece
+    @inline val GI = ▲.GI | bitsGeneralPiece
+    @inline val HI = ▲.HI | bitsGeneralPiece
+    @inline val KA = ▲.KA | bitsGeneralPiece
+    @inline val KE = ▲.KE | bitsGeneralPiece
+    @inline val KY = ▲.KY | bitsGeneralPiece
+    val all = Seq(OU, FU, KI, GI, HI, KA, KE, KY)
+  }
+
+  def convert(piece: Piece, turn: Turn): Piece = {
     if (piece == ❏) piece
     else if (turn == PlayerA) {
-      piece & 15 // & 1111
+      piece & bitsPiece
     } else {
-      piece & 15 | 16 // & 1111 | 10000
+      piece & bitsPiece | bitsPlayerBPiece
     }
   }
 
   def turned(piece: Piece): Piece = {
-    val gpiece = generalize(piece)
-    if (▲(piece)) invert(gpiece, PlayerB)
-    else invert(gpiece, PlayerA)
+    if (▲(piece)) convert(piece, PlayerB)
+    else convert(piece, PlayerA)
   }
 }

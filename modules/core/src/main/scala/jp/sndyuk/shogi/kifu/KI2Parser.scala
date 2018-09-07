@@ -81,20 +81,20 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
           } else pieceStr
 
           val piece = pieceStr2 match {
-            case "玉" => Piece.invert(Piece.◯.OU, turn)
-            case "歩" => Piece.invert(Piece.◯.FU, turn)
-            case "金" => Piece.invert(Piece.◯.KI, turn)
-            case "銀" => Piece.invert(Piece.◯.GI, turn)
-            case "飛" => Piece.invert(Piece.◯.HI, turn)
-            case "角" => Piece.invert(Piece.◯.KA, turn)
-            case "桂" => Piece.invert(Piece.◯.KE, turn)
-            case "香" => Piece.invert(Piece.◯.KY, turn)
-            case "と" => Piece.toBePromoted(Piece.invert(Piece.◯.FU, turn))
-            case "成銀" => Piece.toBePromoted(Piece.invert(Piece.◯.GI, turn))
-            case "龍" => Piece.toBePromoted(Piece.invert(Piece.◯.HI, turn))
-            case "馬" => Piece.toBePromoted(Piece.invert(Piece.◯.KA, turn))
-            case "成桂" => Piece.toBePromoted(Piece.invert(Piece.◯.KE, turn))
-            case "成香" => Piece.toBePromoted(Piece.invert(Piece.◯.KY, turn))
+            case "玉" => Piece.convert(Piece.◯.OU, turn)
+            case "歩" => Piece.convert(Piece.◯.FU, turn)
+            case "金" => Piece.convert(Piece.◯.KI, turn)
+            case "銀" => Piece.convert(Piece.◯.GI, turn)
+            case "飛" => Piece.convert(Piece.◯.HI, turn)
+            case "角" => Piece.convert(Piece.◯.KA, turn)
+            case "桂" => Piece.convert(Piece.◯.KE, turn)
+            case "香" => Piece.convert(Piece.◯.KY, turn)
+            case "と" => Piece.promote(Piece.convert(Piece.◯.FU, turn))
+            case "成銀" => Piece.promote(Piece.convert(Piece.◯.GI, turn))
+            case "龍" => Piece.promote(Piece.convert(Piece.◯.HI, turn))
+            case "馬" => Piece.promote(Piece.convert(Piece.◯.KA, turn))
+            case "成桂" => Piece.promote(Piece.convert(Piece.◯.KE, turn))
+            case "成香" => Piece.promote(Piece.convert(Piece.◯.KY, turn))
           }
 
           val nari = nariOpt.exists(_ == "成")
@@ -156,7 +156,7 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
           }
 
           s = board.move(s, oldPos, newPos, true, nari)
-          Move(turn, oldPos, newPos, if (nari) Piece.toBePromoted(piece) else piece, None)
+          Move(turn, oldPos, newPos, if (nari) Piece.promote(piece) else piece, None)
         }
       }
 

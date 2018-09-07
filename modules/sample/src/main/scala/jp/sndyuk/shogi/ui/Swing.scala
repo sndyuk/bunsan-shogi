@@ -309,7 +309,7 @@ object Swing extends SimpleSwingApplication with Shogi {
 
     private def buildAllCapturedBlocks: Seq[CapturedPiecePanel] = {
       ◯.all.filterNot(_ == ◯.OU).map { (piece) =>
-        val p = Piece.invert(piece, turn)
+        val p = Piece.convert(piece, turn)
         new CapturedPiecePanel(turn, Block(Point(9, p), p), board.capturedPieces.count(turn, piece))
       }
     }

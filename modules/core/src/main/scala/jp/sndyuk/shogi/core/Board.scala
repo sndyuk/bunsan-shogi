@@ -79,9 +79,8 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
   }
 
   def <+(piece: Piece, p: Point): Squares = {
-    assert(p.y < 9)
-    assert(p.x < 9)
-
+    // assert(p.y < 9)
+    // assert(p.x < 9)
     //println(s"r: ${p.rowIndex}, c: ${p.columnIndex}, maxPieceSize: $maxPieceSize, piece: ${pieceIndex(piece)}")
     set(piece, p)
     this
@@ -89,12 +88,10 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
 
   def id(): String = bits.id()
 
-  // 指定した位置にある駒を返す
   def get(p: Point): Piece = {
     bits.intValue(posOfBits(p))
   }
 
-  // 指定した位置に駒を配置して元あった駒を返す
   def setAndGet(piece: Piece, p: Point): Piece = {
     bits.replaceIntValue(piece, posOfBits(p))
   }
@@ -243,7 +240,7 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
   }
 
   def pointToPiece(pos: Point, turn: Turn): Piece = {
-    if (turn == PlayerA) pos.x else pos.x | 16
+    convert(pos.x, turn)
   }
 
   def count(turn: Turn, piece: Piece): Int = count(if (turn == PlayerA) playerA else playerB, find(piece))
@@ -257,14 +254,14 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
     } else {
       ◯.all.foldLeft(List[Block]()) { (xs, x) =>
         if (count(player, find(x)) > 0)
-          Block(Point.ofCaptured(x), invert(x, turn)) :: xs else xs
+          Block(Point.ofCaptured(x), convert(x, turn)) :: xs else xs
       }
     }
   }
 
   override def toString(): String = {
     val s = new StringBuilder
-    s.append("△ 持駒[")
+    s.append("▽ 持駒[")
     s.append("玉").append(count(playerB, find(◯.OU))).append(", ")
     s.append("歩").append(count(playerB, find(◯.FU))).append(", ")
     s.append("金").append(count(playerB, find(◯.KI))).append(", ")
@@ -274,7 +271,7 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
     s.append("桂").append(count(playerB, find(◯.KE))).append(", ")
     s.append("香").append(count(playerB, find(◯.KY))).append("]")
     s.append(System.lineSeparator)
-    s.append("▲ 持駒[")
+    s.append("△ 持駒[")
     s.append("玉").append(count(playerA, find(◯.OU))).append(", ")
     s.append("歩").append(count(playerA, find(◯.FU))).append(", ")
     s.append("金").append(count(playerA, find(◯.KI))).append(", ")
@@ -358,7 +355,7 @@ case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPiece
       if (block.point.x == 8) {
         s ++= Point.toKansuji(block.point.y)
         s ++= System.lineSeparator
-        s ++= "―-―-―-―-―-―-―-―-―-―-―-―-―-―-―"
+        s ++= "ーーーーーーーーーーーーーーーーーーーーーーーー"
         s ++= System.lineSeparator
       }
       s
@@ -393,7 +390,7 @@ case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPiece
   def pieceOnBoard(pos: Point): Option[Piece] = if (isCaptured(pos)) None else Option(squares.get(pos))
   def pieceOnBoardNotEmpty(pos: Point): Option[Piece] = pieceOnBoard(pos).collect { case p if p != ❏ => p }
 
-  // true: 移動, false: 移動不可
+  // Returns true: moved, false: can't move
   private def move(oldPos: Point, newPos: Point, turn: Turn, validation: Boolean, nari: Boolean = false): Boolean = {
     if (freeze) throw new IllegalStateException
     val p = piece(oldPos, turn)
@@ -403,7 +400,7 @@ case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPiece
         squares <+ (p, newPos)
       } else {
         val oldPiece = squares.setAndGet(❏, oldPos)
-        capturedPieces.put(squares.setAndGet(if (nari) toBePromoted(oldPiece) else oldPiece, newPos))
+        capturedPieces.put(squares.setAndGet(if (nari) promote(oldPiece) else oldPiece, newPos))
       }
       true
     } else false
@@ -442,9 +439,6 @@ case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPiece
     board
   }
 
-  /**
-   * 1手巻き戻す.
-   */
   def rollback(state: State): State = {
     if (freeze) throw new IllegalStateException
     moveRollback(state.history.head, state.turn.change)

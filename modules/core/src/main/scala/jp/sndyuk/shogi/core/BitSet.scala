@@ -8,12 +8,11 @@ object BitSet {
 case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(length / 64 + 1)(0L)) {
   import BitSet._
 
-  // (!) 戻り値を変更しないこと
+  // (!) Do not modify value.
   private[core] def longArray: Array[Long] = bits
 
   // value: [0 | 1 ]
   @inline private def set(index: Int, value: Int): Unit = {
-    //     println(s"$index, ${(1L << 64 - (index % 64)).toBinaryString}")
     if (value == 0) {
       bits(index / 64) &= ~(1L << (64 - (index % 64)))
     } else {
@@ -31,7 +30,7 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def setInt(updates: Int, index: Int): Unit = {
-    assert((index % 64 + span) < 64, index) // 複数のLongに跨がらないこと
+    // assert((index % 64 + span) < 64, index) // overflow check
     bits(index / 64) = updateBits(bits(index / 64), updates, index % 64)
   }
 
@@ -40,7 +39,7 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def intValue(i: Int): Int = {
-    assert((i % 64 + span) < 64) // 複数のLongに跨がらないこと
+    // assert((i % 64 + span) < 64) // overflow check
     val l = bits(i / 64)
     ((l >>> (64 - ((i % 64) + span))) & ((1 << span) - 1)).toInt
   }
@@ -70,7 +69,6 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def clear(index: Int): Unit = {
-    assert((index % 64 + span) < 64) // 複数のLongに跨がらないこと
     setInt(0, index)
   }
 

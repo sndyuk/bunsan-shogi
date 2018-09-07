@@ -1,7 +1,7 @@
 package jp.sndyuk.shogi.kifu
 
 import scala.util.parsing.combinator.RegexParsers
-import jp.sndyuk.shogi.ai.simulator.Utils
+import jp.sndyuk.shogi.player.Utils
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
 import jp.sndyuk.shogi.core.PlayerA

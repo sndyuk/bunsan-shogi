@@ -1,11 +1,7 @@
-package jp.sndyuk.shogi.ai.learner
+package jp.sndyuk.shogi.core
 
-import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece._
-import jp.sndyuk.shogi.core.ID
-import jp.sndyuk.shogi.ai.simulator.Utils
-import jp.sndyuk.shogi.core.State
-import scala.collection.mutable.HashSet
+import jp.sndyuk.shogi.player.Utils
 import scala.collection.mutable.HashMap
 
 object IDFinder extends App {

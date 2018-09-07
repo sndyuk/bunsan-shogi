@@ -25,27 +25,16 @@ import scala.swing.event.Key.Value
 import scala.swing.event.MouseClicked
 import scala.swing.event.MouseDragged
 import scala.swing.event.MouseReleased
-import jp.sndyuk.shogi.core.Block
-import jp.sndyuk.shogi.core.Board
-import jp.sndyuk.shogi.core.Piece
-import jp.sndyuk.shogi.core.Piece
+import jp.sndyuk.shogi.core._
 import jp.sndyuk.shogi.core.Piece._
-import jp.sndyuk.shogi.core.PlayerA
-import jp.sndyuk.shogi.core.PlayerB
-import jp.sndyuk.shogi.core.Point
-import jp.sndyuk.shogi.core.Rule
-import jp.sndyuk.shogi.core.State
-import jp.sndyuk.shogi.core.Transition
-import jp.sndyuk.shogi.core.Turn
-import jp.sndyuk.shogi.core.toPoint
 import jp.sndyuk.shogi.player.AIPlayer
 import jp.sndyuk.shogi.player.CommandReader
 import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.Player
 import scala.swing.event.MouseEntered
 import scala.swing.Button
-import jp.sndyuk.shogi.ai.simulator.Utils
 import scala.swing.event.ButtonClicked
+import jp.sndyuk.shogi.player.Utils
 
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])
 

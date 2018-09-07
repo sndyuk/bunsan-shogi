@@ -1,14 +1,9 @@
-package jp.sndyuk.shogi.ai.simulator
-
-import scala.annotation.tailrec
-import scala.collection.mutable.LinkedHashMap
+package jp.sndyuk.shogi.ai
 
 import jp.sndyuk.shogi.core.Board
-import jp.sndyuk.shogi.core.ID
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
-import jp.sndyuk.shogi.core.Turn
-import scala.collection.mutable.Queue
+import jp.sndyuk.shogi.ai.simulator._
 
 // Upper Confidence Bound
 class UCB extends AI {

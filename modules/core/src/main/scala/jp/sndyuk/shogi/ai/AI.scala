@@ -1,7 +1,6 @@
-package jp.sndyuk.shogi.ai.simulator
+package jp.sndyuk.shogi.ai
 
 import com.typesafe.scalalogging.Logger
-
 import jp.sndyuk.shogi.core.{ Board, State, Transition }
 import org.slf4j.LoggerFactory
 

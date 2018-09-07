@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.Queue
 import java.util.LinkedList
 import java.util.concurrent.SynchronousQueue
+import jp.sndyuk.shogi.player.Utils
 
 case class Config(maxDepth: Int, maxQueueSize: Int, thread: Int, select: List[Plan] => List[Score])
 

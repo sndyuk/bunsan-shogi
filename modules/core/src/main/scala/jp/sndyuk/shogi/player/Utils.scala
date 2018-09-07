@@ -1,7 +1,6 @@
-package jp.sndyuk.shogi.ai.simulator
+package jp.sndyuk.shogi.player
 
 import scala.annotation.tailrec
-import scala.util.Random
 
 import jp.sndyuk.shogi.core.Block
 import jp.sndyuk.shogi.core.Board

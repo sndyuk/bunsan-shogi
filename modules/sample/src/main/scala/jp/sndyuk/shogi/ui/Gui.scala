@@ -42,7 +42,7 @@ abstract class BoardPanel extends GridPanel(9, 9) {
   def rebuild: Unit
 }
 
-object Swing extends SimpleSwingApplication with Shogi {
+object Gui extends SimpleSwingApplication with Shogi {
 
   private var boardLatch = new CountDownLatch(1)
 

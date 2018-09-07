@@ -10,7 +10,7 @@ class UCB extends AI {
 
   private val ucbConst = 0.5d
 
-  private val conf = Config(maxDepth = 125, maxQueueSize = 20000, thread = Math.max(1, Runtime.getRuntime.availableProcessors() / 2), (scores: List[Plan]) => {
+  private val conf = Config(maxDepth = 125, maxQueueSize = 20000, thread = 4, (scores: List[Plan]) => {
     scores.map { result =>
       val rate = result.win / Math.max(result.playouts, 1)
       val ucb = rate + ucbConst * Math.sqrt((2 * Math.log(result.playouts)) / result.playouts)

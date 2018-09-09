@@ -1,9 +1,13 @@
 package jp.sndyuk.shogi.ui
 
-import jp.sndyuk.shogi.core._
 import scala.annotation.tailrec
 import scala.util.Try
-import jp.sndyuk.shogi.player.AIPlayer
+
+import jp.sndyuk.shogi.core.Board
+import jp.sndyuk.shogi.core.PlayerA
+import jp.sndyuk.shogi.core.Point
+import jp.sndyuk.shogi.core.State
+import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.player.Player
 
 trait Shogi {

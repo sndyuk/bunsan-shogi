@@ -1,8 +1,8 @@
 package jp.sndyuk.shogi.core
 
-import jp.sndyuk.shogi.core.Piece._
-import jp.sndyuk.shogi.player.Utils
 import scala.collection.mutable.HashMap
+
+import jp.sndyuk.shogi.player.Utils
 
 object IDFinder extends App {
 

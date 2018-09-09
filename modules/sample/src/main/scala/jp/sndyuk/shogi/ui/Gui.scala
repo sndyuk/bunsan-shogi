@@ -6,9 +6,11 @@ import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Rectangle
 import java.util.concurrent.CountDownLatch
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.swing.BoxPanel
+import scala.swing.Button
 import scala.swing.Color
 import scala.swing.Dialog
 import scala.swing.GridPanel
@@ -16,30 +18,36 @@ import scala.swing.MainFrame
 import scala.swing.Orientation
 import scala.swing.Panel
 import scala.swing.SimpleSwingApplication
-import scala.swing.event.Key.Down
-import scala.swing.event.Key.Left
-import scala.swing.event.Key.Right
-import scala.swing.event.Key.Space
-import scala.swing.event.Key.Up
-import scala.swing.event.Key.Value
-import scala.swing.event.MouseClicked
+import scala.swing.event.ButtonClicked
+import scala.swing.event.Key._
 import scala.swing.event.MouseDragged
+import scala.swing.event.MouseEntered
 import scala.swing.event.MouseReleased
-import jp.sndyuk.shogi.core._
-import jp.sndyuk.shogi.core.Piece._
+
+import jp.sndyuk.shogi.core.Block
+import jp.sndyuk.shogi.core.Board
+import jp.sndyuk.shogi.core.Piece
+import jp.sndyuk.shogi.core.Piece.▲
+import jp.sndyuk.shogi.core.Piece.△
+import jp.sndyuk.shogi.core.Piece.◯
+import jp.sndyuk.shogi.core.PlayerA
+import jp.sndyuk.shogi.core.PlayerB
+import jp.sndyuk.shogi.core.Point
+import jp.sndyuk.shogi.core.Rule
+import jp.sndyuk.shogi.core.State
+import jp.sndyuk.shogi.core.Transition
+import jp.sndyuk.shogi.core.Turn
+import jp.sndyuk.shogi.core.toPoint
 import jp.sndyuk.shogi.player.AIPlayer
 import jp.sndyuk.shogi.player.CommandReader
 import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.Player
-import scala.swing.event.MouseEntered
-import scala.swing.Button
-import scala.swing.event.ButtonClicked
 import jp.sndyuk.shogi.player.Utils
 
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])
 
 abstract class BoardPanel extends GridPanel(9, 9) {
-  def rebuild: Unit
+  def rebuild(): Unit
 }
 
 object Gui extends SimpleSwingApplication with Shogi {
@@ -119,7 +127,7 @@ object Gui extends SimpleSwingApplication with Shogi {
       repaint
     }
 
-    def exitDragOver: Unit = {
+    def exitDragOver(): Unit = {
       potantiallyRelpaceWith = None
       repaint
     }
@@ -159,7 +167,7 @@ object Gui extends SimpleSwingApplication with Shogi {
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
 
-      def drawPiece: Unit = {
+      def drawPiece(): Unit = {
         def $(block: Block) = {
           g fill buildPiece(▲(block.piece))
           val (s, x, y) = buildPieceString(block.piece, ▲(block.piece))
@@ -195,7 +203,7 @@ object Gui extends SimpleSwingApplication with Shogi {
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
 
-      def drawPiece: Unit = {
+      def drawPiece(): Unit = {
         def $(block: Block) = {
           val xMergin = if (turnA) 0 else blockSize + blockMargin
           g fill buildPiece(turnA, xMergin)
@@ -280,9 +288,9 @@ object Gui extends SimpleSwingApplication with Shogi {
       }
     }
 
-    def rebuild = {
+    def rebuild() = {
       contents.clear
-      var capturedPiecePanels = buildAllCapturedBlocks
+      val capturedPiecePanels = buildAllCapturedBlocks
       contents ++= capturedPiecePanels
       contents += tumeroButton
       capturedPiecePanels.map { c =>

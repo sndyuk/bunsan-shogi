@@ -28,8 +28,6 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
   private val eoi = """\z""".r
   private def sep: Parser[String] = statementSep | eoi
 
-  private def version: Parser[Version] = s"V$char+".r <~ sep ^^ Version
-
   // --- 棋譜情報
   private def kifDataFactors: Parser[List[KifuStatement]] = rep((
     // 開始日時, 終了日時, 表題, 棋戦, 戦型, 持ち時間, 場所, 掲載, ...etc

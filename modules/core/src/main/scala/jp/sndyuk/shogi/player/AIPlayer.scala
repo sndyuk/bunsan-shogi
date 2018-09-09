@@ -9,7 +9,7 @@ import jp.sndyuk.shogi.core.config
 object AIPlayer {
   val aiName = config.getString("shogi.ai")
 
-  lazy val ai: AI = Class.forName(aiName).newInstance.asInstanceOf[AI]
+  lazy val ai: AI = Class.forName(aiName).getConstructor().newInstance().asInstanceOf[AI]
 }
 
 class AIPlayer extends Player {

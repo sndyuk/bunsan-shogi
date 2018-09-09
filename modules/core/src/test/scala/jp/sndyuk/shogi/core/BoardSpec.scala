@@ -1,11 +1,11 @@
 package jp.sndyuk.shogi.core
 
-import org.scalatest._
-import scala.util.parsing.input.PagedSeqReader
-import scala.collection.immutable.PagedSeq
-import scala.io.Source
-import scala.util.parsing.input.CharSequenceReader
-import Piece._
+import org.scalatest.BeforeAndAfter
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+
+import Piece.▲
+import Piece.△
 
 class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
@@ -48,7 +48,6 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val oldPos = Board.humanReadableToPoint(1, 4)
     val newPos = Board.humanReadableToPoint(1, 3)
-    val board = Board().newBoard(state)
     val result = Board().newBoard(state).move(state, oldPos, newPos, true, true)
 
     result should be(State(Transition(oldPos, newPos, true, Some(△.FU)) :: transtions, PlayerB))

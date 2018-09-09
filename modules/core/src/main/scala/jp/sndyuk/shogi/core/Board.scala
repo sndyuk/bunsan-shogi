@@ -1,9 +1,6 @@
 package jp.sndyuk.shogi.core
 
 import Piece._
-import java.security.MessageDigest
-import scala.collection.immutable.Iterable
-import scala.util.Random
 
 case class Block(point: Point, piece: Piece)
 
@@ -320,8 +317,6 @@ object Board {
 }
 
 case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPieces = CapturedPieces(), var freeze: Boolean = false) {
-  import Board._
-
   def init(): Unit = {
     init2(Board.table)
   }

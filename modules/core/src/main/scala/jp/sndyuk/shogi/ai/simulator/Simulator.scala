@@ -1,17 +1,14 @@
 package jp.sndyuk.shogi.ai.simulator
 
+import java.util.LinkedList
+import java.util.Queue
+
 import scala.annotation.tailrec
-import scala.collection.mutable.LinkedHashMap
 
 import jp.sndyuk.shogi.core.Board
-import jp.sndyuk.shogi.core.ID
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.core.Turn
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.Queue
-import java.util.LinkedList
-import java.util.concurrent.SynchronousQueue
 import jp.sndyuk.shogi.player.Utils
 
 case class Config(maxDepth: Int, maxQueueSize: Int, thread: Int, select: List[Plan] => List[Score])

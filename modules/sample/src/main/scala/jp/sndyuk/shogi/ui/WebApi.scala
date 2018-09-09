@@ -1,10 +1,12 @@
 package jp.sndyuk.shogi.ui
 
-import jp.sndyuk.shogi.player.Player
-import jp.sndyuk.shogi.core._
-import jp.sndyuk.shogi.player.AIPlayer
-import jp.sndyuk.shogi.player.HumanPlayer
+import jp.sndyuk.shogi.core.Board
+import jp.sndyuk.shogi.core.Point
+import jp.sndyuk.shogi.core.State
+import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.player.CommandReader
+import jp.sndyuk.shogi.player.HumanPlayer
+import jp.sndyuk.shogi.player.Player
 
 class WebApi extends App with Shogi {
 

@@ -1,12 +1,11 @@
 package jp.sndyuk.shogi.kifu
 
-import util.parsing.combinator._
-import scala.util.parsing.combinator.syntactical.StandardTokenParsers
-import jp.sndyuk.shogi.core.PlayerA
-import jp.sndyuk.shogi.core.PlayerB
-import jp.sndyuk.shogi.core.Point
+import scala.util.parsing.combinator.RegexParsers
+
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
+import jp.sndyuk.shogi.core.PlayerA
+import jp.sndyuk.shogi.core.PlayerB
 
 object CSAParser extends RegexParsers {
 

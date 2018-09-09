@@ -11,15 +11,6 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   // (!) Do not modify value.
   private[core] def longArray: Array[Long] = bits
 
-  // value: [0 | 1 ]
-  @inline private def set(index: Int, value: Int): Unit = {
-    if (value == 0) {
-      bits(index / 64) &= ~(1L << (64 - (index % 64)))
-    } else {
-      bits(index / 64) |= 1L << (64 - (index % 64))
-    }
-  }
-
   @inline private def masks(i: Int): Long = ~((-1L << 64 - span) >>> i)
 
   @inline private def updateBits(l: Long, num: Long, i: Int): Long = {

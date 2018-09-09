@@ -1,6 +1,6 @@
 ThisBuild / organization := "com.sndyuk"
 ThisBuild / scalaVersion := "2.12.6"
-ThisBuild / version      := "0.1.0"
+ThisBuild / version      := "0.1.1"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.6",

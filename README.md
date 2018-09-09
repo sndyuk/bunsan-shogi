@@ -16,7 +16,7 @@ Scala 2.12.6 / 2.9 GHz Intel Core i7
 
 ### Sbt
 ```scala
-"com.sndyuk" %% "bunsan-shogi-core" % "0.1.0"
+"com.sndyuk" %% "bunsan-shogi-core" % "0.1.1"
 ```
 
 ### Maven
@@ -24,7 +24,7 @@ Scala 2.12.6 / 2.9 GHz Intel Core i7
 <dependency>
   <groupId>com.sndyuk</groupId>
   <artifactId>bunsan-shogi-core_2.12</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
 </dependency>
 ```
 

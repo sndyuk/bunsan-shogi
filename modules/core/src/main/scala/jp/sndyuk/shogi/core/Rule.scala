@@ -198,7 +198,6 @@ object Rule {
    */
   def is2FU(board: Board, piece: Piece, pos: Point, turn: Turn): Boolean = {
     if (!isPromoted(piece) && generalize(piece) == ◯.FU) {
-      // 2歩チェック
       _0_8.exists { y =>
         val p = Point(y, pos.x)
         board.pieceOnBoard(p).exists(_ == piece)
@@ -210,27 +209,30 @@ object Rule {
    *  千日手判定
    */
   def isThreefoldRepetition(board: Board, state: State): Boolean = {
-    if (state.history.length <= 5) {
+    val size = state.history.size
+    if (size <= 7) {
       return false
     }
-    val rev = state.history.reverse
+    @inline def same = (a: Transition, b: Transition) => a.newPos == b.newPos
+
+    val his = state.history
     // 2手単位
     // 0 <- 1 <- 2 <- 3 <- 4 <- 5
     // A <- B <- A <- B <- A <- B
-    if (rev(0) == rev(2) && rev(0) == rev(4)
-      || rev(1) == rev(3) && rev(1) == rev(5)) {
+    if (same(his(size), his(size- 2)) && same(his(size), his(size - 4))
+      || same(his(size - 1), his(size - 3)) && same(his(size - 1), his(size - 5))) {
       true
     }
 
     // 3手単位
     // 0 <- 1 <- 2 <- 3 <- 4 <= 5 <- 6 <- 7 <- 8
     // A <- B <- C <- A <- B <- C <- A <- B <- C
-    if (state.history.length <= 8) {
+    if (size <= 10) {
       return false
     }
-    if (rev(0) == rev(3) && rev(0) == rev(6)
-      || rev(1) == rev(4) && rev(1) == rev(7)
-      || rev(2) == rev(5) && rev(2) == rev(8)) {
+    if (same(his(size), his(size - 3)) && same(his(size), his(size - 6))
+      || same(his(size - 1), his(size - 4)) && same(his(size - 1), his(size - 7))
+      || same(his(size - 2), his(size - 5)) && same(his(size - 2), his(size - 8))) {
       true
     }
     false

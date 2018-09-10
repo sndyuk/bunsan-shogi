@@ -258,7 +258,7 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
 
   override def toString(): String = {
     val s = new StringBuilder
-    s.append("▽ 持駒[")
+    s.append("☖ 持駒[")
     s.append("玉").append(count(playerB, find(◯.OU))).append(", ")
     s.append("歩").append(count(playerB, find(◯.FU))).append(", ")
     s.append("金").append(count(playerB, find(◯.KI))).append(", ")
@@ -268,7 +268,7 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
     s.append("桂").append(count(playerB, find(◯.KE))).append(", ")
     s.append("香").append(count(playerB, find(◯.KY))).append("]")
     s.append(System.lineSeparator)
-    s.append("△ 持駒[")
+    s.append("☗ 持駒[")
     s.append("玉").append(count(playerA, find(◯.OU))).append(", ")
     s.append("歩").append(count(playerA, find(◯.FU))).append(", ")
     s.append("金").append(count(playerA, find(◯.KI))).append(", ")

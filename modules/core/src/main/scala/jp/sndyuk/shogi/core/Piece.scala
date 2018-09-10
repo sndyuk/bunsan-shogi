@@ -58,9 +58,9 @@ object Piece {
     if (piece == ❏) {
       "　　"
     } else if (▲(piece)) {
-      s"△${name(piece)}"
+      s" ${name(piece)} "
     } else {
-      s"▽${name(piece)}"
+      s"_${name(piece)}_"
     }
   }
 

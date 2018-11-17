@@ -10,3 +10,5 @@
 .cache-tests
 modules/main/databases
 /**/bin
+.ensime*
+.vscode

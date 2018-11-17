@@ -20,33 +20,23 @@ class ID(
   private val v6: Long, // ...
   private val v7: Long, // squares.bits(6)
   private val v8: Long // capturedPieces
-  ) {
+) {
 
-  override lazy val hashCode: Int =
-    ((v1 ^ (v1 >>> 32)).toInt * 31) +
-      ((v2 ^ (v2 >>> 32)).toInt * 31) +
-      ((v3 ^ (v3 >>> 32)).toInt * 31) +
-      ((v4 ^ (v4 >>> 32)).toInt * 31) +
-      ((v5 ^ (v5 >>> 32)).toInt * 31) +
-      ((v6 ^ (v6 >>> 32)).toInt * 31) +
-      ((v7 ^ (v7 >>> 32)).toInt * 31) +
-      ((v8 ^ (v8 >>> 32)).toInt * 31)
+  lazy val hashLong: Long = v1 ^ v2 ^ v3 ^ v4 ^ v5 ^ v6 ^ v7 ^ v8
+
+  override lazy val hashCode: Int = (hashLong ^ (hashLong >>> 32)).toInt
 
   override def equals(o: Any): Boolean = {
-    if (o.isInstanceOf[ID]) false
-    else {
-      val oid = o.asInstanceOf[ID]
-      oid.hashCode == hashCode &&
-        oid.v8 == v8 &&
-        oid.v1 == v1 &&
-        oid.v2 == v2 &&
-        oid.v3 == v3 &&
-        oid.v4 == v4 &&
-        oid.v5 == v5 &&
-        oid.v6 == v6 &&
-        oid.v7 == v7
-    }
+    val oid = o.asInstanceOf[ID]
+    oid.v8 == v8 &&
+      oid.v1 == v1 &&
+      oid.v2 == v2 &&
+      oid.v3 == v3 &&
+      oid.v4 == v4 &&
+      oid.v5 == v5 &&
+      oid.v6 == v6 &&
+      oid.v7 == v7
   }
 
-  override lazy val toString = Integer.toHexString(hashCode)
+  override lazy val toString = hashLong.toHexString
 }

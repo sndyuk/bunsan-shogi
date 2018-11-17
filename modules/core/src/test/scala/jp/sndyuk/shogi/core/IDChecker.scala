@@ -11,9 +11,9 @@ object IDFinder extends App {
   var prevId = ID(prevBoard)
 
   val idMap = HashMap[ID, Board]()
-  val hashMap = HashMap[Int, Board]()
+  val hashMap = HashMap[Long, Board]()
   idMap += prevId -> prevBoard
-  hashMap += prevId.hashCode -> prevBoard
+  hashMap += prevId.hashLong -> prevBoard
 
   val plans = Utils.plans(prevBoard, prevState)
 
@@ -27,21 +27,21 @@ object IDFinder extends App {
 
   val originalBoard = prevBoard
   val originalState = prevState
-  var max = prevId.hashCode
-  var min = prevId.hashCode
+  var max = prevId.hashLong
+  var min = prevId.hashLong
   for (plan <- plans) {
     println(plan)
     val board = originalBoard.copy()
     val state = board.move(originalState, plan.oldPos, plan.newPos, false, plan.nari)
     val id = ID(board)
-    println(s"Hash: ${"%19d".format(id.hashCode)}")
+    println(s"Hash: ${"%19d".format(id.hashLong)}")
 
     if (idMap.contains(id)) {
       onErr(s"Conflict: $id", idMap.get(id).get, board)
       sys.exit
     }
-    if (hashMap.contains(id.hashCode)) {
-      onErr(s"Conflict: $id", hashMap.get(id.hashCode).get, board)
+    if (hashMap.contains(id.hashLong)) {
+      onErr(s"Conflict: $id", hashMap.get(id.hashLong).get, board)
       sys.exit
     }
 
@@ -49,10 +49,10 @@ object IDFinder extends App {
     prevState = state
     prevId = id
     idMap += id -> board
-    hashMap += id.hashCode -> board
+    hashMap += id.hashLong -> board
 
-    max = Math.max(max, id.hashCode)
-    min = Math.min(min, id.hashCode)
+    max = Math.max(max, id.hashLong)
+    min = Math.min(min, id.hashLong)
   }
   println(s"max: $max, min: $min, diff: ${max - min}")
 }

@@ -4,33 +4,42 @@ import java.util.LinkedList
 import java.util.Queue
 
 import scala.annotation.tailrec
+import scala.reflect.ClassTag
 
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
+import jp.sndyuk.shogi.core.FixedFifoArray
 import jp.sndyuk.shogi.core.Turn
 import jp.sndyuk.shogi.player.Utils
 
-case class Config(maxDepth: Int, maxQueueSize: Int, thread: Int, select: List[Plan] => List[Score])
+trait ScoreHolder {
+  def playouts: Int
+  def transition: Transition
+}
 
+case class Config[T<:ScoreHolder](maxDepth: Int, maxQueueSize: Int, thread: Int,
+    onInit: Transition => T,
+    onPlayout: (T, Boolean, Int) => T,
+    onMaxDepth: T => T,
+    select: List[T] => List[Score])
 case class BoardState(board: Board, state: State, transition: Transition, depth: Int, index: Int)
-
-case class Plan(win: Int, loose: Int, playouts: Int, transition: Transition)
-
 case class Score(score: Double, playouts: Int, transition: Transition)
 
 object Simulator {
 
-  private def simulate(board: Board, state: State, player: Turn, plans: List[Transition], conf: Config): (List[Score], Int) = {
+  private def simulate[T<:ScoreHolder:ClassTag](board: Board, state: State, player: Turn, plans: List[Transition], conf: Config[T]): (List[Score], Int) = {
     val start = System.currentTimeMillis
 
-    val scoresByPlan = plans.map(Plan(0, 0, 0, _)).toArray
+    val scoresByPlan = plans.map(conf.onInit(_)).toArray
     val queue = new LinkedList[BoardState]() // Use Java's Queue since Scala's Queue is slow.
     val depth = state.history.size
     plans.zipWithIndex.foreach { p =>
-      queue.add(BoardState(board, state, p._1, depth, p._2))
+      val boardCp = board.copy()
+      val nextState = boardCp.move(state, p._1.oldPos, p._1.newPos, false, p._1.nari)
+      queue.add(BoardState(boardCp, nextState, p._1, depth, p._2))
     }
-    val totalBoardCount = simulate(player, queue, scoresByPlan, 1, conf)
+    val totalBoardCount = simulate(player, queue, scoresByPlan, FixedFifoArray(conf.maxQueueSize / 2), 1, conf)
 
     val scores = conf.select(scoresByPlan.toList)
 
@@ -40,40 +49,45 @@ object Simulator {
     (scores, totalBoardCount)
   }
 
-  @tailrec private def simulate(player: Turn, q: Queue[BoardState], plans: Array[Plan], boardCount: Int, conf: Config): Int = {
+  @tailrec private def simulate[T<:ScoreHolder:ClassTag](player: Turn, q: Queue[BoardState], plans: Array[T], lastNHash: FixedFifoArray[Long], boardCount: Int, conf: Config[T]): Int = {
     if (q.isEmpty) {
       return boardCount
     }
     val BoardState(board, state, transition, depth, i) = q.poll
 
-    val boardCp = board.copy()
-    val nextState = boardCp.move(state, transition.oldPos, transition.newPos, false, transition.nari)
-
     val plan = plans(i)
     if (depth == conf.maxDepth) {
-      plans(i) = plan.copy(playouts = plan.playouts + 1)
-    } else if (boardCp.isFinish(state.turn)) {
+      plans(i) = conf.onMaxDepth(plan)
+    } else if (board.isFinish(state.turn)) {
       if (player == state.turn) {
-        plans(i) = Plan(plan.win + 1, plan.loose, plan.playouts, plan.transition)
+        plans(i) = conf.onPlayout(plan, true, depth)
       } else {
-        plans(i) = Plan(plan.win, plan.loose - 1, plan.playouts, plan.transition)
+        plans(i) = conf.onPlayout(plan, false, depth)
       }
     } else if (q.size < conf.maxQueueSize) {
-      val plans = Utils.plans(boardCp, nextState)
+      val plans = Utils.plans(board, state)
+
       plans.takeWhile(_ => q.size <= conf.maxQueueSize).foreach { p =>
-        q.add(BoardState(boardCp, nextState, p, depth + 1, i))
+        val boardCp = board.copy()
+        val nextState = boardCp.move(state, p.oldPos, p.newPos, false, p.nari)
+        if (lastNHash.contains(boardCp.id.hashLong)) {
+          // Skip. It's already visited.
+        } else {
+          lastNHash.add(boardCp.id.hashLong)
+          q.add(BoardState(boardCp, nextState, p, depth + 1, i))
+        }
       }
     }
 
-    return simulate(player, q, plans, boardCount + 1, conf)
+    return simulate(player, q, plans, lastNHash, boardCount + 1, conf)
   }
 
-  def run(board: Board, state: State, conf: Config): Transition = {
+  def run[T<:ScoreHolder:ClassTag](board: Board, state: State, conf: Config[T]): Transition = {
     val plans = Utils.plans(board, state).toList
     run(board, state, plans, conf)
   }
 
-  private[ai] def run(board: Board, state: State, plans: List[Transition], conf: Config): Transition = {
+  private[ai] def run[T<:ScoreHolder:ClassTag](board: Board, state: State, plans: List[Transition], conf: Config[T]): Transition = {
     // Get OU if it can.
     val ou = Utils.findTransitionCaputuringOu(plans, state, board)
     if (ou.isDefined) {

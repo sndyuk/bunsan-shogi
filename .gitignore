@@ -12,3 +12,4 @@ modules/main/databases
 /**/bin
 .ensime*
 .vscode
+/.bsp/

@@ -30,5 +30,3 @@ ThisBuild / publishTo := {
 ThisBuild / publishMavenStyle := true
 
 ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
-
-ThisBuild / useGpg := true

@@ -20,13 +20,13 @@ lazy val root = (project in file("."))
     core
   )
 
-lazy val template = (project in file("modules/template"))
+lazy val template = (project in file("src/template"))
   .settings(
     commonSettings,
     name := "bunsan-shogi-template"
   )
 
-lazy val core = (project in file("modules/core"))
+lazy val core = (project in file("src/core"))
   .settings(
     commonSettings,
     name := "bunsan-shogi-core",
@@ -39,7 +39,7 @@ lazy val core = (project in file("modules/core"))
   )
   .dependsOn(template)
 
-lazy val sample = (project in file("modules/sample"))
+lazy val sample = (project in file("src/sample"))
   .settings(
     commonSettings,
     name := "bunsan-shogi-sample",

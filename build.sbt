@@ -1,9 +1,9 @@
 ThisBuild / organization := "com.sndyuk"
-ThisBuild / scalaVersion := "2.12.6"
-ThisBuild / version      := "0.1.1"
+ThisBuild / scalaVersion := "2.12.10"
+ThisBuild / version      := "0.1.2"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.6",
+  scalaVersion := "2.12.10",
   EclipseKeys.withSource := true,
   scalacOptions ++= Seq(
     "-Xfatal-warnings",

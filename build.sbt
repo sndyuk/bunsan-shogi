@@ -1,9 +1,9 @@
 ThisBuild / organization := "com.sndyuk"
-ThisBuild / scalaVersion := "2.12.10"
+ThisBuild / scalaVersion := "2.12.18"
 ThisBuild / version      := "0.1.2"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.10",
+  scalaVersion := "2.12.18",
   EclipseKeys.withSource := true,
   scalacOptions ++= Seq(
     "-Xfatal-warnings",
@@ -31,10 +31,10 @@ lazy val core = (project in file("src/core"))
     commonSettings,
     name := "bunsan-shogi-core",
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.5" % "test",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.1",
-      "com.typesafe" % "config" % "1.3.3",
+      "org.scalatest" %% "scalatest" % "3.2.18" % "test",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
+      "com.typesafe" % "config" % "1.4.3",
     ),
   )
   .dependsOn(template)
@@ -44,9 +44,9 @@ lazy val sample = (project in file("src/sample"))
     commonSettings,
     name := "bunsan-shogi-sample",
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.5" % "test",
-      "ch.qos.logback" % "logback-classic" % "1.2.3",
-      "org.scala-lang.modules" %% "scala-swing" % "2.0.3",
+      "org.scalatest" %% "scalatest" % "3.2.18" % "test",
+      "ch.qos.logback" % "logback-classic" % "1.2.13",
+      "org.scala-lang.modules" %% "scala-swing" % "2.1.1",
     )
   )
   .dependsOn(core)

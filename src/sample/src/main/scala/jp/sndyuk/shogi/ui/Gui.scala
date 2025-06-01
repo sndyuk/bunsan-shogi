@@ -174,7 +174,7 @@ object Gui extends SimpleSwingApplication with Shogi {
 
           val orig = g.getTransform
           if (△(block.piece)) {
-            g.rotate(Math.PI, blockSize / 2, blockSize / 2)
+            g.rotate(Math.PI, (blockSize / 2).toDouble, (blockSize / 2).toDouble)
           }
 
           g setFont fontOfPiece
@@ -211,7 +211,7 @@ object Gui extends SimpleSwingApplication with Shogi {
 
           val orig = g.getTransform
           if (turn == PlayerB) {
-            g.rotate(Math.PI, blockSize / 2, blockSize / 2)
+            g.rotate(Math.PI, (blockSize / 2).toDouble, (blockSize / 2).toDouble)
           }
           g setFont fontOfPiece
           g setColor colorLightBlack

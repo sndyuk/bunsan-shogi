@@ -209,31 +209,42 @@ object Rule {
    *  千日手判定
    */
   def isThreefoldRepetition(board: Board, state: State): Boolean = {
-    val size = state.history.size
-    if (size <= 7) {
-      return false
-    }
-    @inline def same = (a: Transition, b: Transition) => a.newPos == b.newPos
+    val his = state.history // his(0) is the most recent move
+    val size = his.size
 
-    val his = state.history
-    // 2手単位
-    // 0 <- 1 <- 2 <- 3 <- 4 <- 5
-    // A <- B <- A <- B <- A <- B
-    if (same(his(size), his(size- 2)) && same(his(size), his(size - 4))
-      || same(his(size - 1), his(size - 3)) && same(his(size - 1), his(size - 5))) {
-      true
+    @inline def same(a: Transition, b: Transition): Boolean = a.newPos == b.newPos // And implicitly same player due to turn structure
+
+    // Check for 3-fold repetition by the current player (X . X . X pattern)
+    // Needs at least 5 moves in history for pattern P1, P2, P1, P2, P1 (indices 0,1,2,3,4)
+    if (size >= 5) {
+      // Current player's moves: his(0), his(2), his(4)
+      if (same(his(0), his(2)) && same(his(0), his(4))) {
+        return true
+      }
+      // Opponent's moves: his(1), his(3), his(5)
+      // Needs at least 6 moves for this specific check
+      if (size >= 6 && same(his(1), his(3)) && same(his(1), his(5))) {
+        return true
+      }
     }
 
-    // 3手単位
-    // 0 <- 1 <- 2 <- 3 <- 4 <= 5 <- 6 <- 7 <- 8
-    // A <- B <- C <- A <- B <- C <- A <- B <- C
-    if (size <= 10) {
-      return false
-    }
-    if (same(his(size), his(size - 3)) && same(his(size), his(size - 6))
-      || same(his(size - 1), his(size - 4)) && same(his(size - 1), his(size - 7))
-      || same(his(size - 2), his(size - 5)) && same(his(size - 2), his(size - 8))) {
-      true
+    // Check for 3-fold repetition by sequence (X Y Z X Y Z X Y Z pattern)
+    // Needs at least 7 moves for pattern P1, P2, P3, P1, P2, P3, P1 (indices 0,1,2,3,4,5,6)
+    if (size >= 7) {
+      // Current player's sequence start: his(0), his(3), his(6)
+      if (same(his(0), his(3)) && same(his(0), his(6))) {
+        return true
+      }
+      // Opponent's sequence start (P2): his(1), his(4), his(7)
+      // Needs at least 8 moves for this specific check
+      if (size >= 8 && same(his(1), his(4)) && same(his(1), his(7))) {
+        return true
+      }
+      // Third player in sequence (P3, if applicable, though it's 2 player game, this means player C's turn): his(2), his(5), his(8)
+      // Needs at least 9 moves for this specific check
+      if (size >= 9 && same(his(2), his(5)) && same(his(2), his(8))) {
+        return true
+      }
     }
     false
   }

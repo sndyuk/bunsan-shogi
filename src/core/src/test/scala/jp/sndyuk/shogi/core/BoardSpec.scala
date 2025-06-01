@@ -1,13 +1,13 @@
 package jp.sndyuk.shogi.core
 
 import org.scalatest.BeforeAndAfter
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import Piece.▲
 import Piece.△
 
-class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
+class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   "A piece" should "move to a point" in {
 
@@ -17,7 +17,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val result = Board().move(state, oldPos, newPos, true, false)
 
-    result should be(State(List(Transition(oldPos, newPos, false, None)), PlayerB))
+    result shouldBe State(List(Transition(oldPos, newPos, false, None)), PlayerB)
   }
 
   "A piece" should "not move to a point" in {
@@ -28,7 +28,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val result = Board().moveOpt(state, oldPos, newPos, true, false)
 
-    result should be(None)
+    result shouldBe None
   }
 
   private def move17FUTo14FU_93FUTo96FU = {
@@ -50,7 +50,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val newPos = Board.humanReadableToPoint(1, 3)
     val result = Board().newBoard(state).move(state, oldPos, newPos, true, true)
 
-    result should be(State(Transition(oldPos, newPos, true, Some(△.FU)) :: transtions, PlayerB))
+    result shouldBe State(Transition(oldPos, newPos, true, Some(△.FU)) :: transtions, PlayerB)
   }
 
   "A piece" should "not be promoted" in {
@@ -61,7 +61,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val result = Board().moveOpt(state, oldPos, newPos, true, true)
 
-    result should be(None)
+    result shouldBe None
   }
 
   "A piece" should "capture an player B's piece" in {
@@ -77,7 +77,7 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val result = board.piece((9, 2), PlayerA) // 9: 持駒, 2: 歩
 
-    result should be(▲.FU)
+    result shouldBe ▲.FU
   }
 
   private def move17FUTo12TO_93FUTo97FU = {
@@ -96,10 +96,10 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val board = Board().newBoard(state)
     val result = board.move(state, oldPos, newPos, true, false)
-    result should be(State(Transition(oldPos, newPos, false, None) :: transtions, PlayerA))
+    result shouldBe State(Transition(oldPos, newPos, false, None) :: transtions, PlayerA)
 
     val capturedPiece = board.capturedPieces.get((9, 2), PlayerB) // 9: 持駒, 2: 歩
-    capturedPiece should be(None)
+    capturedPiece shouldBe None
   }
 
   "Player B" should "not put a captured piece becase of 2 FU" in {
@@ -116,6 +116,6 @@ class BoardSpec extends FlatSpec with Matchers with BeforeAndAfter {
     }
 
     val capturedPiece = board.piece((9, 2), PlayerB) // 9: 持駒, 2: 歩
-    capturedPiece should be(△.FU)
+    capturedPiece shouldBe △.FU
   }
 }

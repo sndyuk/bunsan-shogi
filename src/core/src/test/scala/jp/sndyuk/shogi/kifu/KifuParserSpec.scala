@@ -1,13 +1,13 @@
 package jp.sndyuk.shogi.kifu
 
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import jp.sndyuk.shogi.core.PlayerA
 import jp.sndyuk.shogi.core.PlayerB
 import jp.sndyuk.shogi.core.Board
 import jp.sndyuk.shogi.core.Piece
 
-class KifuParserSpec extends FlatSpec with Matchers {
+class KifuParserSpec extends AnyFlatSpec with Matchers {
 
   "A CSAParser" should "parse the simple kifu" in {
 
@@ -54,10 +54,10 @@ class KifuParserSpec extends FlatSpec with Matchers {
 
     val parseResult = CSAParser.parse(lines)
 
-    parseResult.isEmpty should be(false)
+    parseResult.isEmpty shouldBe false
     val kifu = parseResult.get
 
-    kifu.version should be(Option(Version("V2.2")))
+    kifu.version shouldBe Option(Version("V2.2"))
 
     kifu.kifuData should contain(PlayerAName("NAKAHARA"))
     kifu.kifuData should contain(PlayerBName("YONENAGA"))
@@ -69,7 +69,7 @@ class KifuParserSpec extends FlatSpec with Matchers {
     kifu.kifuData should contain(KifuDataFactor("OPENING", "YAGURA"))
     kifu.kifuData should contain(KifuDataFactor("UNKNOWN", "HOGE"))
 
-    kifu.startState should be(StartState(None, Option(PN(List(
+    val expectedStartState = StartState(None, Option(PN(List(
       "P1-KY-KE-GI-KI-OU-KI-GI-KE-KY",
       "P2 * -HI *  *  *  *  * -KA * ",
       "P3-FU-FU-FU-FU-FU-FU-FU-FU-FU",
@@ -78,13 +78,15 @@ class KifuParserSpec extends FlatSpec with Matchers {
       "P6 *  *  *  *  *  *  *  *  * ",
       "P7+FU+FU+FU+FU+FU+FU+FU+FU+FU",
       "P8 * +KA *  *  *  *  * +HI * ",
-      "P9+KY+KE+GI+KI+OU+KI+GI+KE+KY"))), None, "+"))
+      "P9+KY+KE+GI+KI+OU+KI+GI+KE+KY"))), None, "+")
+    kifu.startState shouldBe expectedStartState
 
-    kifu.moves should be(List(
+    val expectedMoves = List(
       Move(PlayerA, Board.humanReadableToPoint(2, 7), Board.humanReadableToPoint(2, 6), Piece.▲.FU, Option(Elapsed(12))),
       SpMove("UNKNOWN"),
       Move(PlayerB, Board.humanReadableToPoint(3, 3), Board.humanReadableToPoint(3, 4), Piece.△.FU, Option(Elapsed(6))),
       SpMove("CHUDAN")
-    ))
+    )
+    kifu.moves shouldBe expectedMoves
   }
 }

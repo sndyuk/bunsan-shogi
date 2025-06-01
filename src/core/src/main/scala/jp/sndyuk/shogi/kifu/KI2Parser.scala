@@ -19,14 +19,15 @@ object KI2Parser extends App {
 }
 
 class KI2Parser(board: Board = Board()) extends RegexParsers {
+  override def skipWhitespace = false
 
   private var s = State()
 
-  private val statementSep = ","
-  private val char = s"[^$statementSep]"
+  private val statementSep = "\n" // Changed from "," to "\n"
+  private val char = s"[^$statementSep]" // Will now be [^\n]
 
   private val eoi = """\z""".r
-  private def sep: Parser[String] = statementSep | eoi
+  private def sep: Parser[String] = statementSep | eoi // Separator is newline or end of input
 
   // --- 棋譜情報
   private def kifDataFactors: Parser[List[KifuStatement]] = rep((
@@ -45,8 +46,8 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
   private def move: Parser[Move] =
     ("▲" | "△") ~ ("１" | "２" | "３" | "４" | "５" | "６" | "７" | "８" | "９" | "同") ~ ("一" | "二" | "三" | "四" | "五" | "六" | "七" | "八" | "九").? ~
       "　".? ~ ("玉" | "歩" | "金" | "銀" | "飛" | "角" | "桂" | "香" | "と" | "成銀" | "龍" | "馬" | "成桂" | "成香") ~
-      ("右" | "左" | "直" | "寄" | "引" | "打" | "上").? ~ ("右" | "左" | "直" | "引" | "寄" | "上").? ~ ("成" | "不成").? ~ ("    " | "  ").? ~ sep.? ^^ {
-        case p ~ x ~ yOpt ~ _ ~ pieceStr ~ detailOpt1 ~ detailOpt2 ~ nariOpt ~ _ ~ _ => {
+      ("右" | "左" | "直" | "寄" | "引" | "打" | "上").? ~ ("右" | "左" | "直" | "引" | "寄" | "上").? ~ ("成" | "不成").? ~ ("    " | "  ").? <~ sep ^^ { // Changed sep.? to <~ sep
+        case p ~ x ~ yOpt ~ _ ~ pieceStr ~ detailOpt1 ~ detailOpt2 ~ nariOpt ~ _ => { // removed _ for sep from case
           val turn = if (p == "▲") PlayerA else PlayerB
           val newPos = if (x == "同") {
             s.history.head.newPos
@@ -160,20 +161,20 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
 
   private def moves: Parser[List[Move]] = rep(move)
 
-  private def comment: Parser[String] = s"\\*$char*".r <~ sep
+  private def comment: Parser[Comment] = (s"\\*$char*".r <~ sep) ^^ Comment
 
-  private def winner: Parser[Turn] = s"まで[0-9]+手で".r ~ ("先手" | "後手") ~ "の勝ち" ^^ {
+  private def winner: Parser[Turn] = s"まで[0-9]+手で".r ~ ("先手" | "後手") ~ "の勝ち" <~ sep ^^ { // Added <~ sep
     case _ ~ p ~ _ =>
       if (p == "先手") PlayerA else PlayerB
   }
 
-  private def statement: Parser[Kifu] = kifDataFactors ~ sep ~ rep(comment).? ~ moves ~ rep(comment).? ~ winner ^^ {
-    case kifDataFactors ~ _ ~ _ ~ moves ~ _ ~ winner => Kifu(None, kifDataFactors, StartState(None, None, None, "+"), moves, winner)
-
+  private def statement: Parser[Kifu] = kifDataFactors ~ rep(comment).? ~ moves ~ rep(comment).? ~ winner.? ^^ {
+    case factors ~ comments1Opt ~ mv ~ comments2Opt ~ winOpt => // Renamed for clarity
+      Kifu(None, factors, StartState(None, None, None, "+"), comments1Opt.getOrElse(Nil) ++ mv ++ comments2Opt.getOrElse(Nil), winOpt)
   }
   private def kifu: Parser[Kifu] = statement
 
   def parse(lines: Iterator[String]): ParseResult[Kifu] = {
-    parseAll(kifu, lines.mkString(","))
+    parseAll(kifu, lines.mkString("\n")) // Join lines with newline
   }
 }

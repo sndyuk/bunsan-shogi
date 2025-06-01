@@ -38,7 +38,9 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
 
   private def playerAName: Parser[PlayerAName] = ("先手：" ~> s"$char+".r) ^^ PlayerAName
   private def playerBName: Parser[PlayerBName] = ("後手：" ~> s"$char+".r) ^^ PlayerBName
-  private def kifuDataFactor: Parser[KifuDataFactor] = (s"[^$statementSep：]+".r ~ "：" ~ s"$char+".r) ^^ {
+  // Make key regex for kifuDataFactor not match "先手" or "後手" to avoid conflict
+  private def kifuDataFactorKeyRegex: Parser[String] = """(?!先手|後手)[^\n：]+""".r
+  private def kifuDataFactor: Parser[KifuDataFactor] = (kifuDataFactorKeyRegex ~ "：" ~ s"$char+".r) ^^ { // Reverted to $char+
     case k ~ _ ~ v => KifuDataFactor(k, v)
   }
 
@@ -97,8 +99,9 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
           }
 
           val nari = nariOpt.exists(_ == "成")
-          val plan = Utils.plans(board, s).toList
-          val candidates = plan.filter(t => t.newPos == newPos && board.piece(t.oldPos, turn) == piece).toList
+
+          val plan = Utils.plans(this.board, s).toList
+          val candidates = plan.filter(t => t.newPos == newPos && this.board.piece(t.oldPos, turn) == piece).toList
           val oldPos = if (candidates.length > 1) {
             val right = detailOpt1.exists(_ == "右") || detailOpt2.exists(_ == "右")
             val left = detailOpt1.exists(_ == "左") || detailOpt2.exists(_ == "左")
@@ -176,5 +179,21 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
 
   def parse(lines: Iterator[String]): ParseResult[Kifu] = {
     parseAll(kifu, lines.mkString("\n")) // Join lines with newline
+  }
+
+  // Helper for direct testing of a line
+  def testSimpleLineParse(input: String): ParseResult[String] = {
+    // This parser tries to match "先手：" followed by some characters, then a newline
+    val lineParser = ("先手：" ~> s"$char+".r) <~ sep
+    parseAll(lineParser, input)
+  }
+
+  // Helper for direct testing of a move line
+  def testSimpleMoveParse(input: String): ParseResult[Move] = {
+    s = State() // Reset state for parsing this move from initial board
+    // The `move` parser uses `s` (State) and `board` (Board) which are class members.
+    // Ensure `board` is in a state consistent with the move being parsed if needed (e.g. for `Utils.plans`).
+    // For a simple first move from initial position, default Board() and fresh State() is fine.
+    parseAll(move, input)
   }
 }

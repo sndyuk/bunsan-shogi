@@ -74,10 +74,7 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
 
   @inline private def posOfBits(p: Point): Int = {
     val s = (p.y * 9) + p.x
-    // val block_index = s / 12
-    // val index_in_block = s % 12
-    // block_index * 64 + index_in_block * BitSet.span
-    (s / 12) * 64 + (s % 12) * BitSet.span // BitSet.span is 5 (as per problem description context)
+    (s * BitSet.span) + ((s / 12) * 4)
   }
 
   // def getPosOfBitsForTest(p: Point): Int = posOfBits(p) // Removed test accessor

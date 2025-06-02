@@ -16,6 +16,7 @@ object AlphaBetaSearch {
       currentBoardID: ID, // ID of currentBoard
       gamePathHistoryIDs: List[ID], // IDs of states in the current search path from root
       depth: Int,
+      quiescenceDepth: Int, // Added quiescenceDepth
       alpha: Int, // Alpha: best score for maximizer found so far along the path to the root
       beta: Int,  // Beta: best score for minimizer found so far along the path to the root
       maximizingPlayer: Boolean, // Is the current node/depth for the maximizing player?
@@ -38,9 +39,8 @@ object AlphaBetaSearch {
     // If current player is checkmated, return MATE_SCORE for opponent.
 
     if (depth == 0) {
-      val score = evalFunc(currentBoard, rootPlayerTurn)
-      // println(s"AlphaBeta DEBUG (depth 0, eval for $rootPlayerTurn): Evaluated score = $score") // Restored
-      return (score, None)
+      // Depth 0, start quiescence search
+      return quiescenceSearch(currentState, currentBoard, currentBoardID, gamePathHistoryIDs, quiescenceDepth, alpha, beta, maximizingPlayer, rootPlayerTurn, evalFunc)
     }
 
     // Utils.plans uses currentState.turn to determine whose moves to generate
@@ -101,7 +101,7 @@ object AlphaBetaSearch {
         val nextBoardID = ID(tempBoard) // Generate ID for the new board state
         val (eval, returnedMoveOpt) = search(nextState, tempBoard, nextBoardID,
                                              currentBoardID :: gamePathHistoryIDs, // Prepend current ID to history for child
-                                             depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
+                                             depth - 1, quiescenceDepth, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
 
         // if (depth == 2) { // Logging for root node's decision process // Restored
             // println(s"ROOT MAX NODE: Move ${move.oldPos}->${move.newPos} (child chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval.") // Restored
@@ -180,7 +180,7 @@ object AlphaBetaSearch {
         val nextBoardID = ID(tempBoard) // Generate ID for the new board state
         val (eval, returnedMoveOpt) = search(nextState, tempBoard, nextBoardID,
                                              currentBoardID :: gamePathHistoryIDs, // Prepend current ID to history for child
-                                             depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
+                                             depth - 1, quiescenceDepth, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
 
         // if (depth == 1) { // Restored
             // println(s"MIN NODE: Gote Move ${move.oldPos}->${move.newPos} (child Sente MAX node chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval (Sente's perspective).") // Restored
@@ -216,6 +216,119 @@ object AlphaBetaSearch {
         // println(s"MIN NODE (depth $depth): Loop finished. Gote returns score $currentMinEval (for Sente), Gote's chosen move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}") // Restored
       // } // Restored
       return (currentMinEval, bestMoveForThisNode)
+    }
+  }
+
+  // Quiescence Search Implementation
+  private def quiescenceSearch(
+      currentState: State,
+      currentBoard: Board,
+      currentBoardID: ID,
+      gamePathHistoryIDs: List[ID],
+      quiescenceDepth: Int,
+      alpha: Int,
+      beta: Int,
+      maximizingPlayer: Boolean,
+      rootPlayerTurn: Turn,
+      evalFunc: (Board, Turn) => Int
+  ): (Int, Option[Transition]) = {
+
+    // Repetition check (important for quiescence too, though less likely with only captures)
+    if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
+      return (0, None) // Draw score for repetitions
+    }
+
+    // Check for checkmate before quiescence depth check, as mate is a terminal state.
+    // This also handles the case where quiescenceDepth might be > 0 but no moves are possible.
+    val allLegalMoves = Utils.plans(currentBoard, currentState).toList
+    if (allLegalMoves.isEmpty) {
+      // No legal moves at all (checkmate or stalemate)
+      // Score from the perspective of rootPlayerTurn
+      val score = if (currentState.turn == rootPlayerTurn) {
+        -MATE_SCORE - quiescenceDepth // Current player (root) is checkmated
+      } else {
+        MATE_SCORE + quiescenceDepth  // Opponent is checkmated
+      }
+      return (score, None) // No move to make
+    }
+
+    // Base case for quiescence: depth limit reached (and not a checkmate)
+    if (quiescenceDepth == 0) {
+      return (evalFunc(currentBoard, rootPlayerTurn), None)
+    }
+
+    // Filter for capture moves from the already fetched allLegalMoves
+    val captureMoves = allLegalMoves.filter(_.captured.isDefined)
+
+    // If no capture moves (but other non-capture moves exist), evaluate the position statically
+    // This is the true "quiet" position.
+    if (captureMoves.isEmpty) {
+      return (evalFunc(currentBoard, rootPlayerTurn), None)
+    }
+
+    // Similar logic to the main search, but only for capture moves
+    if (maximizingPlayer) {
+      var currentMaxEval = Int.MinValue
+      var currentAlpha = alpha
+
+      // Initial evaluation of the standing position (score if no capture is made or if all captures are bad)
+      val standingPatScore = evalFunc(currentBoard, rootPlayerTurn)
+      currentMaxEval = standingPatScore // Initialize with standing pat score
+
+      currentAlpha = Math.max(currentAlpha, currentMaxEval)
+      if (beta <= currentAlpha) {
+          return (currentMaxEval, None)
+      }
+
+      for (move <- captureMoves) {
+        val tempBoard = currentBoard.copy()
+        val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
+        val nextBoardID = ID(tempBoard)
+
+        val (eval, _) = quiescenceSearch(nextState, tempBoard, nextBoardID,
+                                         currentBoardID :: gamePathHistoryIDs,
+                                         quiescenceDepth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
+
+        if (eval > currentMaxEval) {
+          currentMaxEval = eval
+        }
+        currentAlpha = Math.max(currentAlpha, eval)
+        if (beta <= currentAlpha) {
+          return (currentMaxEval, None) // Beta cut-off, move itself is not propagated up
+        }
+      }
+      return (currentMaxEval, None) // Return best score found, move itself is not propagated up
+    } else { // Minimizing player
+      var currentMinEval = Int.MaxValue
+      var currentBeta = beta
+
+      // Initial evaluation of the standing position
+      val standingPatScore = evalFunc(currentBoard, rootPlayerTurn)
+      currentMinEval = standingPatScore // Initialize with standing pat score
+
+      currentBeta = Math.min(currentBeta, currentMinEval)
+      if (currentBeta <= alpha) {
+          return (currentMinEval, None)
+      }
+
+      for (move <- captureMoves) {
+        val tempBoard = currentBoard.copy()
+        val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
+        val nextBoardID = ID(tempBoard)
+
+        val (eval, _) = quiescenceSearch(nextState, tempBoard, nextBoardID,
+                                         currentBoardID :: gamePathHistoryIDs,
+                                         quiescenceDepth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
+
+        if (eval < currentMinEval) {
+          currentMinEval = eval
+        }
+        currentBeta = Math.min(currentBeta, eval)
+        if (currentBeta <= alpha) {
+          return (currentMinEval, None) // Alpha cut-off, move itself is not propagated up
+        }
+      }
+      return (currentMinEval, None) // Return best score found, move itself is not propagated up
     }
   }
 }

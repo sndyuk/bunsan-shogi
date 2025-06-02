@@ -1,33 +1,72 @@
 package jp.sndyuk.shogi.ui // Assuming this is a suitable package for sample apps
 
 import jp.sndyuk.shogi.core._
-import jp.sndyuk.shogi.ai._ // For ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2
+import jp.sndyuk.shogi.ai._ // For ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V3
 
 object AIBattleSim extends App {
 
+  // --- Configuration ---
+  val NUM_GAMES = 5 // Number of games to run in the batch
   val MAX_MOVES = 200 // Game ends after this many half-moves if no mate
-  val SEARCH_DEPTH_AI1 = 3 // Increased depth
-  val SEARCH_DEPTH_AI2 = 3 // Increased depth
 
-  println("Shogi AI Battle Simulation: AlphaBetaAI_V1 vs AlphaBetaAI_V2")
+  // Player 1 (Sente) Configuration - SET FOR CURRENT PAIRING
+  var AI1_TYPE = "V3" // Options: "V1", "V2", "V3"
+  var SEARCH_DEPTH_AI1 = 2
+  var Q_DEPTH_AI1 = 2 // Only used if AI1_TYPE is "V3"
 
-  // Initialize board and state
-  var board = Board() // Creates a standard initial board
-  board.init() // Ensure board is initialized with pieces
-  var currentState = State(Nil, PlayerA) // Player A (Sente) starts
+  // Player 2 (Gote) Configuration - SET FOR CURRENT PAIRING
+  var AI2_TYPE = "V1" // Options: "V1", "V2", "V3"
+  var SEARCH_DEPTH_AI2 = 2
+  var Q_DEPTH_AI2 = 0 // Only used if AI2_TYPE is "V3" (or relevant AI)
+  // --- End Configuration ---
 
-  // Instantiate AIs
-  val ai1 = new AlphaBetaAI_V1(name = "AIv1_Sente", searchDepth = SEARCH_DEPTH_AI1)
-  val ai2 = new AlphaBetaAI_V2(name = "AIv2_Gote", searchDepth = SEARCH_DEPTH_AI2)
+  // Store results
+  var ai1Wins = 0
+  var ai2Wins = 0
+  var draws = 0
 
-  var gamePositionHistory: List[(ID, Turn)] = List() // For Sennichite detection
+  println(s"Starting AI Battle Simulation Series: $NUM_GAMES games.")
+  // Corrected Q_DEPTH_AI2 printing logic for the initial message
+  println(s"Pairing: ${AI1_TYPE}(d${SEARCH_DEPTH_AI1}${if(AI1_TYPE == "V3") s",q${Q_DEPTH_AI1}" else ""}) [Sente] vs ${AI2_TYPE}(d${SEARCH_DEPTH_AI2}${if(AI2_TYPE == "V3") s",q${Q_DEPTH_AI2}" else ""}) [Gote]")
+
+for (gameNum <- 1 to NUM_GAMES) {
+  println(s"\n<<<<< Starting Game $gameNum of $NUM_GAMES >>>>>")
+
+  // Initialize board and state for each game
+  var board = Board()
+  board.init()
+  var currentState = State(Nil, PlayerA)
   var gameRunning = true
   var moveCount = 0
+  // var gamePositionHistory: List[(ID, Turn)] = List() // For Sennichite - not fully implemented
+
+  // Instantiate AIs based on configuration for each game
+  val ai1: ShogiAI = AI1_TYPE match {
+    case "V1" => new AlphaBetaAI_V1(name = s"AIv1_Sente(d$SEARCH_DEPTH_AI1)", searchDepth = SEARCH_DEPTH_AI1)
+    case "V2" => new AlphaBetaAI_V2(name = s"AIv2_Sente(d$SEARCH_DEPTH_AI1)", searchDepth = SEARCH_DEPTH_AI1)
+    case "V3" => new AlphaBetaAI_V3(name = s"AIv3_Sente(d$SEARCH_DEPTH_AI1,q$Q_DEPTH_AI1)", searchDepth = SEARCH_DEPTH_AI1, quiescenceSearchDepth = Q_DEPTH_AI1)
+    case _ => throw new IllegalArgumentException(s"Unknown AI1_TYPE: $AI1_TYPE")
+  }
+
+  val ai2: ShogiAI = AI2_TYPE match {
+    case "V1" => new AlphaBetaAI_V1(name = s"AIv1_Gote(d$SEARCH_DEPTH_AI2)", searchDepth = SEARCH_DEPTH_AI2)
+    case "V2" => new AlphaBetaAI_V2(name = s"AIv2_Gote(d$SEARCH_DEPTH_AI2)", searchDepth = SEARCH_DEPTH_AI2)
+    case "V3" => new AlphaBetaAI_V3(name = s"AIv3_Gote(d$SEARCH_DEPTH_AI2,q$Q_DEPTH_AI2)", searchDepth = SEARCH_DEPTH_AI2, quiescenceSearchDepth = Q_DEPTH_AI2)
+    case _ => throw new IllegalArgumentException(s"Unknown AI2_TYPE: $AI2_TYPE")
+  }
+
+  var winner: Option[Turn] = None
 
   while (gameRunning && moveCount < MAX_MOVES) {
     moveCount += 1
-    println(s"\n--- Turn ${currentState.turn}, Move #${moveCount} ---")
-    println(board.toString) // Print current board state
+    println(s"\n--- Game $gameNum, Turn ${currentState.turn}, Move #${moveCount} ---")
+    // Only print board for first few moves to keep log shorter for simulation
+    if (moveCount <= 10 || moveCount % 50 == 0 ) { // Print board for first 10 moves, then every 50 moves
+        println(board.toString)
+    } else if (moveCount == 11) {
+        println("... (board printing suppressed for brevity) ...")
+    }
+
 
     val currentAi: ShogiAI = if (currentState.turn == PlayerA) ai1 else ai2
     val currentAiPlayer = currentState.turn
@@ -35,8 +74,6 @@ object AIBattleSim extends App {
     println(s"${currentAi.toString} is thinking...")
 
     val startTime = System.currentTimeMillis()
-    // AIPlayer passes its own turn to findBestMove's 'turn' param.
-    // The 'currentSearchDepth' for findBestMove will be AI's configured depth.
     val searchDepthForThisTurn = if (currentAiPlayer == PlayerA) SEARCH_DEPTH_AI1 else SEARCH_DEPTH_AI2
     val bestMoveOpt = currentAi.findBestMove(currentState, board, currentAiPlayer, searchDepthForThisTurn)
     val endTime = System.currentTimeMillis()
@@ -44,64 +81,65 @@ object AIBattleSim extends App {
 
     bestMoveOpt match {
       case Some(move) =>
-        // Get piece before it moves for logging
-        val pieceToMove = board.piece(move.oldPos, currentAiPlayer) // Use board.piece to handle board or hand
-
+        val pieceToMove = board.piece(move.oldPos, currentAiPlayer)
         println(s"${currentAiPlayer} (${Piece.name(pieceToMove)}) moves ${move.oldPos} -> ${move.newPos}" + (if(move.nari)" Nari" else ""))
-        // Logging for captured piece on target square (if any)
-        if (!Point.isCaptured(move.newPos)) { // Check only if the target is on the board
-            val pieceBeingCaptured = board.squares.get(move.newPos) // Piece on target square BEFORE this move is made
+        if (!Point.isCaptured(move.newPos)) {
+            val pieceBeingCaptured = board.squares.get(move.newPos)
             if (pieceBeingCaptured != Piece.❏) {
                  println(s"Captured: ${Piece.name(pieceBeingCaptured)}")
             }
         }
-        // Removed the redundant/problematic second block of capture logging.
+        currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari)
 
-        // Apply move
-        // currentAiPlayer is the player who is making the move.
-        currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari) // validation=false as AI provides validated moves
-        // After this, currentState.turn is the *next* player.
+        val playerWhoMadeTheMove = currentAiPlayer
+        val nextPlayer = currentState.turn
 
-        val playerWhoMadeTheMove = currentAiPlayer // Player whose turn it just was
-        val nextPlayer = currentState.turn      // Player whose turn it is now
-
-        // Check if currentAiPlayer (who just moved) has now captured the opponent's King
         if (board.isFinish(playerWhoMadeTheMove)) {
-          // board.isFinish(P) means: "Does player P have a King (necessarily opponent's) in hand?"
-          println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
+          println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins Game $gameNum!")
+          winner = Some(playerWhoMadeTheMove)
           gameRunning = false
         } else {
-          // If no King was captured by playerWhoMadeTheMove, then check if the NEXT player (nextPlayer) has any moves.
           val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
           if (nextPlayerLegalMoves.isEmpty) {
-            // If nextPlayer has no moves, check if they are in check.
             if (Rule.isInCheck(board, nextPlayer)) {
-              println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${nextPlayer} is in check and has no moves)")
+              println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins Game $gameNum! (Opponent ${nextPlayer} is in check and has no moves)")
             } else {
-              // No legal moves, but not in check: Stalemate.
-              // In Shogi, this is typically a loss for the player with no moves.
-              println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins!")
+              println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins Game $gameNum!")
             }
+            winner = Some(playerWhoMadeTheMove)
             gameRunning = false
           }
         }
 
       case None =>
-        // Current AI found no legal moves, implies it's checkmated or stalemated.
-        println(s"\nNo moves for ${currentAiPlayer}! ${currentAiPlayer.change} wins by checkmate/stalemate!")
+        println(s"\nNo moves for ${currentAiPlayer}! ${currentAiPlayer.change} wins Game $gameNum by checkmate/stalemate!")
+        winner = Some(currentAiPlayer.change)
         gameRunning = false
     }
-  } // end while loop
-
-  if (gameRunning && moveCount >= MAX_MOVES) { // gameRunning check ensures we don't print this after a mate
-    println(s"\nGame ended: Max moves ($MAX_MOVES) reached. Declaring draw or by score.")
-    // Optionally, evaluate final board position here
-    // Evaluation should be from a consistent perspective, e.g., PlayerA's
-    val finalEvalV1ForSente = EvaluationV1.evaluate(board, PlayerA)
-    val finalEvalV2ForSente = EvaluationV2.evaluate(board, PlayerA)
-    println(s"Final board eval for PlayerA (using AIv1 logic - V1 eval): $finalEvalV1ForSente")
-    println(s"Final board eval for PlayerA (using AIv2 logic - V2 eval): $finalEvalV2ForSente")
   }
 
+  if (winner.isDefined) {
+    if (winner.get == PlayerA) ai1Wins += 1 else ai2Wins +=1
+  } else if (moveCount >= MAX_MOVES) {
+    println(s"\nGame $gameNum ended: Max moves ($MAX_MOVES) reached. Declaring draw or by score.")
+    draws +=1
+    // Print final board for draws
+    println(board.toString)
+    val finalEvalV1ForSente = EvaluationV1.evaluate(board, PlayerA)
+    val finalEvalV2ForSente = EvaluationV2.evaluate(board, PlayerA)
+    val finalEvalV3ForSente = EvaluationV3.evaluate(board, PlayerA)
+    println(s"Final board eval for PlayerA (V1 - material): $finalEvalV1ForSente")
+    println(s"Final board eval for PlayerA (V2 - V1 + basic heuristics): $finalEvalV2ForSente")
+    println(s"Final board eval for PlayerA (V3 - V2 + PST): $finalEvalV3ForSente")
+  }
+  println(s"\n<<<<< Game $gameNum Finished. Score: Sente $ai1Wins - Gote $ai2Wins - Draws $draws (current series) >>>>>")
+} // End of NUM_GAMES loop
+
+  println(s"\n<<<<< Series of $NUM_GAMES Games Finished >>>>>")
+  // Corrected Q_DEPTH_AI2 printing logic for the final summary
+  println(s"Final Results for ${AI1_TYPE}(d${SEARCH_DEPTH_AI1}${if(AI1_TYPE == "V3") s",q${Q_DEPTH_AI1}" else ""}) [Sente] vs ${AI2_TYPE}(d${SEARCH_DEPTH_AI2}${if(AI2_TYPE == "V3") s",q${Q_DEPTH_AI2}" else ""}) [Gote]:")
+  println(s"Sente (${AI1_TYPE}) wins: $ai1Wins")
+  println(s"Gote (${AI2_TYPE}) wins: $ai2Wins")
+  println(s"Draws (max moves reached): $draws")
   println("\nSimulation finished.")
 }

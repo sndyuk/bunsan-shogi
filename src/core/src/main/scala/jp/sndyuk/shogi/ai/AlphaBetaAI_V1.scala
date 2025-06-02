@@ -9,7 +9,7 @@ class AlphaBetaAI_V1(val name: String = "AlphaBetaAI_V1", searchDepth: Int) exte
       board: Board,          // Current board configuration
       turn: Turn,            // The player whose turn it is (should be this AI's turn)
       currentSearchDepth: Int // Search depth to use for this call (can override default)
-  ): Option[Transition] = {
+  ): (Option[Transition], Long) = { // Changed return type
 
     // The 'turn' parameter here is the turn for which the AI is being asked to find a move.
     // This should align with the AI's own configured turn if it's a game play situation.
@@ -26,7 +26,8 @@ class AlphaBetaAI_V1(val name: String = "AlphaBetaAI_V1", searchDepth: Int) exte
     // 'turn' is passed as 'rootPlayerTurn' to ensure evaluation is from this AI's perspective.
     val initialBoardID = ID(board) // Generate ID for the initial board state
 
-    val (_, bestMoveOpt) = AlphaBetaSearch.search(
+    // Destructure to get nodesVisited
+    val (_, bestMoveOpt, nodesVisited) = AlphaBetaSearch.search(
       currentState = state,
       currentBoard = board,
       currentBoardID = initialBoardID,
@@ -39,7 +40,7 @@ class AlphaBetaAI_V1(val name: String = "AlphaBetaAI_V1", searchDepth: Int) exte
       evalFunc = EvaluationV1.evaluate
     )
 
-    bestMoveOpt
+    (bestMoveOpt, nodesVisited) // Return nodesVisited
   }
 
   override def toString: String = s"$name(depth=$searchDepth)"

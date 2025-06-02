@@ -23,8 +23,9 @@ class AIPlayer(
     println(s"AIPlayer ($name, $turn) is thinking using ${ai.getClass.getSimpleName} with depth $defaultSearchDepth for turn ${state.turn}...")
 
     ai.findBestMove(state, board, this.turn, defaultSearchDepth) match {
-      case Some(move) => move
-      case None =>
+      case (Some(move), _) => // Destructure tuple, ignore nodesVisited for return
+        move
+      case (None, _) => // Destructure tuple, ignore nodesVisited for return
         // This situation (AI returns None) should ideally be handled by the game logic
         // if it means no legal moves (checkmate/stalemate).
         // If it's an unexpected AI failure, throwing an exception is reasonable.

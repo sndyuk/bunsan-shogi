@@ -1,11 +1,14 @@
 package jp.sndyuk.shogi.kifu
 
-import jp.sndyuk.shogi.core.Board.Board // Assuming this is the main Board representation
-import jp.sndyuk.shogi.core.Piece.Piece // Assuming this is your Piece type
-import jp.sndyuk.shogi.core.Player.Player // SENTE, GOTE
-import jp.sndyuk.shogi.core.Position.Position // Assuming x, y coordinates
-import jp.sndyuk.shogi.core.Move.Move // Assuming this represents a move (from, to, piece, promotion, isDrop)
-import jp.sndyuk.shogi.core.Transition // From previous task, contains move and board state
+// Removed imports for jp.sndyuk.shogi.core.Piece, Position, Move, Transition as TempCore defines its own
+// Assuming jp.sndyuk.shogi.core.Board.Board and jp.sndyuk.shogi.core.Player.Player might be different
+// and are kept for now if they are used by external callers of exportToString.
+// However, the function signature of exportToString uses TempCore types due to `import TempCore._`.
+// For now, let's assume all types passed to exportToString are from TempCore or compatible.
+// If Board and Player from jp.sndyuk.shogi.core are truly needed, aliasing or qualification will be necessary.
+
+// import jp.sndyuk.shogi.core.Board.Board // Potentially unused or conflicting
+// import jp.sndyuk.shogi.core.Player.Player // Potentially unused or conflicting
 
 // Placeholder for core types if not fully defined or for simplification
 object TempCore {

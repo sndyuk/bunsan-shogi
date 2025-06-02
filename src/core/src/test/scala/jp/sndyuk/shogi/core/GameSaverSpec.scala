@@ -3,14 +3,14 @@ package jp.sndyuk.shogi.core
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import java.nio.file.{Files, Path}
-import scala.util.Success
+// Removed scala.util.{Try, Success, Failure} imports
 
-// Ensure these are the types defined in jp.sndyuk.shogi.core.GameState.scala
-import jp.sndyuk.shogi.core.{GameState, GameSaver}
-import jp.sndyuk.shogi.core.Player // Assuming this is jp.sndyuk.shogi.core.Player defined in GameState.scala
-import jp.sndyuk.shogi.core.Piece // Assuming this is jp.sndyuk.shogi.core.Piece defined in GameState.scala
-import jp.sndyuk.shogi.core.Position // Assuming this is jp.sndyuk.shogi.core.Position defined in GameState.scala
-import jp.sndyuk.shogi.core.{Transition => SavedTransition} // Alias to avoid confusion with core.Transition
+// GameState, GameSaver, Player, SimplePiece, Position, SimpleTransition are in the same package (jp.sndyuk.shogi.core)
+// No explicit imports needed for them.
+// Alias SimplePieceType to PieceValue for use in Map value types
+import jp.sndyuk.shogi.core.SimplePiece.{SimplePieceType => PieceValue, _}
+// Alias SimpleTransition if it helps clarity, though it's also directly accessible.
+import jp.sndyuk.shogi.core.{SimpleTransition => SavedTransition}
 
 
 class GameSaverSpec extends AnyFlatSpec with Matchers {
@@ -26,26 +26,26 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
   }
 
   // Sample data for board setup
-  val sampleBoardSetup: Map[Position, Piece.Value] = Map(
-    Position(1, 1) -> Piece.LANCE,
-    Position(1, 2) -> Piece.KNIGHT,
-    Position(5, 5) -> Piece.KING
+  val sampleBoardSetup: Map[Position, PieceValue] = Map( // Use PieceValue for Map value type
+    Position(1, 1) -> LANCE, // Use LANCE directly from SimplePiece import
+    Position(1, 2) -> KNIGHT,
+    Position(5, 5) -> KING
   )
 
-  val sampleBoardSetupMidGame: Map[Position, Piece.Value] = Map(
-    Position(7, 6) -> Piece.PAWN, // Sente's pawn advanced
-    Position(3, 4) -> Piece.PAWN, // Gote's pawn advanced
-    Position(5, 8) -> Piece.KING, // Sente King
-    Position(5, 2) -> Piece.KING, // Gote King
-    Position(2, 2) -> Piece.ROOK, // Sente Rook
-    Position(8, 8) -> Piece.BISHOP // Gote Bishop
+  val sampleBoardSetupMidGame: Map[Position, PieceValue] = Map( // Use PieceValue
+    Position(7, 6) -> PAWN, // Sente's pawn advanced
+    Position(3, 4) -> PAWN, // Gote's pawn advanced
+    Position(5, 8) -> KING, // Sente King
+    Position(5, 2) -> KING, // Gote King
+    Position(2, 2) -> ROOK, // Sente Rook
+    Position(8, 8) -> BISHOP // Gote Bishop
   )
 
   // Sample game history
-  // Recall SavedTransition is (move: String, boardStateAfterMove: Map[Position, Piece])
+  // Recall SavedTransition is (move: String, boardStateAfterMove: Map[Position, PieceValue])
   val sampleHistory: List[SavedTransition] = List(
-    SavedTransition("7g7f", Map(Position(7,6) -> Piece.PAWN) ++ sampleBoardSetup - Position(7,7)), // Pawn from 77 to 76 (using shogi notation for string)
-    SavedTransition("3c3d", Map(Position(3,4) -> Piece.PAWN) ++ sampleBoardSetup - Position(3,3) - Position(7,7) + (Position(7,6) -> Piece.PAWN))
+    SavedTransition("7g7f", Map(Position(7,6) -> PAWN) ++ sampleBoardSetup - Position(7,7)), // Pawn from 77 to 76
+    SavedTransition("3c3d", Map(Position(3,4) -> PAWN) ++ sampleBoardSetup - Position(3,3) - Position(7,7) + (Position(7,6) -> PAWN))
   )
 
   val emptyHistory: List[SavedTransition] = Nil
@@ -54,8 +54,8 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
     val originalGameState = GameState(
       boardSetup = sampleBoardSetup,
       currentTurn = Player.SENTE,
-      capturedPiecesPlayer1 = List(Piece.BISHOP, Piece.PAWN),
-      capturedPiecesPlayer2 = List(Piece.ROOK),
+      capturedPiecesPlayer1 = List(BISHOP, PAWN), // Use direct piece names
+      capturedPiecesPlayer2 = List(ROOK),
       gameHistory = sampleHistory
     )
 
@@ -73,9 +73,9 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
     // Representing an initial "hirate" setup is complex for `boardSetup` which expects generic Pieces.
     // For this test, "initial" means Sente's turn, no captures, no history.
     // A full board setup would involve all initial pieces.
-    val initialBoard: Map[Position, Piece.Value] = Map( // Simplified initial setup
-      Position(1,1) -> Piece.LANCE, Position(2,1) -> Piece.KNIGHT, /* ... Sente pieces ... */
-      Position(9,9) -> Piece.LANCE, Position(8,9) -> Piece.KNIGHT  /* ... Gote pieces ... */
+    val initialBoard: Map[Position, PieceValue] = Map( // Simplified initial setup; Use PieceValue
+      Position(1,1) -> LANCE, Position(2,1) -> KNIGHT, /* ... Sente pieces ... */
+      Position(9,9) -> LANCE, Position(8,9) -> KNIGHT  /* ... Gote pieces ... */
       // This should ideally map all standard shogi starting pieces
     )
     val originalGameState = GameState(
@@ -93,15 +93,15 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
 
   it should "save and load a mid-game state with more complex data" in withTempFile { filePath =>
     val complexHistory = List(
-        SavedTransition("7g7f", sampleBoardSetupMidGame - Position(7,7) + (Position(7,6) -> Piece.PAWN)),
-        SavedTransition("3c3d", sampleBoardSetupMidGame - Position(7,7) + (Position(7,6) -> Piece.PAWN) - Position(3,3) + (Position(3,4) -> Piece.PAWN)),
-        SavedTransition("2h7h", sampleBoardSetupMidGame - Position(7,7) + (Position(7,6) -> Piece.PAWN) - Position(3,3) + (Position(3,4) -> Piece.PAWN) - Position(2,8) + (Position(7,8) -> Piece.BISHOP)) // Bishop move (example)
+        SavedTransition("7g7f", sampleBoardSetupMidGame - Position(7,7) + (Position(7,6) -> PAWN)),
+        SavedTransition("3c3d", sampleBoardSetupMidGame - Position(7,7) + (Position(7,6) -> PAWN) - Position(3,3) + (Position(3,4) -> PAWN)),
+        SavedTransition("2h7h", sampleBoardSetupMidGame - Position(7,7) + (Position(7,6) -> PAWN) - Position(3,3) + (Position(3,4) -> PAWN) - Position(2,8) + (Position(7,8) -> BISHOP)) // Bishop move
     )
     val originalGameState = GameState(
       boardSetup = sampleBoardSetupMidGame,
       currentTurn = Player.GOTE,
-      capturedPiecesPlayer1 = List(Piece.PAWN, Piece.PAWN, Piece.LANCE),
-      capturedPiecesPlayer2 = List(Piece.SILVER),
+      capturedPiecesPlayer1 = List(PAWN, PAWN, LANCE),
+      capturedPiecesPlayer2 = List(SILVER),
       gameHistory = complexHistory
     )
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success
@@ -113,7 +113,7 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
     val originalGameState = GameState(
       boardSetup = sampleBoardSetup,
       currentTurn = Player.SENTE,
-      capturedPiecesPlayer1 = List(Piece.GOLD),
+      capturedPiecesPlayer1 = List(GOLD),
       capturedPiecesPlayer2 = Nil,
       gameHistory = emptyHistory
     )
@@ -124,10 +124,10 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
 
   it should "save and load with captured pieces for both players" in withTempFile { filePath =>
     val originalGameState = GameState(
-      boardSetup = Map(Position(5,5) -> Piece.KING), // Minimal board
+      boardSetup = Map(Position(5,5) -> KING), // Minimal board
       currentTurn = Player.GOTE,
-      capturedPiecesPlayer1 = List(Piece.ROOK, Piece.BISHOP, Piece.PAWN, Piece.PAWN),
-      capturedPiecesPlayer2 = List(Piece.GOLD, Piece.SILVER, Piece.KNIGHT, Piece.LANCE),
+      capturedPiecesPlayer1 = List(ROOK, BISHOP, PAWN, PAWN),
+      capturedPiecesPlayer2 = List(GOLD, SILVER, KNIGHT, LANCE),
       gameHistory = sampleHistory
     )
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success

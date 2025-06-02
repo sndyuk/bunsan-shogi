@@ -1,6 +1,6 @@
 package jp.sndyuk.shogi.core
 
-object Transition {
+object TransitionFactory {
   def apply(v: Int): Transition = {
     Transition(Point((v & 960) >>> 6, (v & 15360) >>> 10), Point((v & 245760) >>> 14, (v & 3932160) >>> 18), ((v & 32) >>> 5) == 1, if ((v & 31) > 0) Some(v & 31) else None)
   }

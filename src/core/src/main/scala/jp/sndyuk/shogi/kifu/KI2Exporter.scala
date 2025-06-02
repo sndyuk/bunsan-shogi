@@ -1,22 +1,29 @@
 package jp.sndyuk.shogi.kifu
 
-import jp.sndyuk.shogi.core.Board.Board
-import jp.sndyuk.shogi.core.Piece.Piece
-import jp.sndyuk.shogi.core.Player.Player
-import jp.sndyuk.shogi.core.Position.Position
-import jp.sndyuk.shogi.core.Move.Move
-import jp.sndyuk.shogi.core.Transition
+// Removed all direct imports from jp.sndyuk.shogi.core as TempCore should provide all necessary types,
+// either directly or through aliasing.
+// import jp.sndyuk.shogi.core.Board.Board
+// import jp.sndyuk.shogi.core.Piece.Piece
+// import jp.sndyuk.shogi.core.Player.Player
+// import jp.sndyuk.shogi.core.Position.Position
+// import jp.sndyuk.shogi.core.Move.Move
+// import jp.sndyuk.shogi.core.Transition
 
-// Using the same TempCore as in CSAExporter for consistency in this subtask
-import jp.sndyuk.shogi.kifu.CSAExporter.TempCore
-import jp.sndyuk.shogi.kifu.CSAExporter.TempCore.{Move => CoreMove, Transition => CoreTransition, Board => CoreBoard, Turn => CoreTurn, Player => CorePlayer, Piece => CorePiece}
+// Using TempCore from the kifu package
+// import jp.sndyuk.shogi.kifu.TempCore // Redundant as TempCore is in the same package
+import jp.sndyuk.shogi.kifu.TempCore._ // Import all members of TempCore (FU, SENTE, Position, etc.)
+// Aliased imports for clarity or if there are specific needs for these names.
+import jp.sndyuk.shogi.kifu.TempCore.{Move => CoreMove, Transition => CoreTransition, Board => CoreBoard, Turn => CoreTurn, Player => CorePlayer, Piece => CorePiece}
 
 
 object KI2Exporter {
-  import TempCore._ // Use the temporary core types from CSAExporter's context
+  // Now TempCore members like FU, SENTE, Position can be accessed directly.
+  // Aliased types like CoreMove, CorePiece are also available.
 
   // --- KI2 Specific Mappings ---
   private def toFullWidth(n: Int): String = n.toString.map {
+    // Explicitly provide promoted = false where it was intended.
+    // The call sites need to be checked. For now, removing default.
     case '1' => '１'
     case '2' => '２'
     case '3' => '３'
@@ -30,19 +37,29 @@ object KI2Exporter {
     case c => c
   }.mkString
 
-  private def pieceToKI2(piece: CorePiece, promoted: Boolean = false): String = piece match {
-    case FU if promoted => "と"
+  private def toKanjiDigit(n: Int): String = n match {
+    case 1 => "一"
+    case 2 => "二"
+    case 3 => "三"
+    case 4 => "四"
+    case 5 => "五"
+    case 6 => "六"
+    case 7 => "七"
+    case 8 => "八"
+    case 9 => "九"
+    case _ => n.toString // Should not happen for y-coordinates
+  }
+
+  // pieceToKI2 should map the piece to its KI2 representation.
+  // The 'promoted' boolean parameter was causing "馬成" instead of "角成".
+  // The decision to append "成" is handled by actionStr based on move.promote.
+  private def pieceToKI2(piece: CorePiece): String = piece match {
     case FU => "歩"
-    case KY if promoted => "杏"
     case KY => "香"
-    case KE if promoted => "圭"
     case KE => "桂"
-    case GI if promoted => "全"
     case GI => "銀"
     case KI => "金"
-    case KA if promoted => "馬"
     case KA => "角"
-    case HI if promoted => "龍"
     case HI => "飛"
     case OU => "玉" // Can also be 王 for Sente, but 玉 is common for both
     case TO => "と"
@@ -51,7 +68,7 @@ object KI2Exporter {
     case NG => "全"
     case UM => "馬"
     case RY => "龍"
-    case _ => "?"
+    case _ => "?" // Should ideally not happen with TempCore definitions
   }
 
   private def playerToKI2(player: CorePlayer): String = player match {
@@ -89,18 +106,19 @@ object KI2Exporter {
         if (lastToPos.contains(move.to)) {
           "同　" // Using full-width space for alignment
         } else {
-          s"${toFullWidth(move.to.x)}${toFullWidth(move.to.y)}"
+          s"${toFullWidth(move.to.x)}${toKanjiDigit(move.to.y)}" // Use Kanji for Y coordinate
         }
       }
 
-      val pieceStr = pieceToKI2(move.piece, move.promote)
+      val pieceStr = pieceToKI2(move.piece) // Pass only the piece; move.promote is for actionStr
 
       val actionStr = if (move.isDrop) "打" else if (move.promote) "成" else ""
 
       // Example line: 1 ▲７六歩 ( 0:01/0:00:01)
       // For simplicity, time consumption is omitted for now.
       // Format: moveNumber playerStr posStr pieceStr actionStr
-      sb.append(f"${moveNumber}%3d ${playerStr}${posStr}${pieceStr}${actionStr}\n")
+      // Adjusted move number formatting to match test expectation (single space after number)
+      sb.append(s"${moveNumber} ${playerStr}${posStr}${pieceStr}${actionStr}\n")
 
       coreTransition.comment.foreach { c =>
         sb.append(s"* ${c.replace("\n", "\n* ")}\n") // Comments start with *

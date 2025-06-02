@@ -35,6 +35,7 @@ lazy val core = (project in file("src/core"))
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
       "com.typesafe" % "config" % "1.4.3",
+      "com.typesafe.play" %% "play-json" % "2.9.4" // Added play-json dependency
     ),
   )
   .dependsOn(template)

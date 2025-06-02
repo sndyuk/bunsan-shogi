@@ -75,6 +75,8 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
     (s * BitSet.span) + ((s / 12) * 4)
   }
 
+  def getPosOfBitsForTest(p: Point): Int = posOfBits(p)
+
   def <+(piece: Piece, p: Point): Squares = {
     // assert(p.y < 9)
     // assert(p.x < 9)

@@ -64,34 +64,13 @@ object AlphaBetaSearch {
       return (score, None) // No move to make
     }
 
-    var bestMoveForThisNode: Option[Transition] = None
 
     if (maximizingPlayer) { // Current player at this node is the same as rootPlayerTurn
       var currentMaxEval = Int.MinValue
-      var currentAlpha = alpha
+      var bestMoveForThisNode: Option[Transition] = None
+      var currentAlpha = alpha // currentAlpha should be initialized with the passed-in alpha
 
-      // Initialize with the first move's evaluation
-      if (legalMoves.nonEmpty) {
-        val firstMove = legalMoves.head
-        val firstTempBoard = currentBoard.copy()
-        val firstNextState = firstTempBoard.move(currentState, firstMove.oldPos, firstMove.newPos, false, firstMove.nari)
-        val (firstEval, _) = search(firstNextState, firstTempBoard, depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
-
-        currentMaxEval = firstEval
-        bestMoveForThisNode = Some(firstMove)
-        println(s"AlphaBeta DEBUG (depth $depth, MAX): Initial bestMove (from head): ${firstMove.oldPos} -> ${firstMove.newPos} with score $firstEval")
-        currentAlpha = Math.max(currentAlpha, firstEval)
-
-        if (beta <= currentAlpha) {
-          println(s"AlphaBeta DEBUG (depth $depth, MAX): Beta cut-off after first move. Returning score $currentMaxEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}")
-          return (currentMaxEval, bestMoveForThisNode)
-        }
-      } else { // Should have been caught by legalMoves.isEmpty earlier, but as a safeguard
-        println(s"AlphaBeta DEBUG (depth $depth, MAX): No legal moves, but not caught by initial check? Returning MinValue.")
-        return (Int.MinValue, None)
-      }
-
-      for (move <- legalMoves.tail) { // Iterate remaining moves
+      for (move <- legalMoves) { // Iterate ALL legal moves
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
 
@@ -108,61 +87,57 @@ object AlphaBetaSearch {
         }
         currentAlpha = Math.max(currentAlpha, eval)
         if (beta <= currentAlpha) {
-          println(s"AlphaBeta DEBUG (depth $depth, MAX): BETA CUTOFF: beta ($beta) <= currentAlpha ($currentAlpha). Returning $currentMaxEval for move ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}")
+          println(s"AlphaBeta DEBUG (depth $depth, MAX): BETA CUTOFF: beta ($beta) <= currentAlpha ($currentAlpha).")
+          if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
+            bestMoveForThisNode = Some(move)
+            println(s"AlphaBeta DEBUG (depth $depth, MAX): BETA CUTOFF: bestMove was None, setting to current move ${move.oldPos} -> ${move.newPos}")
+          }
           return (currentMaxEval, bestMoveForThisNode) // Beta cut-off
         }
+      }
+      if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
+        bestMoveForThisNode = Some(legalMoves.head)
+        // If currentMaxEval is still MinValue, it means all moves resulted in MinValue or were pruned without setting a higher score.
+        // In such a case, the score associated with legalMoves.head might not be currentMaxEval.
+        // However, the problem asks to pick legalMoves.head if bestMoveForThisNode is None.
+        // The score returned would be currentMaxEval, which could be MinValue.
+        println(s"AlphaBeta DEBUG (depth $depth, MAX): Fallback: Chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because no better move was found (score $currentMaxEval).")
       }
       println(s"AlphaBeta DEBUG (depth $depth, MAX): Loop finished. Returning score $currentMaxEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}")
       return (currentMaxEval, bestMoveForThisNode)
     } else { // Current player at this node is the opponent of rootPlayerTurn
       var currentMinEval = Int.MaxValue
-      var currentBeta = beta
+      var bestMoveForThisNode: Option[Transition] = None
+      var currentBeta = beta // currentBeta should be initialized with the passed-in beta
 
-      // Initialize with the first move's evaluation
-      if (legalMoves.nonEmpty) {
-        val firstMove = legalMoves.head
-        val firstTempBoard = currentBoard.copy()
-        val firstNextState = firstTempBoard.move(currentState, firstMove.oldPos, firstMove.newPos, false, firstMove.nari)
-        val (firstEval, _) = search(firstNextState, firstTempBoard, depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
-
-        // Log before comparison (for first move)
-        println(s"AlphaBeta DEBUG (depth $depth, MIN): Move ${firstMove.oldPos}->${firstMove.newPos} (first move) got eval $firstEval. currentMinEval was $currentMinEval. alpha was $alpha, currentBeta was $currentBeta.")
-        if (firstEval < currentMinEval) {
-          println(s"AlphaBeta DEBUG (depth $depth, MIN): Eval $firstEval < currentMinEval $currentMinEval. Updating best move.")
-          currentMinEval = firstEval
-          bestMoveForThisNode = Some(firstMove)
-          println(s"AlphaBeta DEBUG (depth $depth, MIN): Initial bestMove for opponent (from head, move by ${currentState.turn}): ${firstMove.oldPos} -> ${firstMove.newPos} with score $currentMinEval (from root perspective)")
-        } else {
-           // This case should ideally not happen if currentMinEval is Int.MaxValue, unless firstEval is also MaxValue
-          bestMoveForThisNode = Some(firstMove) // Still assign if it's the only move
-          currentMinEval = firstEval // Ensure currentMinEval is set
-          println(s"AlphaBeta DEBUG (depth $depth, MIN): Eval $firstEval >= currentMinEval $currentMinEval. Setting best move to first move: ${firstMove.oldPos} -> ${firstMove.newPos} with score $currentMinEval")
-        }
-        currentBeta = Math.min(currentBeta, firstEval)
-
-        if (currentBeta <= alpha) {
-          println(s"AlphaBeta DEBUG (depth $depth, MIN): ALPHA CUTOFF after first move: alpha ($alpha) >= currentBeta ($currentBeta). Returning $currentMinEval for move ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}")
-          return (currentMinEval, bestMoveForThisNode)
-        }
-      } else {
-         println(s"AlphaBeta DEBUG (depth $depth, MIN): No legal moves, but not caught by initial check? Returning MaxValue.")
-        return (Int.MaxValue, None)
-      }
-
-      for (move <- legalMoves.tail) {
+      for (move <- legalMoves) { // Iterate ALL legal moves
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
 
         val (eval, _) = search(nextState, tempBoard, depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
+        // Log before comparison (for minimizer)
+        println(s"AlphaBeta DEBUG (depth $depth, MIN): Move ${move.oldPos}->${move.newPos} got eval $eval. currentMinEval was $currentMinEval. alpha was $alpha, currentBeta was $currentBeta.")
         if (eval < currentMinEval) {
           currentMinEval = eval
           bestMoveForThisNode = Some(move)
           println(s"AlphaBeta DEBUG (depth $depth, MIN): New bestMove for opponent (move by ${currentState.turn}): ${move.oldPos} -> ${move.newPos} with score $eval (from root perspective)")
+        } else {
+            println(s"AlphaBeta DEBUG (depth $depth, MIN): Eval $eval >= currentMinEval $currentMinEval. Not updating best move from ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}.")
         }
         currentBeta = Math.min(currentBeta, eval)
         if (currentBeta <= alpha) {
+          println(s"AlphaBeta DEBUG (depth $depth, MIN): ALPHA CUTOFF: currentBeta ($currentBeta) <= alpha ($alpha).")
+          if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
+            bestMoveForThisNode = Some(move)
+            println(s"AlphaBeta DEBUG (depth $depth, MIN): ALPHA CUTOFF: bestMove was None, setting to current move ${move.oldPos} -> ${move.newPos}")
+          }
           return (currentMinEval, bestMoveForThisNode) // Alpha cut-off
         }
+      }
+      if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
+        bestMoveForThisNode = Some(legalMoves.head)
+        // Similar to MAX node, if currentMinEval is MaxValue, this sets a move but score might be MaxValue.
+        println(s"AlphaBeta DEBUG (depth $depth, MIN): Fallback: Chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because no better move was found (score $currentMinEval).")
       }
       println(s"AlphaBeta DEBUG (depth $depth, MIN): Loop finished. Returning score $currentMinEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}")
       return (currentMinEval, bestMoveForThisNode)

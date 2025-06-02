@@ -134,7 +134,7 @@ class AlphaBetaAI_V1_Spec extends AnyFlatSpec with Matchers {
     kingCaptureMoveExists shouldBe true
   }
 
-  ignore should "make an obvious capture of a valuable piece" in { // IGNORED
+  ignore should "make an obvious capture of a valuable piece" in { // IGNORED - Keeping this ignored
     val board = createBoardWithHands(
       boardPieces = Seq(
         (Piece.▲.HI, Point(4,4)), // Sente Rook at 5e
@@ -179,5 +179,52 @@ class AlphaBetaAI_V1_Spec extends AnyFlatSpec with Matchers {
     bestMoveOpt shouldBe defined
     bestMoveOpt.get.oldPos shouldBe Point(1,1) // Original setup was HI at (1,1)
     bestMoveOpt.get.newPos shouldBe Point(0,1) // Expected capture of King at (0,1)
+  }
+}
+
+class UtilsPlansGoteCaptureScenarioSpec extends AnyFlatSpec with Matchers {
+  import TestBoardUtils._ // Use the existing helper
+
+  ignore should "Utils.plans for Gote (King at (0,1) vs Sente Promoted Rook at (0,0)) should generate King captures Promoted Rook move" in { // IGNORED for focus
+    val board = createBoardWithHands(
+      boardPieces = Seq(
+        (Piece.▲.OU, Point(8,8)),   // Sente King (position not critical for Gote's local moves)
+        (Piece.▲.RY, Point(0,0)),   // Sente Promoted Rook (target)
+        (Piece.△.OU, Point(0,1))    // Gote King
+      )
+    )
+    // It's Gote's (PlayerB) turn
+    val goteState = State(List(Transition(Point(1,1),Point(0,0),true,None)), PlayerB) // Dummy history, PlayerB to move
+
+    println("UtilsPlansGoteCaptureScenarioSpec DEBUG: Board state for Gote's turn:")
+    // Print relevant part of the board
+    for (y <- 0 to 2) {
+        val rowStr = (0 to 2).map { x =>
+            Piece.pieceString(board.squares.get(Point(y,x)))
+        }.mkString("|")
+        println(s"UtilsPlansGoteCaptureScenarioSpec DEBUG: Row $y: $rowStr")
+    }
+
+    val legalMoves = jp.sndyuk.shogi.player.Utils.plans(board, goteState).toList
+
+    println(s"UtilsPlansGoteCaptureScenarioSpec DEBUG: Utils.plans for Gote generated ${legalMoves.size} moves:")
+    var foundKingCaptureRook = false
+    var capturedPieceInTransition: Option[Piece] = None
+
+    legalMoves.zipWithIndex.foreach { case (mv, idx) =>
+      val movingPieceOnBoard = board.squares.get(mv.oldPos)
+      println(s"UtilsPlansGoteCaptureScenarioSpec DEBUG: Gote Move $idx: ${Piece.name(movingPieceOnBoard)} from ${mv.oldPos} to ${mv.newPos}, Nari: ${mv.nari}, Capturing: ${mv.captured.map(Piece.name)}")
+
+      if (mv.oldPos == Point(0,1) && mv.newPos == Point(0,0) && movingPieceOnBoard == Piece.△.OU) {
+        foundKingCaptureRook = true
+        capturedPieceInTransition = mv.captured
+        println(s"UtilsPlansGoteCaptureScenarioSpec DEBUG: Found King Capture Rook transition: ${mv.toString}")
+      }
+    }
+
+    foundKingCaptureRook shouldBe true
+
+    capturedPieceInTransition shouldBe defined
+    capturedPieceInTransition.get shouldBe Piece.▲.RY
   }
 }

@@ -6,10 +6,10 @@ import jp.sndyuk.shogi.ai._ // For ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2
 object AIBattleSim extends App {
 
   val MAX_MOVES = 200 // Game ends after this many half-moves if no mate
-  val SEARCH_DEPTH_AI1 = 3 // Increased depth
-  val SEARCH_DEPTH_AI2 = 3 // Increased depth
+  val SEARCH_DEPTH_AI1 = 2 // Depth 2 for faster simulation
+  val SEARCH_DEPTH_AI2 = 2 // Depth 2 for faster simulation
 
-  println("Shogi AI Battle Simulation: AlphaBetaAI_V1 vs AlphaBetaAI_V2")
+  println("Shogi AI Battle Simulation: AlphaBetaAI_V2 vs AlphaBetaAI_V2")
 
   // Initialize board and state
   var board = Board() // Creates a standard initial board
@@ -17,12 +17,15 @@ object AIBattleSim extends App {
   var currentState = State(Nil, PlayerA) // Player A (Sente) starts
 
   // Instantiate AIs
-  val ai1 = new AlphaBetaAI_V1(name = "AIv1_Sente", searchDepth = SEARCH_DEPTH_AI1)
+  val ai1 = new AlphaBetaAI_V2(name = "AIv2_Sente", searchDepth = SEARCH_DEPTH_AI1)
   val ai2 = new AlphaBetaAI_V2(name = "AIv2_Gote", searchDepth = SEARCH_DEPTH_AI2)
 
-  var gamePositionHistory: List[(ID, Turn)] = List() // For Sennichite detection
+  var gamePositionHistory: List[(String, String, Turn)] = List() // For Sennichite: (squares.id, capturedPieces.id, turnToPlay)
   var gameRunning = true
   var moveCount = 0
+
+  // Record initial position
+  gamePositionHistory = (board.squares.id(), board.capturedPieces.id(), currentState.turn) :: gamePositionHistory
 
   while (gameRunning && moveCount < MAX_MOVES) {
     moveCount += 1
@@ -65,32 +68,47 @@ object AIBattleSim extends App {
         // Apply move
         // currentAiPlayer is the player who is making the move.
         currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari) // validation=false as AI provides validated moves
-        // After this, currentState.turn is the *next* player.
+        // After this, currentState.turn is the *next* player. The board object itself has been mutated.
 
-        val playerWhoMadeTheMove = currentAiPlayer // Player whose turn it just was
-        val nextPlayer = currentState.turn      // Player whose turn it is now
+        // Sennichite (Four-fold repetition) check
+        // A position is defined by pieces on board, pieces in hand, and whose turn it is.
+        val newBoardSquaresId = board.squares.id()
+        val newCapturedPiecesId = board.capturedPieces.id()
+        val newPositionKey = (newBoardSquaresId, newCapturedPiecesId, currentState.turn)
 
-        // Check if currentAiPlayer (who just moved) has now captured the opponent's King
-        if (board.isFinish(playerWhoMadeTheMove)) {
-          // board.isFinish(P) means: "Does player P have a King (necessarily opponent's) in hand?"
-          println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
+        gamePositionHistory = newPositionKey :: gamePositionHistory
+
+        val occurrences = gamePositionHistory.count(_ == newPositionKey)
+
+        if (occurrences >= 4) {
+          println(s"\nSENNICHITE! Position repeated 4 times. Game is a draw.")
+          println(s"Board ID: $newBoardSquaresId, Captured ID: $newCapturedPiecesId, Turn: ${currentState.turn}")
           gameRunning = false
         } else {
-          // If no King was captured by playerWhoMadeTheMove, then check if the NEXT player (nextPlayer) has any moves.
-          val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
-          if (nextPlayerLegalMoves.isEmpty) {
-            // If nextPlayer has no moves, check if they are in check.
-            if (Rule.isInCheck(board, nextPlayer)) {
-              println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${nextPlayer} is in check and has no moves)")
-            } else {
-              // No legal moves, but not in check: Stalemate.
-              // In Shogi, this is typically a loss for the player with no moves.
-              println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins!")
-            }
+          val playerWhoMadeTheMove = currentAiPlayer // Player whose turn it just was
+          val nextPlayer = currentState.turn      // Player whose turn it is now
+
+          // Check if currentAiPlayer (who just moved) has now captured the opponent's King
+          if (board.isFinish(playerWhoMadeTheMove)) {
+            // board.isFinish(P) means: "Does player P have a King (necessarily opponent's) in hand?"
+            println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
             gameRunning = false
+          } else {
+            // If no King was captured by playerWhoMadeTheMove, then check if the NEXT player (nextPlayer) has any moves.
+            val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
+            if (nextPlayerLegalMoves.isEmpty) {
+              // If nextPlayer has no moves, check if they are in check.
+              if (Rule.isInCheck(board, nextPlayer)) {
+                println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${nextPlayer} is in check and has no moves)")
+              } else {
+                // No legal moves, but not in check: Stalemate.
+                // In Shogi, this is typically a loss for the player with no moves.
+                println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins!")
+              }
+              gameRunning = false
+            }
           }
         }
-
       case None =>
         // Current AI found no legal moves, implies it's checkmated or stalemated.
         println(s"\nNo moves for ${currentAiPlayer}! ${currentAiPlayer.change} wins by checkmate/stalemate!")

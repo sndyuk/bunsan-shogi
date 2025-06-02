@@ -13,7 +13,7 @@ class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) exte
       board: Board,
       turn: Turn,
       currentSearchDepth: Int // Use this depth for the search
-  ): Option[Transition] = {
+  ): (Option[Transition], Long) = { // Changed return type
 
     // Initial alpha/beta for the root search.
     // AlphaBetaSearch itself will initialize its internal currentMaxEval/currentMinEval
@@ -23,7 +23,8 @@ class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) exte
 
     val initialBoardID = ID(board) // Generate ID for the initial board state
 
-    val (_, bestMoveOpt) = AlphaBetaSearch.search(
+    // Destructure to get nodesVisited
+    val (_, bestMoveOpt, nodesVisited) = AlphaBetaSearch.search(
       currentState = state,
       currentBoard = board,
       currentBoardID = initialBoardID,
@@ -36,7 +37,7 @@ class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) exte
       evalFunc = EvaluationV2.evaluate
     )
 
-    bestMoveOpt
+    (bestMoveOpt, nodesVisited) // Return nodesVisited
   }
 
   override def toString: String = s"$name(depth=$searchDepth)"

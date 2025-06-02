@@ -38,9 +38,14 @@ object AIBattleSim extends App {
     // AIPlayer passes its own turn to findBestMove's 'turn' param.
     // The 'currentSearchDepth' for findBestMove will be AI's configured depth.
     val searchDepthForThisTurn = if (currentAiPlayer == PlayerA) SEARCH_DEPTH_AI1 else SEARCH_DEPTH_AI2
-    val bestMoveOpt = currentAi.findBestMove(currentState, board, currentAiPlayer, searchDepthForThisTurn)
+    val (bestMoveOpt, nodesVisited) = currentAi.findBestMove(currentState, board, currentAiPlayer, searchDepthForThisTurn)
     val endTime = System.currentTimeMillis()
-    println(s"Thinking time: ${endTime - startTime}ms")
+    val thinkingTime = endTime - startTime // Store for NPS calculation
+    println(s"Thinking time: ${thinkingTime}ms")
+    val thinkingTimeSeconds = thinkingTime / 1000.0
+    val nps = if (thinkingTimeSeconds > 0) nodesVisited / thinkingTimeSeconds else 0.0
+    println(s"Nodes visited: $nodesVisited")
+    println(s"NPS: ${"%.2f".format(nps)}")
 
     bestMoveOpt match {
       case Some(move) =>

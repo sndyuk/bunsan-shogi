@@ -21,7 +21,9 @@ object AlphaBetaSearch {
       maximizingPlayer: Boolean, // Is the current node/depth for the maximizing player?
       rootPlayerTurn: Turn, // The AI player for whom we are searching at the root
       evalFunc: (Board, Turn) => Int // Evaluates from the perspective of rootPlayerTurn
-  ): (Int, Option[Transition]) = {
+  ): (Int, Option[Transition], Long) = { // Added Long for node count
+
+    var nodesVisitedAccumulator: Long = 1L // Initialize node counter
 
     // Repetition check
     if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
@@ -29,7 +31,7 @@ object AlphaBetaSearch {
       // This means the current occurrence is the 3rd (or more) time.
       // Return a draw score (0) to discourage loops.
       // println(s"AlphaBeta DEBUG (depth $depth): Repetition detected for ID ${currentBoardID.toString.take(6)}... Draw score 0.")
-      return (0, None)
+      return (0, None, nodesVisitedAccumulator) // Added nodesVisitedAccumulator
     }
 
     // TODO: Add checkmate detection if Rule.isCheckmate is available. For now, rely on depth and no moves.
@@ -40,7 +42,7 @@ object AlphaBetaSearch {
     if (depth == 0) {
       val score = evalFunc(currentBoard, rootPlayerTurn)
       // println(s"AlphaBeta DEBUG (depth 0, eval for $rootPlayerTurn): Evaluated score = $score") // Restored
-      return (score, None)
+      return (score, None, nodesVisitedAccumulator) // Added nodesVisitedAccumulator
     }
 
     // Utils.plans uses currentState.turn to determine whose moves to generate
@@ -72,7 +74,7 @@ object AlphaBetaSearch {
       } else {
         MATE_SCORE + depth  // Opponent is checkmated, good for rootPlayerTurn
       }
-      return (score, None) // No move to make
+      return (score, None, nodesVisitedAccumulator) // No move to make, Added nodesVisitedAccumulator
     }
 
 
@@ -99,12 +101,13 @@ object AlphaBetaSearch {
         // } // Restored
 
         val nextBoardID = ID(tempBoard) // Generate ID for the new board state
-        val (eval, returnedMoveOpt) = search(nextState, tempBoard, nextBoardID,
+        val (eval, returnedMoveOpt, childNodesVisited) = search(nextState, tempBoard, nextBoardID, // Capture childNodesVisited
                                              currentBoardID :: gamePathHistoryIDs, // Prepend current ID to history for child
                                              depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
+        nodesVisitedAccumulator += childNodesVisited // Accumulate child nodes
 
         // if (depth == 2) { // Logging for root node's decision process // Restored
-            // println(s"ROOT MAX NODE: Move ${move.oldPos}->${move.newPos} (child chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval.") // Restored
+            // println(s"ROOT MAX NODE: Move ${move.oldPos}->${move.newPos} (child chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval. Child nodes: $childNodesVisited") // Restored
             // println(s"ROOT MAX NODE: Comparing eval $eval with currentMaxEval $currentMaxEval.") // Restored
         // } // Restored
 
@@ -142,7 +145,7 @@ object AlphaBetaSearch {
                 //  println(s"ROOT MAX NODE: BETA CUTOFF: Best move was None, set to legalMoves.head ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos}") // Restored
             //  } // Restored
           }
-          return (currentMaxEval, bestMoveForThisNode) // Beta cut-off
+          return (currentMaxEval, bestMoveForThisNode, nodesVisitedAccumulator) // Beta cut-off, Added nodesVisitedAccumulator
         }
       } // end for loop
 
@@ -153,9 +156,9 @@ object AlphaBetaSearch {
         // } // Restored
       }
       // if (depth == 2) { // Restored
-        // println(s"ROOT MAX NODE (depth $depth): Loop finished. Returning score $currentMaxEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}") // Restored
+        // println(s"ROOT MAX NODE (depth $depth): Loop finished. Returning score $currentMaxEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}. Total nodes: $nodesVisitedAccumulator") // Restored
       // } // Restored
-      return (currentMaxEval, bestMoveForThisNode)
+      return (currentMaxEval, bestMoveForThisNode, nodesVisitedAccumulator) // Added nodesVisitedAccumulator
     } else { // MINIMIZING PLAYER (Gote's turn at depth 1 for this test)
       var currentMinEval = Int.MaxValue
       var bestMoveForThisNode: Option[Transition] = None
@@ -178,12 +181,13 @@ object AlphaBetaSearch {
         // } // Restored
 
         val nextBoardID = ID(tempBoard) // Generate ID for the new board state
-        val (eval, returnedMoveOpt) = search(nextState, tempBoard, nextBoardID,
+        val (eval, returnedMoveOpt, childNodesVisited) = search(nextState, tempBoard, nextBoardID, // Capture childNodesVisited
                                              currentBoardID :: gamePathHistoryIDs, // Prepend current ID to history for child
                                              depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
+        nodesVisitedAccumulator += childNodesVisited // Accumulate child nodes
 
         // if (depth == 1) { // Restored
-            // println(s"MIN NODE: Gote Move ${move.oldPos}->${move.newPos} (child Sente MAX node chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval (Sente's perspective).") // Restored
+            // println(s"MIN NODE: Gote Move ${move.oldPos}->${move.newPos} (child Sente MAX node chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval (Sente's perspective). Child nodes: $childNodesVisited") // Restored
             // println(s"MIN NODE: Comparing eval $eval with currentMinEval $currentMinEval.") // Restored
         // } // Restored
         if (eval < currentMinEval) {
@@ -205,7 +209,7 @@ object AlphaBetaSearch {
                     bestMoveForThisNode = Some(legalMoves.head)
                 }
             }
-            return (currentMinEval, bestMoveForThisNode) // Alpha cut-off
+            return (currentMinEval, bestMoveForThisNode, nodesVisitedAccumulator) // Alpha cut-off, Added nodesVisitedAccumulator
         }
       }
       if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
@@ -213,9 +217,9 @@ object AlphaBetaSearch {
         // if (depth == 1) println(s"MIN NODE (depth $depth): Fallback post-loop: Gote chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because bestMove was None (resulting Sente score $currentMinEval).") // Restored
       }
       // if (depth == 1) { // Restored
-        // println(s"MIN NODE (depth $depth): Loop finished. Gote returns score $currentMinEval (for Sente), Gote's chosen move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}") // Restored
+        // println(s"MIN NODE (depth $depth): Loop finished. Gote returns score $currentMinEval (for Sente), Gote's chosen move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}. Total nodes: $nodesVisitedAccumulator") // Restored
       // } // Restored
-      return (currentMinEval, bestMoveForThisNode)
+      return (currentMinEval, bestMoveForThisNode, nodesVisitedAccumulator) // Added nodesVisitedAccumulator
     }
   }
 }

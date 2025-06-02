@@ -20,6 +20,7 @@ object AIBattleSim extends App {
   val ai1 = new AlphaBetaAI_V1(name = "AIv1_Sente", searchDepth = SEARCH_DEPTH_AI1)
   val ai2 = new AlphaBetaAI_V2(name = "AIv2_Gote", searchDepth = SEARCH_DEPTH_AI2)
 
+  var gamePositionHistory: List[(ID, Turn)] = List() // For Sennichite detection
   var gameRunning = true
   var moveCount = 0
 
@@ -61,18 +62,26 @@ object AIBattleSim extends App {
         currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari) // validation=false as AI provides validated moves
         // After this, currentState.turn is the *next* player.
 
-        // Check if currentAiPlayer (who just moved) has now captured the opponent's King.
-        // board.isFinish(P) means "Does player P have a King (necessarily opponent's) in hand?"
-        if (board.isFinish(currentAiPlayer)) {
-          println(s"\nKING CAPTURED! Player ${currentAiPlayer} wins!")
+        val playerWhoMadeTheMove = currentAiPlayer // Player whose turn it just was
+        val nextPlayer = currentState.turn      // Player whose turn it is now
+
+        // Check if currentAiPlayer (who just moved) has now captured the opponent's King
+        if (board.isFinish(playerWhoMadeTheMove)) {
+          // board.isFinish(P) means: "Does player P have a King (necessarily opponent's) in hand?"
+          println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
           gameRunning = false
         } else {
-          // If no King was captured by currentAiPlayer, then check if the NEXT player has any moves.
-          // The next player is now currentState.turn.
+          // If no King was captured by playerWhoMadeTheMove, then check if the NEXT player (nextPlayer) has any moves.
           val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
           if (nextPlayerLegalMoves.isEmpty) {
-            // If nextPlayer has no moves, currentAiPlayer delivered checkmate/stalemate.
-            println(s"\nCHECKMATE! Player ${currentAiPlayer} wins! (Opponent ${currentState.turn} has no moves)")
+            // If nextPlayer has no moves, check if they are in check.
+            if (Rule.isInCheck(board, nextPlayer)) {
+              println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${nextPlayer} is in check and has no moves)")
+            } else {
+              // No legal moves, but not in check: Stalemate.
+              // In Shogi, this is typically a loss for the player with no moves.
+              println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins!")
+            }
             gameRunning = false
           }
         }

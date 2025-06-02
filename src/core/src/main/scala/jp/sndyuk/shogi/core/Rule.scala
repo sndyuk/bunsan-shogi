@@ -265,4 +265,40 @@ object Rule {
         newPos.y >= 6
       })))
   }
+
+  /**
+   * Checks if the specified player's King is currently in check.
+   * @param board The current board state.
+   * @param playerWhoseKingIsChecked The player whose King's safety is being checked.
+   * @return True if playerWhoseKingIsChecked's King is under attack, false otherwise.
+   */
+  def isInCheck(board: Board, playerWhoseKingIsChecked: Turn): Boolean = {
+    // 1. Find the King of 'playerWhoseKingIsChecked'
+    val kingPiece = Piece.convert(Piece.◯.OU, playerWhoseKingIsChecked)
+    board.squares.find(kingPiece) match {
+      case None =>
+        // King is not on the board, so it cannot be in check from an on-board piece.
+        // This scenario implies the game might have already ended or is in an invalid state.
+        false
+      case Some(kingPos) =>
+        // 2. Check if any of the opponent's pieces can attack the King's position.
+        val opponentTurn = playerWhoseKingIsChecked.change
+
+        for (y <- 0 to 8; x <- 0 to 8) {
+          val currentPiecePoint = Point(y,x)
+          val currentPiece = board.squares.get(currentPiecePoint)
+
+          // If it's an opponent's piece
+          if (currentPiece != Piece.❏ && Piece.▲△(currentPiece, opponentTurn)) {
+            // Generate its moves (non-promoting moves are sufficient for checking attack)
+            val movesForThisOpponentPiece = generateMovablePoints(board, currentPiecePoint, currentPiece, opponentTurn, false)
+            if (movesForThisOpponentPiece.exists { case (newPos, _) => newPos == kingPos }) {
+              return true // King is attacked by this piece
+            }
+          }
+        }
+        // No opponent piece found that can attack the King's position
+        false
+    }
+  }
 }

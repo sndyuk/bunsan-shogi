@@ -43,6 +43,7 @@ import jp.sndyuk.shogi.player.CommandReader
 import jp.sndyuk.shogi.player.HumanPlayer
 import jp.sndyuk.shogi.player.Player
 import jp.sndyuk.shogi.player.Utils
+import jp.sndyuk.shogi.ai.AlphaBetaAI_V1
 
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])
 
@@ -94,11 +95,11 @@ object Gui extends SimpleSwingApplication with Shogi {
       currState = State(nextTransition :: state.history, state.turn.change)
       nextTransition
     }
-  }
+  } // Added missing closing brace for commandReader
 
   val playerA = new HumanPlayer("playerA", board, commandReader, false)
 //  val playerB = new HumanPlayer("playerB", board, commandReader, false)
-  val playerB = new AIPlayer()
+  val playerB = new AIPlayer("AI_PlayerB_GUI", PlayerB, new AlphaBetaAI_V1(searchDepth = 1), 1)
 
   @volatile private var player: Player = playerA
   @volatile private var oldPos: Point = (0, 0)

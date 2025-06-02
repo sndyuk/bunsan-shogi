@@ -40,14 +40,16 @@ case class Point(y: Int, x: Int) extends Serializable {
     if (Point.isCaptured(this))
       s"持駒: ${
         x match {
-          case 0 => "玉"
-          case 1 => "金"
-          case 2 => "歩"
-          case 3 => "銀"
-          case 4 => "飛"
-          case 5 => "角"
-          case 6 => "桂"
-          case 7 => "香"
+          // Values based on Point.ofCaptured
+          case 1 => "金" // KI
+          case 2 => "歩" // FU
+          case 3 => "銀" // GI
+          case 4 => "飛" // HI
+          case 5 => "角" // KA
+          case 6 => "桂" // KE
+          case 7 => "香" // KY
+          case 8 => "玉" // OU - This was missing
+          case _ => "?"  // Fallback for unexpected x values
         }
       }"
     else

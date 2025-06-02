@@ -13,6 +13,12 @@ object EvaluationV2 {
   private val PROMOTION_POTENTIAL_MINOR = 50 // Bonus for FU, KY, KE, GI in enemy zone
   private val PROMOTION_POTENTIAL_MAJOR = 100 // Bonus for KA, HI in enemy zone
 
+  // Center Control Heuristic Constants
+  private val CENTER_FILES: Set[Int] = Set(3, 4, 5) // Files 6, 5, 4 (0-indexed: 0=9th file, 8=1st file)
+  private val CENTER_RANKS: Set[Int] = Set(3, 4, 5) // Ranks 4, 5, 6 (0-indexed: 0=rank 1, 8=rank 9)
+  private val CENTER_SQUARE_BONUS = 10 // Bonus for each piece occupying a center square
+  // private val CENTER_ATTACK_BONUS = 5 // Optional: For pieces attacking center (not implemented in this version)
+
   // getPieceValueForEval is not needed here as EvaluationV1.evaluate is used for material score
   // and other heuristics add fixed bonuses.
 
@@ -69,6 +75,25 @@ object EvaluationV2 {
     safetyScore
   }
 
+  private def calculateCenterControlScore(board: Board, playerTurn: Turn): Int = {
+    var centerScore = 0
+    for (y <- 0 to 8; x <- 0 to 8) {
+      val point = Point(y, x)
+      val piece = board.squares.get(point)
+
+      if (piece != Piece.❏) { // If square is not empty
+        if (CENTER_FILES.contains(point.x) && CENTER_RANKS.contains(point.y)) {
+          if (Piece.▲△(piece, playerTurn)) {
+            centerScore += CENTER_SQUARE_BONUS
+          }
+          // No penalty for opponent occupying, as (myScore - opponentScore) handles the relativity
+        }
+      }
+    }
+    // Attack bonus omitted for now as per plan
+    centerScore
+  }
+
   private def calculatePromotionPotentialScore(board: Board, playerTurn: Turn): Int = {
     var promotionScore = 0
     // Promotion zone for Sente (PlayerA) is ranks 1-3 (y = 0, 1, 2)
@@ -103,19 +128,22 @@ object EvaluationV2 {
     val myMobility = calculatePieceMobilityScore(board, turn)
     val myKingSafety = calculateKingSafetyScore(board, turn)
     val myPromotionPotential = calculatePromotionPotentialScore(board, turn)
+    val myCenterControl = calculateCenterControlScore(board, turn)
 
     // Calculate positional scores for the opponent
     val opponentTurn = turn.change
     val opponentMobility = calculatePieceMobilityScore(board, opponentTurn)
     val opponentKingSafety = calculateKingSafetyScore(board, opponentTurn)
     val opponentPromotionPotential = calculatePromotionPotentialScore(board, opponentTurn)
+    val opponentCenterControl = calculateCenterControlScore(board, opponentTurn)
 
     // Combine: Material + (My Positional Bonuses - Opponent's Positional Bonuses)
     val positionalScoreDifference =
       (myMobility - opponentMobility) +
       (myKingSafety - opponentKingSafety) +
-      (myPromotionPotential - opponentPromotionPotential)
-      // TODO: Add other heuristics like Center Control, Piece Activity Detail etc.
+      (myPromotionPotential - opponentPromotionPotential) +
+      (myCenterControl - opponentCenterControl)
+      // TODO: Add other heuristics like Piece Activity Detail etc.
 
     materialScore + positionalScoreDifference
   }

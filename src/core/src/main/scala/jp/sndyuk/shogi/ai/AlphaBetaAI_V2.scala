@@ -1,6 +1,6 @@
 package jp.sndyuk.shogi.ai
 
-import jp.sndyuk.shogi.core.{State, Board, Turn, Transition}
+import jp.sndyuk.shogi.core.{State, Board, Turn, Transition, ID} // Added ID
 
 class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) extends ShogiAI {
 
@@ -21,15 +21,19 @@ class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) exte
     val alpha = Int.MinValue + MATE_SCORE_GUARD
     val beta = Int.MaxValue - MATE_SCORE_GUARD
 
+    val initialBoardID = ID(board) // Generate ID for the initial board state
+
     val (_, bestMoveOpt) = AlphaBetaSearch.search(
       currentState = state,
       currentBoard = board,
+      currentBoardID = initialBoardID,
+      gamePathHistoryIDs = Nil, // Initial call, path history is empty
       depth = currentSearchDepth,
       alpha = alpha,
       beta = beta,
-      maximizingPlayer = true,  // The root node is always for the player whose turn it is
-      rootPlayerTurn = turn,    // The perspective for evaluation and MATE_SCORE interpretation
-      evalFunc = EvaluationV2.evaluate // Use EvaluationV2
+      maximizingPlayer = true,
+      rootPlayerTurn = turn,
+      evalFunc = EvaluationV2.evaluate
     )
 
     bestMoveOpt

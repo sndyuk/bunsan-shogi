@@ -8,6 +8,8 @@ import jp.sndyuk.shogi.player.Player
 import jp.sndyuk.shogi.core.State
 import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.player.CommandReader
+import jp.sndyuk.shogi.core.PlayerB // Gote
+import jp.sndyuk.shogi.ai.AlphaBetaAI_V1
 
 object Console extends App with Shogi {
 
@@ -28,9 +30,10 @@ object Console extends App with Shogi {
   }
 
   //   val playerA = new AIPlayer(board)
+
   override val playerA = new HumanPlayer("playerA", board, commandReader, true)
   //  val playerB = new HumanPlayer(board)
-  override val playerB = new AIPlayer()
+  override val playerB = new AIPlayer("AI_PlayerB", PlayerB, new AlphaBetaAI_V1(searchDepth = 1), 1)
 
   println(board.toString)
   println("(筋,段)(筋,段)")

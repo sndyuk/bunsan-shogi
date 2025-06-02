@@ -1,6 +1,6 @@
 package jp.sndyuk.shogi.ai
 
-import jp.sndyuk.shogi.core.{State, Board, Turn, Transition}
+import jp.sndyuk.shogi.core.{State, Board, Turn, Transition, ID} // Added ID
 
 class AlphaBetaAI_V1(val name: String = "AlphaBetaAI_V1", searchDepth: Int) extends ShogiAI {
 
@@ -24,15 +24,19 @@ class AlphaBetaAI_V1(val name: String = "AlphaBetaAI_V1", searchDepth: Int) exte
 
     // Call the search. 'maximizingPlayer' is true because this AI (root player) wants to maximize its score.
     // 'turn' is passed as 'rootPlayerTurn' to ensure evaluation is from this AI's perspective.
+    val initialBoardID = ID(board) // Generate ID for the initial board state
+
     val (_, bestMoveOpt) = AlphaBetaSearch.search(
       currentState = state,
-      currentBoard = board, // Pass the current board from argument
-      depth = currentSearchDepth, // Use the passed-in depth from AIPlayer
+      currentBoard = board,
+      currentBoardID = initialBoardID,
+      gamePathHistoryIDs = Nil, // Initial call, path history is empty
+      depth = currentSearchDepth,
       alpha = alpha,
       beta = beta,
-      maximizingPlayer = true, // AI is the maximizing player at the root
-      rootPlayerTurn = turn,   // Evaluate relative to this AI's turn (the player this AI instance plays for)
-      evalFunc = EvaluationV1.evaluate // Use EvaluationV1
+      maximizingPlayer = true,
+      rootPlayerTurn = turn,
+      evalFunc = EvaluationV1.evaluate
     )
 
     bestMoveOpt

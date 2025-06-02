@@ -1,6 +1,6 @@
 package jp.sndyuk.shogi.ai
 
-import jp.sndyuk.shogi.core.{State, Board, Turn, Transition} // Piece removed for now
+import jp.sndyuk.shogi.core.{State, Board, Turn, Transition, ID} // Added ID
 import jp.sndyuk.shogi.player.Utils // For Utils.plans
 
 object AlphaBetaSearch {
@@ -13,6 +13,8 @@ object AlphaBetaSearch {
   def search(
       currentState: State, // Contains whose turn it is (currentState.turn)
       currentBoard: Board,
+      currentBoardID: ID, // ID of currentBoard
+      gamePathHistoryIDs: List[ID], // IDs of states in the current search path from root
       depth: Int,
       alpha: Int, // Alpha: best score for maximizer found so far along the path to the root
       beta: Int,  // Beta: best score for minimizer found so far along the path to the root
@@ -20,6 +22,15 @@ object AlphaBetaSearch {
       rootPlayerTurn: Turn, // The AI player for whom we are searching at the root
       evalFunc: (Board, Turn) => Int // Evaluates from the perspective of rootPlayerTurn
   ): (Int, Option[Transition]) = {
+
+    // Repetition check
+    if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
+      // This position (currentBoardID) has appeared at least twice before in the current path.
+      // This means the current occurrence is the 3rd (or more) time.
+      // Return a draw score (0) to discourage loops.
+      // println(s"AlphaBeta DEBUG (depth $depth): Repetition detected for ID ${currentBoardID.toString.take(6)}... Draw score 0.")
+      return (0, None)
+    }
 
     // TODO: Add checkmate detection if Rule.isCheckmate is available. For now, rely on depth and no moves.
     // A proper checkmate detection (e.g. using Rule.isTsumero or a similar function)
@@ -87,7 +98,10 @@ object AlphaBetaSearch {
             // println(s"ROOT MAX NODE: Simulating move ${move.oldPos} -> ${move.newPos}") // Restored
         // } // Restored
 
-        val (eval, returnedMoveOpt) = search(nextState, tempBoard, depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
+        val nextBoardID = ID(tempBoard) // Generate ID for the new board state
+        val (eval, returnedMoveOpt) = search(nextState, tempBoard, nextBoardID,
+                                             currentBoardID :: gamePathHistoryIDs, // Prepend current ID to history for child
+                                             depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
 
         // if (depth == 2) { // Logging for root node's decision process // Restored
             // println(s"ROOT MAX NODE: Move ${move.oldPos}->${move.newPos} (child chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval.") // Restored
@@ -163,7 +177,10 @@ object AlphaBetaSearch {
             // println(s"MIN NODE: Simulating Gote move ${move.oldPos} -> ${move.newPos}") // Restored
         // } // Restored
 
-        val (eval, returnedMoveOpt) = search(nextState, tempBoard, depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
+        val nextBoardID = ID(tempBoard) // Generate ID for the new board state
+        val (eval, returnedMoveOpt) = search(nextState, tempBoard, nextBoardID,
+                                             currentBoardID :: gamePathHistoryIDs, // Prepend current ID to history for child
+                                             depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
 
         // if (depth == 1) { // Restored
             // println(s"MIN NODE: Gote Move ${move.oldPos}->${move.newPos} (child Sente MAX node chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval (Sente's perspective).") // Restored

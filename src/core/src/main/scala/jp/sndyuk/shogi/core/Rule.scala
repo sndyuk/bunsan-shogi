@@ -266,13 +266,37 @@ object Rule {
   }
 
   /**
-   *  千日手判定
+   * Checks for limited repetition based ONLY on the destination squares (`newPos`)
+   * of recent moves in the state history.
+   *
+   * WARNING: This method does NOT check for full board state repetition
+   * (which would require comparing board [[ID]]s, pieces in hand, and player turn).
+   * It should NOT be used for official Sennichite (four-fold repetition) or general
+   * threefold repetition game adjudication.
+   *
+   * For true game repetition checks, a history of (Board.ID, Turn) tuples should be
+   * maintained and checked for 4 occurrences, as demonstrated in `AIBattleSim.scala`.
+   *
+   * This function might be useful for detecting simpler patterns like a piece
+   * moving back and forth between the same two squares, if that specific information is needed.
+   *
+   * The patterns checked are:
+   * - Current player's last three moves all landed on the same square (e.g., P1 moves to X, P2 moves, P1 moves to X, P2 moves, P1 moves to X).
+   * - Opponent's last three moves all landed on the same square.
+   * - Sequences like (P1 to A, P2 to B, P3 to C, P1 to A, P2 to B, P3 to C, ...), comparing destination squares of moves by players at similar points in the sequence.
+   *
+   * @param state The current game state containing the history of moves (Transitions).
+   * @return True if one of the limited destination-based repetition patterns is detected, false otherwise.
    */
-  def isThreefoldRepetition(board: Board, state: State): Boolean = {
+  def isLimitedThreefoldRepetitionByDestination(state: State): Boolean = {
     val his = state.history // his(0) is the most recent move
     val size = his.size
 
-    @inline def same(a: Transition, b: Transition): Boolean = a.newPos == b.newPos // And implicitly same player due to turn structure
+    // Compares only the newPos (destination square) of two transitions.
+    // The comment "And implicitly same player due to turn structure" from the original code
+    // is only relevant if comparing moves made by the *same* player (e.g. his(0) vs his(2)).
+    // When comparing his(0) vs his(3), these are moves by different players.
+    @inline def same(a: Transition, b: Transition): Boolean = a.newPos == b.newPos
 
     // Check for 3-fold repetition by the current player (X . X . X pattern)
     // Needs at least 5 moves in history for pattern P1, P2, P1, P2, P1 (indices 0,1,2,3,4)

@@ -62,27 +62,44 @@ object AIBattleSim extends App {
         currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari) // validation=false as AI provides validated moves
         // After this, currentState.turn is the *next* player.
 
-        val playerWhoMadeTheMove = currentAiPlayer // Player whose turn it just was
-        val nextPlayer = currentState.turn      // Player whose turn it is now
+        // Sennichite Check (Four-fold repetition)
+        // ID(board) gives the ID of the board *after* the move.
+        // currentState.turn is the turn of the player *to play next* at this position.
+        val currentBoardID = ID(board)
+        val currentPositionTuple = (currentBoardID, currentState.turn)
+        gamePositionHistory = currentPositionTuple :: gamePositionHistory
 
-        // Check if currentAiPlayer (who just moved) has now captured the opponent's King
-        if (board.isFinish(playerWhoMadeTheMove)) {
-          // board.isFinish(P) means: "Does player P have a King (necessarily opponent's) in hand?"
-          println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
+        val repetitionCount = gamePositionHistory.count(_ == currentPositionTuple)
+        if (repetitionCount >= 4) {
+          println(s"\nSENNICHITE! Position with ID ${currentBoardID.value} repeated 4 times with player ${currentState.turn} to move. Game is a draw.")
           gameRunning = false
-        } else {
-          // If no King was captured by playerWhoMadeTheMove, then check if the NEXT player (nextPlayer) has any moves.
-          val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
-          if (nextPlayerLegalMoves.isEmpty) {
-            // If nextPlayer has no moves, check if they are in check.
-            if (Rule.isInCheck(board, nextPlayer)) {
-              println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${nextPlayer} is in check and has no moves)")
-            } else {
-              // No legal moves, but not in check: Stalemate.
-              // In Shogi, this is typically a loss for the player with no moves.
-              println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins!")
-            }
+        }
+
+        if (gameRunning) { // Only proceed if not ended by Sennichite
+          val playerWhoMadeTheMove = currentAiPlayer // Player whose turn it just was
+          val nextPlayer = currentState.turn      // Player whose turn it is now
+
+          // Check if currentAiPlayer (who just moved) has now captured the opponent's King
+          if (board.isFinish(playerWhoMadeTheMove)) {
+            // board.isFinish(P) means: "Does player P have a King (necessarily opponent's) in hand?"
+            // This is a simplification; standard shogi doesn't have king capture this way.
+            // A more accurate check would be if the opponent's king has no legal moves (checkmate).
+            println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
             gameRunning = false
+          } else {
+            // If no King was captured by playerWhoMadeTheMove, then check if the NEXT player (nextPlayer) has any moves.
+            val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
+            if (nextPlayerLegalMoves.isEmpty) {
+              // If nextPlayer has no moves, check if they are in check.
+              if (Rule.isInCheck(board, nextPlayer)) {
+                println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${nextPlayer} is in check and has no moves)")
+              } else {
+                // No legal moves, but not in check: Stalemate.
+                // In Shogi, this is typically a loss for the player with no moves.
+                println(s"\nSTALEMATE! Player ${nextPlayer} has no legal moves. Player ${playerWhoMadeTheMove} wins!")
+              }
+              gameRunning = false
+            }
           }
         }
 

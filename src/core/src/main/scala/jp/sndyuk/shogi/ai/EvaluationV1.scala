@@ -1,7 +1,7 @@
 package jp.sndyuk.shogi.ai
 
-import jp.sndyuk.shogi.core.{Board, Piece, Turn, Point, PlayerA, PlayerB}
-// PlayerA and PlayerB are instances of Turn, not separate types to import.
+import jp.sndyuk.shogi.core.{Board, Piece, Turn, Point}
+// PlayerA and PlayerB are instances of Turn, not separate types to import. // Removed PlayerA, PlayerB
 // Turn itself is needed for type annotations. Point is used. Piece for constants. Board for its structure.
 
 object EvaluationV1 {
@@ -31,24 +31,24 @@ object EvaluationV1 {
   }
 
   def evaluate(board: Board, turn: Turn): Int = {
-    println(s"EVAL DEBUG: Evaluating for turn: ${if (turn == PlayerA) "PlayerA (Sente)" else "PlayerB (Gote)"}")
-    // Detailed board state printing:
-    println(s"EVAL DEBUG: Board state (perspective of $turn):")
-    val sb = new StringBuilder()
-    for (y <- 0 to 8) {
-      for (x <- 0 to 8) {
-        val p = board.squares.get(Point(y,x))
-        sb.append(f"${Piece.name(p)}%-3s") // Use %-3s for alignment with Japanese characters
-      }
-      sb.append(s" | Rank ${y+1}")
-      sb.append("\n")
-    }
-    println(sb.toString())
+    // println(s"EVAL DEBUG: Evaluating for turn: ${if (turn == PlayerA) "PlayerA (Sente)" else "PlayerB (Gote)"}") // Restored
+    // Detailed board state printing: // Restored
+    // println(s"EVAL DEBUG: Board state (perspective of $turn):") // Restored
+    // val sb = new StringBuilder() // Restored
+    // for (y <- 0 to 8) { // Restored
+      // for (x <- 0 to 8) { // Restored
+        // val p = board.squares.get(Point(y,x)) // Restored
+        // sb.append(f"${Piece.name(p)}%-3s") // Use %-3s for alignment with Japanese characters // Restored
+      // } // Restored
+      // sb.append(s" | Rank ${y+1}") // Restored
+      // sb.append("\n") // Restored
+    // } // Restored
+    // println(sb.toString()) // Restored
 
-    val playerAHand = Piece.◯.all.filter(_ != Piece.◯.OU).map(gP => s"${Piece.name(gP)}x${board.capturedPieces.count(PlayerA, gP)}").mkString(" ")
-    val playerBHand = Piece.◯.all.filter(_ != Piece.◯.OU).map(gP => s"${Piece.name(gP)}x${board.capturedPieces.count(PlayerB, gP)}").mkString(" ")
-    println(s"EVAL DEBUG: Sente (PlayerA) hand: $playerAHand")
-    println(s"EVAL DEBUG: Gote (PlayerB) hand: $playerBHand")
+    // val playerAHand = Piece.◯.all.filter(_ != Piece.◯.OU).map(gP => s"${Piece.name(gP)}x${board.capturedPieces.count(PlayerA, gP)}").mkString(" ") // Restored
+    // val playerBHand = Piece.◯.all.filter(_ != Piece.◯.OU).map(gP => s"${Piece.name(gP)}x${board.capturedPieces.count(PlayerB, gP)}").mkString(" ") // Restored
+    // println(s"EVAL DEBUG: Sente (PlayerA) hand: $playerAHand") // Restored
+    // println(s"EVAL DEBUG: Gote (PlayerB) hand: $playerBHand") // Restored
 
     var myScore = 0
     var opponentScore = 0
@@ -84,7 +84,7 @@ object EvaluationV1 {
     }
 
     val finalScore = myScore - opponentScore
-    println(s"EVAL DEBUG: myScore (for $turn)=$myScore, opponentScore (for ${turn.change})=$opponentScore, finalScoreForTurn_${turn}=$finalScore")
+    // println(s"EVAL DEBUG: myScore (for $turn)=$myScore, opponentScore (for ${turn.change})=$opponentScore, finalScoreForTurn_${turn}=$finalScore") // Restored
     finalScore
   }
 }

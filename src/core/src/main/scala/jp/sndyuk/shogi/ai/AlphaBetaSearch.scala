@@ -1,6 +1,6 @@
 package jp.sndyuk.shogi.ai
 
-import jp.sndyuk.shogi.core.{State, Board, Turn, Transition, Piece} // Added Piece back
+import jp.sndyuk.shogi.core.{State, Board, Turn, Transition} // Piece removed for now
 import jp.sndyuk.shogi.player.Utils // For Utils.plans
 
 object AlphaBetaSearch {
@@ -28,7 +28,7 @@ object AlphaBetaSearch {
 
     if (depth == 0) {
       val score = evalFunc(currentBoard, rootPlayerTurn)
-      println(s"AlphaBeta DEBUG (depth 0, eval for $rootPlayerTurn): Evaluated score = $score")
+      // println(s"AlphaBeta DEBUG (depth 0, eval for $rootPlayerTurn): Evaluated score = $score") // Restored
       return (score, None)
     }
 
@@ -36,14 +36,14 @@ object AlphaBetaSearch {
     val legalMoves = Utils.plans(currentBoard, currentState).toList
 
     // ==== AlphaBeta DEBUGGING START ====
-    println(s"AlphaBeta DEBUG (depth $depth, maximizing: $maximizingPlayer, turn: ${currentState.turn}): Found ${legalMoves.size} legal moves:")
-    legalMoves.zipWithIndex.foreach { case (mv, idx) =>
+    // println(s"AlphaBeta DEBUG (depth $depth, maximizing: $maximizingPlayer, turn: ${currentState.turn}): Found ${legalMoves.size} legal moves:") // Restored
+    // legalMoves.zipWithIndex.foreach { case (mv, idx) =>
       // Assuming Piece object has a name method for logging
-      println(s"AlphaBeta DEBUG: Move $idx: ${mv.oldPos} -> ${mv.newPos}, Nari: ${mv.nari}, Captured: ${mv.captured.map(Piece.name)}")
-    }
-    if (legalMoves.exists(m => m.oldPos == m.newPos)) {
-      println(s"AlphaBeta WARNING: 'move-to-self' present in legalMoves at depth $depth for turn ${currentState.turn}!")
-    }
+      // println(s"AlphaBeta DEBUG: Move $idx: ${mv.oldPos} -> ${mv.newPos}, Nari: ${mv.nari}, Captured: ${mv.captured.map(Piece.name)}") // Restored
+    // }
+    // if (legalMoves.exists(m => m.oldPos == m.newPos)) {
+      // println(s"AlphaBeta WARNING: 'move-to-self' present in legalMoves at depth $depth for turn ${currentState.turn}!") // Restored
+    // }
     // ==== AlphaBeta DEBUGGING END ====
 
     if (legalMoves.isEmpty) {
@@ -70,76 +70,134 @@ object AlphaBetaSearch {
       var bestMoveForThisNode: Option[Transition] = None
       var currentAlpha = alpha // currentAlpha should be initialized with the passed-in alpha
 
+      // Log initial state for this node
+      // if (depth == 2) { // Assuming root call for this test is depth 2 // Restored
+          // println(s"ROOT MAX NODE (depth $depth, turn ${currentState.turn}): Initial alpha=$currentAlpha, beta=$beta") // Restored
+          // println(s"ROOT MAX NODE: Legal moves count: ${legalMoves.size}") // Restored
+          // legalMoves.zipWithIndex.foreach { case (mv, idx) => // Restored
+            // println(s"ROOT MAX NODE: Legal move $idx: ${mv.oldPos} -> ${mv.newPos}, Nari: ${mv.nari}") // Restored
+          // } // Restored
+      // } // Restored
+
       for (move <- legalMoves) { // Iterate ALL legal moves
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
 
-        val (eval, _) = search(nextState, tempBoard, depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
-        // Log before comparison
-        println(s"AlphaBeta DEBUG (depth $depth, MAX): Move ${move.oldPos}->${move.newPos} got eval $eval. currentMaxEval was $currentMaxEval. currentAlpha was $currentAlpha, beta was $beta.")
+        // if (depth == 2) { // Restored
+            // println(s"ROOT MAX NODE: Simulating move ${move.oldPos} -> ${move.newPos}") // Restored
+        // } // Restored
+
+        val (eval, returnedMoveOpt) = search(nextState, tempBoard, depth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
+
+        // if (depth == 2) { // Logging for root node's decision process // Restored
+            // println(s"ROOT MAX NODE: Move ${move.oldPos}->${move.newPos} (child chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval.") // Restored
+            // println(s"ROOT MAX NODE: Comparing eval $eval with currentMaxEval $currentMaxEval.") // Restored
+        // } // Restored
+
         if (eval > currentMaxEval) {
-          println(s"AlphaBeta DEBUG (depth $depth, MAX): Eval $eval > currentMaxEval $currentMaxEval. Updating best move.")
+          // if (depth == 2) { // Restored
+            // println(s"ROOT MAX NODE: New best! eval $eval > currentMaxEval $currentMaxEval. Updating best move to ${move.oldPos} -> ${move.newPos}") // Restored
+          // } // Restored
           currentMaxEval = eval
           bestMoveForThisNode = Some(move)
-          println(s"AlphaBeta DEBUG (depth $depth, MAX): New bestMove: ${move.oldPos} -> ${move.newPos} with score $currentMaxEval")
         } else {
-          println(s"AlphaBeta DEBUG (depth $depth, MAX): Eval $eval <= currentMaxEval $currentMaxEval. Not updating best move from ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}.")
+          // if (depth == 2) { // Restored
+            // println(s"ROOT MAX NODE: No update. eval $eval <= currentMaxEval $currentMaxEval. Best still ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)} (score $currentMaxEval)") // Restored
+          // } // Restored
         }
+
         currentAlpha = Math.max(currentAlpha, eval)
+        // if (depth == 2) { // Restored
+            // println(s"ROOT MAX NODE: Updated currentAlpha to $currentAlpha.") // Restored
+        // } // Restored
+
         if (beta <= currentAlpha) {
-          println(s"AlphaBeta DEBUG (depth $depth, MAX): BETA CUTOFF: beta ($beta) <= currentAlpha ($currentAlpha).")
+          // if (depth == 2) { // Restored
+            // println(s"ROOT MAX NODE: BETA CUTOFF! beta ($beta) <= currentAlpha ($currentAlpha). Returning $currentMaxEval for move ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}") // Restored
+          // } // Restored
+          // Ensure a move is returned if pruning.
           if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
-            bestMoveForThisNode = Some(move)
-            println(s"AlphaBeta DEBUG (depth $depth, MAX): BETA CUTOFF: bestMove was None, setting to current move ${move.oldPos} -> ${move.newPos}")
+             if (move == legalMoves.head) {
+                bestMoveForThisNode = Some(move)
+             } else {
+                if (bestMoveForThisNode.isEmpty) bestMoveForThisNode = Some(legalMoves.head)
+             }
+            //  if (depth == 2 && bestMoveForThisNode.contains(move)) { // Restored
+                // println(s"ROOT MAX NODE: BETA CUTOFF: Best move was None or not better than current, set to current move ${move.oldPos} -> ${move.newPos}") // Restored
+            //  } else if (depth == 2 && bestMoveForThisNode.contains(legalMoves.head)) { // Restored
+                //  println(s"ROOT MAX NODE: BETA CUTOFF: Best move was None, set to legalMoves.head ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos}") // Restored
+            //  } // Restored
           }
           return (currentMaxEval, bestMoveForThisNode) // Beta cut-off
         }
-      }
+      } // end for loop
+
       if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
         bestMoveForThisNode = Some(legalMoves.head)
-        // If currentMaxEval is still MinValue, it means all moves resulted in MinValue or were pruned without setting a higher score.
-        // In such a case, the score associated with legalMoves.head might not be currentMaxEval.
-        // However, the problem asks to pick legalMoves.head if bestMoveForThisNode is None.
-        // The score returned would be currentMaxEval, which could be MinValue.
-        println(s"AlphaBeta DEBUG (depth $depth, MAX): Fallback: Chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because no better move was found (score $currentMaxEval).")
+        // if (depth == 2) { // Corrected from (depth $depth, MAX) to (depth == 2) // Restored
+          // println(s"ROOT MAX NODE (depth $depth): Fallback post-loop: Chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because bestMove was None (score $currentMaxEval).") // Restored
+        // } // Restored
       }
-      println(s"AlphaBeta DEBUG (depth $depth, MAX): Loop finished. Returning score $currentMaxEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}")
+      // if (depth == 2) { // Restored
+        // println(s"ROOT MAX NODE (depth $depth): Loop finished. Returning score $currentMaxEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}") // Restored
+      // } // Restored
       return (currentMaxEval, bestMoveForThisNode)
-    } else { // Current player at this node is the opponent of rootPlayerTurn
+    } else { // MINIMIZING PLAYER (Gote's turn at depth 1 for this test)
       var currentMinEval = Int.MaxValue
       var bestMoveForThisNode: Option[Transition] = None
-      var currentBeta = beta // currentBeta should be initialized with the passed-in beta
+      var currentBeta = beta
+
+      // if (depth == 1) { // Logging for Gote's decision node // Restored
+           // println(s"MIN NODE (depth $depth, turn ${currentState.turn}, rootTurn $rootPlayerTurn): Initial alpha=$alpha, currentBeta=$currentBeta") // Restored
+           // println(s"MIN NODE: Legal moves count: ${legalMoves.size}") // Restored
+           // legalMoves.zipWithIndex.foreach { case (mv, idx) => // Restored
+              // println(s"MIN NODE: Legal move $idx: ${mv.oldPos} -> ${mv.newPos}, Nari: ${mv.nari}, Captured: ${mv.captured.map(Piece.name)}") // Restored
+           // } // Restored
+      // } // Restored
 
       for (move <- legalMoves) { // Iterate ALL legal moves
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
 
-        val (eval, _) = search(nextState, tempBoard, depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
-        // Log before comparison (for minimizer)
-        println(s"AlphaBeta DEBUG (depth $depth, MIN): Move ${move.oldPos}->${move.newPos} got eval $eval. currentMinEval was $currentMinEval. alpha was $alpha, currentBeta was $currentBeta.")
+        // if (depth == 1) { // Restored
+            // println(s"MIN NODE: Simulating Gote move ${move.oldPos} -> ${move.newPos}") // Restored
+        // } // Restored
+
+        val (eval, returnedMoveOpt) = search(nextState, tempBoard, depth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
+
+        // if (depth == 1) { // Restored
+            // println(s"MIN NODE: Gote Move ${move.oldPos}->${move.newPos} (child Sente MAX node chose ${returnedMoveOpt.map(m=>m.oldPos+"->"+m.newPos)}) resulted in eval $eval (Sente's perspective).") // Restored
+            // println(s"MIN NODE: Comparing eval $eval with currentMinEval $currentMinEval.") // Restored
+        // } // Restored
         if (eval < currentMinEval) {
-          currentMinEval = eval
-          bestMoveForThisNode = Some(move)
-          println(s"AlphaBeta DEBUG (depth $depth, MIN): New bestMove for opponent (move by ${currentState.turn}): ${move.oldPos} -> ${move.newPos} with score $eval (from root perspective)")
+            // if (depth == 1) println(s"MIN NODE: New best for Gote! eval $eval < currentMinEval $currentMinEval. Updating Gote's choice to ${move.oldPos} -> ${move.newPos} (score for Sente will be $eval)") // Restored
+            currentMinEval = eval
+            bestMoveForThisNode = Some(move)
         } else {
-            println(s"AlphaBeta DEBUG (depth $depth, MIN): Eval $eval >= currentMinEval $currentMinEval. Not updating best move from ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}.")
+            //  if (depth == 1) println(s"MIN NODE: No update for Gote. eval $eval >= currentMinEval $currentMinEval. Gote's best choice for Sente is still ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)} (score $currentMinEval for Sente)") // Restored
         }
         currentBeta = Math.min(currentBeta, eval)
+        // if (depth == 1) println(s"MIN NODE: Updated currentBeta to $currentBeta.") // Restored
+
         if (currentBeta <= alpha) {
-          println(s"AlphaBeta DEBUG (depth $depth, MIN): ALPHA CUTOFF: currentBeta ($currentBeta) <= alpha ($alpha).")
-          if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
-            bestMoveForThisNode = Some(move)
-            println(s"AlphaBeta DEBUG (depth $depth, MIN): ALPHA CUTOFF: bestMove was None, setting to current move ${move.oldPos} -> ${move.newPos}")
-          }
-          return (currentMinEval, bestMoveForThisNode) // Alpha cut-off
+            // if (depth == 1) println(s"MIN NODE: ALPHA CUTOFF! currentBeta ($currentBeta) <= alpha ($alpha). Returning $currentMinEval for Gote move ${bestMoveForThisNode.map(m=>m.oldPos+"->"+m.newPos)}") // Restored
+            if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) { // Similar pruning fallback
+                if (move == legalMoves.head) {
+                    bestMoveForThisNode = Some(move)
+                } else if (bestMoveForThisNode.isEmpty) {
+                    bestMoveForThisNode = Some(legalMoves.head)
+                }
+            }
+            return (currentMinEval, bestMoveForThisNode) // Alpha cut-off
         }
       }
       if (bestMoveForThisNode.isEmpty && legalMoves.nonEmpty) {
         bestMoveForThisNode = Some(legalMoves.head)
-        // Similar to MAX node, if currentMinEval is MaxValue, this sets a move but score might be MaxValue.
-        println(s"AlphaBeta DEBUG (depth $depth, MIN): Fallback: Chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because no better move was found (score $currentMinEval).")
+        // if (depth == 1) println(s"MIN NODE (depth $depth): Fallback post-loop: Gote chose legalMoves.head: ${legalMoves.head.oldPos} -> ${legalMoves.head.newPos} because bestMove was None (resulting Sente score $currentMinEval).") // Restored
       }
-      println(s"AlphaBeta DEBUG (depth $depth, MIN): Loop finished. Returning score $currentMinEval, move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}")
+      // if (depth == 1) { // Restored
+        // println(s"MIN NODE (depth $depth): Loop finished. Gote returns score $currentMinEval (for Sente), Gote's chosen move: ${bestMoveForThisNode.map(m => m.oldPos + "->" + m.newPos)}") // Restored
+      // } // Restored
       return (currentMinEval, bestMoveForThisNode)
     }
   }

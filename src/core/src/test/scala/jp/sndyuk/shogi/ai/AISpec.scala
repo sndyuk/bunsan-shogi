@@ -52,8 +52,7 @@ object TestBoardUtils {
 }
 
 
-// All tests in EvaluationV1Spec will be ignored by changing the class name temporarily
-class EvaluationV1Spec_IGNORE extends AnyFlatSpec with Matchers {
+class EvaluationV1Spec extends AnyFlatSpec with Matchers { // Ensuring it's EvaluationV1Spec
 
   import TestBoardUtils._
 
@@ -63,13 +62,13 @@ class EvaluationV1Spec_IGNORE extends AnyFlatSpec with Matchers {
   // private val valGI = 450 // This was unused, removing
 
 
-  ignore should "return 0 for an empty board" in { // IGNORED
+  it should "return 0 for an empty board" in { // RE-ENABLED
     val board = createBoardWithHands()
     EvaluationV1.evaluate(board, PlayerA) shouldBe 0
     EvaluationV1.evaluate(board, PlayerB) shouldBe 0
   }
 
-  ignore should "score a material advantage for Player A" in { // IGNORED
+  it should "score a material advantage for Player A" in { // RE-ENABLED
     val board = createBoardWithHands(boardPieces = Seq(
       (Piece.▲.FU, Point(6,2)) // Sente Pawn at 7g
     ))
@@ -77,14 +76,14 @@ class EvaluationV1Spec_IGNORE extends AnyFlatSpec with Matchers {
     EvaluationV1.evaluate(board, PlayerB) shouldBe -valFU
   }
 
-  ignore should "score pieces in hand correctly" in { // IGNORED
+  it should "score pieces in hand correctly" in { // RE-ENABLED
     // Player A has a Sente Rook in hand.
     val board = createBoardWithHands(playerAHand = Map(Piece.▲.HI -> 1))
     EvaluationV1.evaluate(board, PlayerA) shouldBe valHI
     EvaluationV1.evaluate(board, PlayerB) shouldBe -valHI
   }
 
-  ignore should "calculate symmetric score for symmetric position" in { // IGNORED
+  it should "calculate symmetric score for symmetric position" in { // RE-ENABLED
      val board = createBoardWithHands(
        boardPieces = Seq((Piece.▲.FU, Point(6,2)), (Piece.△.FU, Point(2,6))), // Sente Pawn, Gote Pawn
        playerAHand = Map(Piece.▲.GI -> 1), // Player A has Sente Silver
@@ -134,7 +133,7 @@ class AlphaBetaAI_V1_Spec extends AnyFlatSpec with Matchers {
     kingCaptureMoveExists shouldBe true
   }
 
-  ignore should "make an obvious capture of a valuable piece" in { // IGNORED - Keeping this ignored
+  it should "make an obvious capture of a valuable piece" in { // RE-ENABLED
     val board = createBoardWithHands(
       boardPieces = Seq(
         (Piece.▲.HI, Point(4,4)), // Sente Rook at 5e
@@ -157,28 +156,23 @@ class AlphaBetaAI_V1_Spec extends AnyFlatSpec with Matchers {
     // Gote King has no escapes (assuming empty board around it).
     val board = createBoardWithHands(
       boardPieces = Seq(
-        (Piece.▲.OU, Point(8,8)), // Sente King somewhere safe
-        (Piece.▲.HI, Point(1,1)), // Sente Rook at 2b (y=1, x=7 using 1-9,1-9 for file,rank)
-                                  // Point(y,x): 2b -> rank 2, file 2. Point(1, 9-2) = Point(1,7)
-                                  // Let's use direct Point values for clarity:
-                                  // Sente Rook at Point(1,7) can move to Point(0,7)
-        (Piece.△.OU, Point(0,7))  // Gote King at Point(0,7) (rank 1, file 2)
+        (Piece.▲.OU, Point(8,8)), // Sente King somewhere safe (e.g. 1i)
+        (Piece.▲.HI, Point(1,1)), // Sente Rook at (1,1) (e.g. 8b)
+        (Piece.△.OU, Point(0,1))  // Gote King at (0,1) (e.g. 8a) - Corrected to match assertion
       )
     )
-    // Corrected points: Sente Rook at (1,7), Gote King at (0,7)
-    // Sente Rook at Point(1,7) (file 2, rank 2)
-    // Gote King at Point(0,7) (file 2, rank 1)
-    // Move Rook from (1,7) to (0,7) captures King.
-    // AlphaBetaSearch returns MATE_SCORE + depth for this.
+    // Sente Rook at Point(1,1) (file 8, rank 2)
+    // Gote King at Point(0,1) (file 8, rank 1)
+    // Move Rook from (1,1) to (0,1) captures King.
 
     val initialState = State(Nil, PlayerA)
-    // Using depth 2 as per plan, to ensure it's not an overly simplistic search path causing issues.
+    // Using depth 2 as per plan.
     val ai = new AlphaBetaAI_V1(name = "MateAI", searchDepth = 2)
 
     val bestMoveOpt = ai.findBestMove(initialState, board, PlayerA, 2) // Search depth 2
     bestMoveOpt shouldBe defined
-    bestMoveOpt.get.oldPos shouldBe Point(1,1) // Original setup was HI at (1,1)
-    bestMoveOpt.get.newPos shouldBe Point(0,1) // Expected capture of King at (0,1)
+    bestMoveOpt.get.oldPos shouldBe Point(1,1)
+    bestMoveOpt.get.newPos shouldBe Point(0,1)
   }
 }
 
@@ -226,5 +220,128 @@ class UtilsPlansGoteCaptureScenarioSpec extends AnyFlatSpec with Matchers {
 
     capturedPieceInTransition shouldBe defined
     capturedPieceInTransition.get shouldBe Piece.▲.RY
+  }
+}
+
+// New Test Class EvaluationV2Spec
+class EvaluationV2Spec extends AnyFlatSpec with Matchers {
+  import TestBoardUtils._
+  private val MOBILITY_BONUS_PER_MOVE = 2
+
+  "EvaluationV2.evaluate" should "favor player with higher piece mobility" in {
+    val boardForMobilityTest = createBoardWithHands(
+      boardPieces = Seq(
+        (Piece.▲.OU, Point(8,4)), // Sente King
+        (Piece.▲.HI, Point(4,4)), // Sente Rook (very mobile)
+        (Piece.△.OU, Point(0,4)), // Gote King
+        (Piece.△.HI, Point(0,0)), // Gote Rook (boxed in)
+        (Piece.△.FU, Point(1,0)), // Blocker pawn for Gote Rook
+        (Piece.△.FU, Point(0,1))  // Blocker pawn for Gote Rook
+      )
+    )
+
+    // Calculate expected mobility scores manually for non-pawn pieces (Kings and Rooks here)
+    // Sente King at (8,4) (5i): Can move to (7,3), (7,4), (7,5), (8,3), (8,5) -> 5 moves (assuming edges)
+    // Sente Rook at (4,4) (5e): 8 horizontal + 8 vertical = 16 moves
+    // Total Sente mobility points = (5+16) * MOBILITY_BONUS_PER_MOVE = 21 * 2 = 42
+
+    // Gote King at (0,4) (5a): Can move to (1,3), (1,4), (1,5), (0,3), (0,5) -> 5 moves
+    // Gote Rook at (0,0) (1a): Blocked by own pawns at (1,0) and (0,1), 0 moves.
+    // Total Gote mobility points = (5+0) * MOBILITY_BONUS_PER_MOVE = 5 * 2 = 10
+
+    // Expected score for PlayerA = (SenteMobility - GoteMobility) + MaterialDiff
+    // Material is equal (OU+HI vs OU+HI), so MaterialDiff = 0.
+    // Expected score = 42 - 10 = 32.
+    // Note: Actual King moves might be different if near edge, Rule.generateMovablePoints will be precise.
+
+    var senteMoves = 0
+    senteMoves += Rule.generateMovablePoints(boardForMobilityTest, Point(8,4), Piece.▲.OU, PlayerA, false).size
+    senteMoves += Rule.generateMovablePoints(boardForMobilityTest, Point(4,4), Piece.▲.HI, PlayerA, false).size
+
+    var goteMoves = 0
+    goteMoves += Rule.generateMovablePoints(boardForMobilityTest, Point(0,4), Piece.△.OU, PlayerB, false).size
+    goteMoves += Rule.generateMovablePoints(boardForMobilityTest, Point(0,0), Piece.△.HI, PlayerB, false).size
+
+    val expectedMobilityScoreDifference = (senteMoves - goteMoves) * MOBILITY_BONUS_PER_MOVE
+    val materialScore = EvaluationV1.evaluate(boardForMobilityTest, PlayerA)
+    EvaluationV2.evaluate(boardForMobilityTest, PlayerA) shouldBe (materialScore + expectedMobilityScoreDifference)
+  }
+
+  it should "not count pawn/tokin mobility excessively" in {
+    val boardNoPawns = createBoardWithHands(
+      boardPieces = Seq(
+        (Piece.▲.OU, Point(8,4)), (Piece.▲.HI, Point(4,4)),
+        (Piece.△.OU, Point(0,4)), (Piece.△.HI, Point(3,3))
+      )
+    )
+    // Material is equal. Mobility for Sente King (8,4) and Gote King (0,4) are symmetric if board is open.
+    // Sente Rook (4,4) and Gote Rook (3,3) have many moves.
+    // Precise calculation:
+    var senteMovesNoPawns = 0
+    senteMovesNoPawns += Rule.generateMovablePoints(boardNoPawns, Point(8,4), Piece.▲.OU, PlayerA, false).size
+    senteMovesNoPawns += Rule.generateMovablePoints(boardNoPawns, Point(4,4), Piece.▲.HI, PlayerA, false).size
+    var goteMovesNoPawns = 0
+    goteMovesNoPawns += Rule.generateMovablePoints(boardNoPawns, Point(0,4), Piece.△.OU, PlayerB, false).size
+    goteMovesNoPawns += Rule.generateMovablePoints(boardNoPawns, Point(3,3), Piece.△.HI, PlayerB, false).size
+
+    val expectedMobilityDiffNoPawns = (senteMovesNoPawns - goteMovesNoPawns) * MOBILITY_BONUS_PER_MOVE
+    EvaluationV2.evaluate(boardNoPawns, PlayerA) shouldBe expectedMobilityDiffNoPawns // EvalV1 is 0
+
+    // Now add pawns for Sente, mobility score should not change as pawns/tokins are excluded by current V2 logic
+    val boardSentePawns = createBoardWithHands(
+      boardPieces = Seq(
+        (Piece.▲.OU, Point(8,4)), (Piece.▲.HI, Point(4,4)),
+        (Piece.▲.FU, Point(6,0)), (Piece.▲.FU, Point(6,1)),
+        (Piece.△.OU, Point(0,4)), (Piece.△.HI, Point(3,3))
+      ),
+      playerAHand = Map(Piece.▲.FU -> 2)
+    )
+    val materialScoreSentePawns = EvaluationV1.evaluate(boardSentePawns, PlayerA) // Pawns contribute to material
+    // Mobility calculation should be identical to boardNoPawns as FU are ignored
+    EvaluationV2.evaluate(boardSentePawns, PlayerA) shouldBe (materialScoreSentePawns + expectedMobilityDiffNoPawns)
+  }
+}
+
+// New Test Class AlphaBetaAI_V2_Spec
+class AlphaBetaAI_V2_Spec extends AnyFlatSpec with Matchers {
+  import TestBoardUtils._
+
+  it should "prefer a move leading to higher mobility if material is equal" in {
+    // Initial board: Sente King & Rook, Gote King & Rook. Gote Rook is boxed.
+    // Sente Rook has a choice: move to an open square (high combined mobility)
+    // or move to a more cramped square (low combined mobility).
+    val initialBoardState = createBoardWithHands(
+      boardPieces = Seq(
+        (Piece.▲.OU, Point(8,4)), // Sente King
+        (Piece.▲.HI, Point(7,4)), // Sente Rook (e.g. at 5h, can move to 5e or a more cramped square like 6h)
+        (Piece.△.OU, Point(0,4)), // Gote King
+        (Piece.△.HI, Point(0,0)), // Gote Rook (boxed)
+        (Piece.△.FU, Point(1,0)),
+        (Piece.△.FU, Point(0,1))
+      )
+    )
+    val initialPlayer = PlayerA
+    val initialState = State(Nil, initialPlayer)
+    val aiV2 = new AlphaBetaAI_V2("AIV2_Activity", searchDepth = 1)
+
+    // Option 1: Sente Rook moves to (4,4) (5e - open square for Rook)
+    val boardAfterActiveMove = initialBoardState.copy()
+    // Need to get the actual piece from initialBoardState to pass to move if board.move requires it
+    // However, board.move(state, oldPos, newPos, validation, nari) gets piece from oldPos itself.
+    boardAfterActiveMove.move(initialState, Point(7,4), Point(4,4), false, false)
+    val evalActive = EvaluationV2.evaluate(boardAfterActiveMove, PlayerA) // Eval for Sente
+
+    // Option 2: Sente Rook moves to (7,3) (6h - more cramped next to its King at 5i (8,4))
+    val boardAfterPassiveMove = initialBoardState.copy()
+    boardAfterPassiveMove.move(initialState, Point(7,4), Point(7,3), false, false)
+    val evalPassive = EvaluationV2.evaluate(boardAfterPassiveMove, PlayerA) // Eval for Sente
+
+    println(s"AISpec: Eval for Sente if Rook at (4,4) (active): $evalActive")
+    println(s"AISpec: Eval for Sente if Rook at (7,3) (passive): $evalPassive")
+    evalActive should be > evalPassive // Sente should prefer the active square
+
+    val bestMoveOpt = aiV2.findBestMove(initialState, initialBoardState, initialPlayer, 1)
+    bestMoveOpt shouldBe defined
+    bestMoveOpt.get.newPos shouldBe Point(4,4) // Expect move to the more active square (5e)
   }
 }

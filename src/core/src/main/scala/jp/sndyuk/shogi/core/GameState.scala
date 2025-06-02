@@ -1,13 +1,13 @@
 package jp.sndyuk.shogi.core
 
-import jp.sndyuk.shogi.core.Piece.Piece
+import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
 import jp.sndyuk.shogi.core.Player.Player
 import play.api.libs.json._
-import play.api.libs.functional.syntax._ // For custom Reads/Writes using functional syntax
+// import play.api.libs.functional.syntax._ // For custom Reads/Writes using functional syntax // Not used
 
 import java.io.{File, PrintWriter}
 import scala.io.Source
-import scala.util.{Failure, Success, Try, Using}
+import scala.util.{Try, Success, Failure} // Re-add Success and Failure
 
 // Minimal Player enum (assuming SENTE/GOTE)
 object Player extends Enumeration {
@@ -45,34 +45,34 @@ object Position {
 }
 
 // Minimal Piece enum (example pieces)
-object Piece extends Enumeration {
-  type Piece = Value
+object SimplePiece extends Enumeration {
+  type SimplePieceType = Value
   val KING, ROOK, BISHOP, GOLD, SILVER, KNIGHT, LANCE, PAWN = Value
 
-  implicit val pieceFormat: Format[Piece] = new Format[Piece] {
-    def reads(json: JsValue): JsResult[Piece] = json.validate[String].flatMap { s =>
-      Try(Piece.withName(s)).map(JsSuccess(_)).getOrElse(JsError(s"Unknown Piece: $s"))
+  implicit val pieceFormat: Format[SimplePieceType] = new Format[SimplePieceType] {
+    def reads(json: JsValue): JsResult[SimplePieceType] = json.validate[String].flatMap { s =>
+      Try(SimplePiece.withName(s)).map(JsSuccess(_)).getOrElse(JsError(s"Unknown Piece: $s"))
     }
-    def writes(piece: Piece): JsValue = JsString(piece.toString)
+    def writes(piece: SimplePieceType): JsValue = JsString(piece.toString)
   }
 }
 
 // Minimal Transition class
-case class Transition(move: String, boardStateAfterMove: Map[Position, Piece])
+case class SimpleTransition(move: String, boardStateAfterMove: Map[Position, SimplePieceType])
 
-object Transition {
+object SimpleTransition {
   // This will pick up Position.positionMapKeyReads/Writes for the Map keys
   // and Piece.pieceFormat for the Map values.
-  implicit val transitionFormat: Format[Transition] = Json.format[Transition]
+  implicit val transitionFormat: Format[SimpleTransition] = Json.format[SimpleTransition]
 }
 
 
 case class GameState(
-    boardSetup: Map[Position, Piece], // Pieces and their positions
+    boardSetup: Map[Position, SimplePieceType], // Pieces and their positions
     currentTurn: Player, // Player whose turn it is
-    capturedPiecesPlayer1: List[Piece], // Captured pieces by Player 1
-    capturedPiecesPlayer2: List[Piece], // Captured pieces by Player 2
-    gameHistory: List[Transition] // List of moves or Transition objects
+    capturedPiecesPlayer1: List[SimplePieceType], // Captured pieces by Player 1
+    capturedPiecesPlayer2: List[SimplePieceType], // Captured pieces by Player 2
+    gameHistory: List[SimpleTransition] // List of moves or Transition objects
 )
 
 object GameState {
@@ -83,24 +83,33 @@ object GameState {
 object GameSaver {
 
   def saveToFile(gameState: GameState, filePath: String): Try[Unit] = {
-    Try {
+    var writer: PrintWriter = null
+    try {
       val jsonString = Json.prettyPrint(Json.toJson(gameState))
-      Using(new PrintWriter(new File(filePath))) { writer =>
-        writer.write(jsonString)
-      }.get // .get will rethrow exception from Using if any, or return Unit
+      writer = new PrintWriter(new File(filePath))
+      writer.write(jsonString)
+      Success(())
+    } catch {
+      case e: Throwable => Failure(e)
+    } finally {
+      if (writer != null) writer.close()
     }
   }
 
   def loadFromFile(filePath: String): Try[GameState] = {
-    Try {
-      Using(Source.fromFile(filePath)) { source =>
-        val jsonString = source.mkString
-        Json.parse(jsonString).validate[GameState] match {
-          case JsSuccess(gs, _) => gs
-          case JsError(errors) =>
-            throw new RuntimeException(s"Failed to parse GameState from JSON: ${errors.mkString(", ")}")
-        }
-      }.get // .get will rethrow exception from Using if any, or return the GameState
+    var source: Source = null
+    try {
+      source = Source.fromFile(filePath)
+      val jsonString = source.mkString
+      Json.parse(jsonString).validate[GameState] match {
+        case JsSuccess(gs, _) => Success(gs)
+        case JsError(errors) =>
+          Failure(new RuntimeException(s"Failed to parse GameState from JSON: ${errors.mkString(", ")}"))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    } finally {
+      if (source != null) source.close()
     }
   }
 }

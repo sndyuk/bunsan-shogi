@@ -57,7 +57,7 @@ object CSAParser extends RegexParsers {
   private def move: Parser[KifuStatement] = comment.? ~> (transition | specialMove)
 
   private def transition: Parser[Move] =
-    ("-" | "+") ~ "[1-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ s"$char{2}".r ~ sep ~ elapsed.? ^^ {
+    ("-" | "+") ~ "[0-9]".r ~ "[0-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ s"$char{2}".r ~ sep ~ elapsed.? ^^ { // Changed [1-9] to [0-9] for from_x and from_y
       case p ~ s1 ~ s2 ~ s3 ~ s4 ~ s5 ~ _ ~ elaplsed => {
         val turn = if (p == "+") PlayerA else PlayerB
         val piece = s5 match {

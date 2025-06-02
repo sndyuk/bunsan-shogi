@@ -8,8 +8,10 @@ import jp.sndyuk.shogi.core.PlayerA
 import jp.sndyuk.shogi.core.PlayerB
 import jp.sndyuk.shogi.core.Point
 import jp.sndyuk.shogi.core.State
-import jp.sndyuk.shogi.core.Turn
-import jp.sndyuk.shogi.core.PlayerA
+import jp.sndyuk.shogi.core.Turn // Turn is an alias for core.Player
+import jp.sndyuk.shogi.core.PlayerA // Needed for the winner parser
+import jp.sndyuk.shogi.core.PlayerB // Needed for the winner parser
+
 
 object KI2Parser extends App {
   def parse(lines: Iterator[String]): KI2Parser#ParseResult[Kifu] = {
@@ -45,11 +47,13 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
   }
 
   // --- 指し手
+  // Modify move to consume optional move number, spaces, then the actual move starting with player symbol
   private def move: Parser[Move] =
+    ("""[0-9]+\s*""".r).? ~ // Consume optional move number and trailing spaces
     ("▲" | "△") ~ ("１" | "２" | "３" | "４" | "５" | "６" | "７" | "８" | "９" | "同") ~ ("一" | "二" | "三" | "四" | "五" | "六" | "七" | "八" | "九").? ~
       "　".? ~ ("玉" | "歩" | "金" | "銀" | "飛" | "角" | "桂" | "香" | "と" | "成銀" | "龍" | "馬" | "成桂" | "成香") ~
-      ("右" | "左" | "直" | "寄" | "引" | "打" | "上").? ~ ("右" | "左" | "直" | "引" | "寄" | "上").? ~ ("成" | "不成").? ~ ("    " | "  ").? <~ sep ^^ { // Changed sep.? to <~ sep
-        case p ~ x ~ yOpt ~ _ ~ pieceStr ~ detailOpt1 ~ detailOpt2 ~ nariOpt ~ _ => { // removed _ for sep from case
+      ("右" | "左" | "直" | "寄" | "引" | "打" | "上").? ~ ("右" | "左" | "直" | "引" | "寄" | "上").? ~ ("成" | "不成").? ~ ("    " | "  ").? <~ sep ^^ {
+        case _ ~ p ~ x ~ yOpt ~ _ ~ pieceStr ~ detailOpt1 ~ detailOpt2 ~ nariOpt ~ _ => { // Added _ to consume the optional move number part
           val turn = if (p == "▲") PlayerA else PlayerB
           val newPos = if (x == "同") {
             s.history.head.newPos
@@ -100,6 +104,7 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
 
           val nari = nariOpt.exists(_ == "成")
 
+          // Use this.board (the parser's current board state) for plans and piece checks
           val plan = Utils.plans(this.board, s).toList
           val candidates = plan.filter(t => t.newPos == newPos && this.board.piece(t.oldPos, turn) == piece).toList
           val oldPos = if (candidates.length > 1) {
@@ -154,10 +159,29 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
               }
             }.get
           } else {
-            candidates.head.oldPos
+            // Ensure candidates is not empty before calling .head
+            if (candidates.isEmpty) {
+              // This indicates an issue: no move found for the piece to the target square.
+              // Could be due to an illegal move in the KIF, or a bug in plans/piece identification.
+              // For now, to avoid crash and highlight, let's throw a specific error or use a dummy oldPos.
+              // However, for parsing, we must determine the oldPos or fail.
+              // If it's a drop (candidates might be filtered differently), oldPos should be Point.CAPTURED or similar.
+              // The current structure assumes a piece on board if not a drop.
+              // Let's check if it's a drop based on details.
+              val isDrop = detailOpt1.exists(_ == "打") || detailOpt2.exists(_ == "打")
+              if (isDrop) {
+                Point.ofCaptured(Piece.generalize(piece)) // Use generalized piece for Point.ofCaptured
+              } else {
+                // No candidates found for a non-drop move. This is an error in KIF or parser logic.
+                throw new IllegalStateException(s"No candidate moves found for $pieceStr to $newPos for $turn. Parsed details: ${detailOpt1}, ${detailOpt2}")
+              }
+            } else {
+              candidates.head.oldPos
+            }
           }
 
-          s = board.move(s, oldPos, newPos, true, nari)
+          // Use this.board (the parser's board instance) to call the move method
+          s = this.board.move(s, oldPos, newPos, true, nari)
           Move(turn, oldPos, newPos, if (nari) Piece.promote(piece) else piece, None)
         }
       }
@@ -166,14 +190,28 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
 
   private def comment: Parser[Comment] = (s"\\*$char*".r <~ sep) ^^ Comment
 
-  private def winner: Parser[Turn] = s"まで[0-9]+手で".r ~ ("先手" | "後手") ~ "の勝ち" <~ sep ^^ { // Added <~ sep
+  private def winner: Parser[Turn] = s"まで[0-9]+手で".r ~ ("先手" | "後手") ~ "の勝ち" <~ sep ^^ {
     case _ ~ p ~ _ =>
-      if (p == "先手") PlayerA else PlayerB
+      if (p == "先手") PlayerA else PlayerB // PlayerA and PlayerB are core.Player (Turn)
   }
 
-  private def statement: Parser[Kifu] = kifDataFactors ~ rep(comment).? ~ moves ~ rep(comment).? ~ winner.? ^^ {
-    case factors ~ comments1Opt ~ mv ~ comments2Opt ~ winOpt => // Renamed for clarity
-      Kifu(None, factors, StartState(None, None, None, "+"), comments1Opt.getOrElse(Nil) ++ mv ++ comments2Opt.getOrElse(Nil), winOpt)
+  private def columnHeaderLine: Parser[String] = "手数----指手---------消費時間--" <~ sep
+
+  private def statement: Parser[Kifu] = kifDataFactors ~ rep(comment).? ~ columnHeaderLine.? ~ moves ~ rep(comment).? ~ winner.? ^^ {
+    case factors ~ comments1Opt ~ _ /* colHeaderOpt */ ~ mv ~ comments2Opt ~ winnerOpt =>
+      // Kifu class from kifu/package.scala:
+      // Kifu(version: Option[Version], kifuData: List[KifuStatement], startState: StartState, moves: List[KifuStatement], winner: Option[Turn])
+      // version: Not parsed by this specific grammar part, pass None.
+      // kifuData: `factors` is List[KifuDataFactor]. KifuDataFactor is a KifuStatement. This is compatible.
+      // startState: Needs a StartState object. Defaulting to a simple one.
+      // moves: `mv` is List[Move]. `comments` are List[Comment]. Both are KifuStatement. Concatenate them.
+      // winner: `winnerOpt` is Option[Turn] (Option[core.Player]), which matches the Kifu case class.
+
+      val allMoveStatements: List[KifuStatement] = comments1Opt.getOrElse(Nil) ++ mv ++ comments2Opt.getOrElse(Nil)
+      // TODO: Parse actual StartState if available in KI2 format. For now, using a default.
+      val defaultStartState = StartState(None, None, None, "+")
+
+      Kifu(None, factors, defaultStartState, allMoveStatements, winnerOpt)
   }
   private def kifu: Parser[Kifu] = statement
 

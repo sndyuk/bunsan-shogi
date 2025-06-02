@@ -31,25 +31,6 @@ object EvaluationV1 {
   }
 
   def evaluate(board: Board, turn: Turn): Int = {
-    // println(s"EVAL DEBUG: Evaluating for turn: ${if (turn == PlayerA) "PlayerA (Sente)" else "PlayerB (Gote)"}") // Restored
-    // Detailed board state printing: // Restored
-    // println(s"EVAL DEBUG: Board state (perspective of $turn):") // Restored
-    // val sb = new StringBuilder() // Restored
-    // for (y <- 0 to 8) { // Restored
-      // for (x <- 0 to 8) { // Restored
-        // val p = board.squares.get(Point(y,x)) // Restored
-        // sb.append(f"${Piece.name(p)}%-3s") // Use %-3s for alignment with Japanese characters // Restored
-      // } // Restored
-      // sb.append(s" | Rank ${y+1}") // Restored
-      // sb.append("\n") // Restored
-    // } // Restored
-    // println(sb.toString()) // Restored
-
-    // val playerAHand = Piece.◯.all.filter(_ != Piece.◯.OU).map(gP => s"${Piece.name(gP)}x${board.capturedPieces.count(PlayerA, gP)}").mkString(" ") // Restored
-    // val playerBHand = Piece.◯.all.filter(_ != Piece.◯.OU).map(gP => s"${Piece.name(gP)}x${board.capturedPieces.count(PlayerB, gP)}").mkString(" ") // Restored
-    // println(s"EVAL DEBUG: Sente (PlayerA) hand: $playerAHand") // Restored
-    // println(s"EVAL DEBUG: Gote (PlayerB) hand: $playerBHand") // Restored
-
     var myScore = 0
     var opponentScore = 0
 
@@ -84,7 +65,6 @@ object EvaluationV1 {
     }
 
     val finalScore = myScore - opponentScore
-    // println(s"EVAL DEBUG: myScore (for $turn)=$myScore, opponentScore (for ${turn.change})=$opponentScore, finalScoreForTurn_${turn}=$finalScore") // Restored
     finalScore
   }
 }

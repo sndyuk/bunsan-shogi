@@ -1,6 +1,7 @@
 package jp.sndyuk.shogi.core
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer // Added for ListBuffer
 
 import org.slf4j.LoggerFactory
 
@@ -15,6 +16,52 @@ object Rule {
   /**
    * 駒が指定された場所に移動可能ならtrue
    */
+  private def isSpecificMoveValid(board: Board, piece: Piece, oldPos: Point, newPos: Point, turn: Turn): Boolean = {
+    if (Point.isCaptured(oldPos)) { // Drop from hand
+      // 1. King cannot be dropped (already handled by generateMovablePoints, but good to have)
+      //    The problem description asks for Piece.generalize(piece) != Piece.◯.OU,
+      //    but generateMovablePoints (which is a reference for drop rules) also has this.
+      //    isValidPosition in canMove will handle newPos being on board.
+      //    The prompt implies isSpecificMoveValid should check newPos is empty.
+      val newPosIsEmpty = board.pieceOnBoard(newPos).contains(Piece.❏)
+
+      newPosIsEmpty &&
+      Piece.generalize(piece) != Piece.◯.OU &&
+      !is2FU(board, piece, newPos, turn) &&
+      canMoveAtNextTurn(newPos, movableScopes(piece)) // Pass newPos and scopes for the piece being dropped
+    } else { // Move on board
+      val scopes = movableScopes(piece)
+      scopes.exists { case (dy, dx, isSliding) =>
+        if (!isSliding) { // Non-sliding piece
+          val checkPos = Point(oldPos.y + dy, oldPos.x + dx)
+          checkPos == newPos
+        } else { // Sliding piece (Rook, Bishop, Lance, Dragon, Horse)
+          var currentY = oldPos.y + dy
+          var currentX = oldPos.x + dx
+          var pathClear = true
+          var foundTarget = false
+
+          while (isOnBoard(Point(currentY, currentX)) && pathClear && !foundTarget) {
+            val currentDest = Point(currentY, currentX)
+            if (currentDest == newPos) {
+              foundTarget = true // Path to newPos is clear
+            } else {
+              // If any piece is on currentDest (between oldPos and newPos), path is not clear for further sliding
+              if (board.pieceOnBoardNotEmpty(currentDest).isDefined) {
+                pathClear = false
+              }
+            }
+            if (pathClear && !foundTarget) { // Only advance if path still clear and target not yet found
+              currentY += dy
+              currentX += dx
+            }
+          }
+          foundTarget // True if newPos was reached along this sliding path
+        }
+      }
+    }
+  }
+
   def canMove(board: Board, piece: Piece, oldPos: Point, newPos: Point, turn: Turn, nari: Boolean = false): Boolean = {
     if (oldPos == newPos) {
       logger.warn("Select an another point.")
@@ -23,9 +70,10 @@ object Rule {
       logger.warn("It's not your piece.")
       false
     } else {
+      // isValidPosition checks if newPos is on board and if it's empty or an opponent's piece.
       isValidPosition(board, piece, newPos, true) &&
-        generateMovablePoints(board, oldPos, piece, turn, false).exists(_._1 == newPos) &&
-        (!nari || canBePromoted(board, oldPos, newPos, piece))
+      isSpecificMoveValid(board, piece, oldPos, newPos, turn) &&
+      (!nari || canBePromoted(board, oldPos, newPos, piece))
     }
   }
 
@@ -65,50 +113,59 @@ object Rule {
       if (cache.isEmpty) {
         rest match {
           case Nil => false
-          case x :: xs => {
+          case x :: xs => { // x is a Scope (dy, dx, isSliding)
             rest = xs
-            if (x._3 == ∞) {
-              // 1つずつ進めて駒の移動先が有効である限り再帰
-              @tailrec def f(pos: Point, acceptCapturing: Boolean, tmpPoints: List[Move]): List[Move] = {
-                val newPos = Point(pos.y + x._1, pos.x + x._2)
-                if (acceptCapturing && isValidPosition(board, piece, newPos, acceptCapturing)) {
-                  // 敵の駒を通りすぎないように1回敵の駒に届いたあとは acceptCapturing を falseにする
-                  f(newPos, !board.pieceOnBoardNotEmpty(newPos).isDefined,
-                    (if (includePromoted && canBePromoted(board, oldPos, newPos, piece)) {
-                      val gpiece = generalize(piece)
-                      if (gpiece == ◯.FU || gpiece == ◯.KA || gpiece == ◯.HI || gpiece == ◯.KY) {
-                        (newPos, true) :: tmpPoints // 無駄に成らない歩、角、飛、香は不要
-                      } else (newPos, true) :: (newPos, false) :: tmpPoints
-                    } else (newPos, false) :: tmpPoints))
-                } else tmpPoints
+            if (x._3 == ∞) { // isSliding is true for ∞
+              // Process sliding moves
+              @tailrec
+              def f(currentPosIter: Point, acceptCapturing: Boolean, movesBuffer: ListBuffer[Move]): ListBuffer[Move] = {
+                val nextPotentialPos = Point(currentPosIter.y + x._1, currentPosIter.x + x._2) // x._1 is dy, x._2 is dx
+                if (acceptCapturing && isValidPosition(board, piece, nextPotentialPos, acceptCapturing)) {
+                  // Valid square to move to
+                  if (includePromoted && canBePromoted(board, oldPos, nextPotentialPos, piece)) {
+                    movesBuffer += ((nextPotentialPos, false)) // Add unpromoted move first
+                    movesBuffer += ((nextPotentialPos, true))  // Add promoted move second
+                  } else {
+                    movesBuffer += ((nextPotentialPos, false)) // Add unpromoted move only
+                  }
+                  // Continue sliding if the path wasn't blocked by capturing an opponent's piece at nextPotentialPos
+                  f(nextPotentialPos, !board.pieceOnBoardNotEmpty(nextPotentialPos).isDefined, movesBuffer)
+                } else {
+                  movesBuffer // Base case: cannot move further along this path or invalid position
+                }
               }
-              // 飛べる駒は元の場所に遷移できるので更にもう1手進められることを確認する必要はない
-              f(oldPos, true, Nil) match {
-                case Nil => hasNext
-                case l =>
-                  nextMove = l.head
-                  cache = l.tail
+
+              val generatedMoves = f(oldPos, true, ListBuffer.empty[Move]).toList.reverse // Reverse to get furthest moves first
+              generatedMoves match {
+                case Nil => hasNext // No moves found along this sliding path
+                case l_head :: l_tail =>
+                  nextMove = l_head
+                  cache = l_tail
                   full = true
                   true
               }
-            } else {
+            } else { // Non-sliding piece move
               val newPos = Point(oldPos.y + x._1, oldPos.x + x._2)
+              // Check if the single step is valid; also ensure piece can move if it stays or if it's promoted
+              // The canMoveAtNextTurn check is important for pieces like knights at edge of board.
               if (isValidPosition(board, piece, newPos, true) && (canMoveAtNextTurn(newPos, originalScopes) || canMoveIfPromoted(piece, oldPos, newPos))) {
                 if (includePromoted && canBePromoted(board, oldPos, newPos, piece)) {
+                  // For non-sliding, the order for cache is (promoted as next, unpromoted in cache)
                   nextMove = (newPos, true)
                   cache = (newPos, false) :: Nil
                 } else {
                   nextMove = (newPos, false)
+                  // cache remains empty or is not set here
                 }
                 full = true
                 true
-              } else hasNext
+              } else hasNext // This specific non-sliding move is not valid
             }
           }
         }
-      } else cache match {
-        case Nil => hasNext
-        case x :: xs =>
+      } else cache match { // Cache has pending moves (typically the unpromoted version of a previous promoted move)
+        case Nil => hasNext // Should not happen if cache was not empty
+        case x :: xs => // x is a Move (Point, Boolean)
           nextMove = x
           cache = xs
           full = true
@@ -117,6 +174,7 @@ object Rule {
     }
   }
 
+  // originalScopes is passed to MovePointIterator to check canMoveAtNextTurn for non-sliding moves
   private def generateMovePoints(board: Board, piece: Piece, oldPos: Point, turn: Turn, includePromoted: Boolean, scopes: List[Scope], originalScopes: List[Scope]): Iterator[Move] = {
     new MovePointIterator(board, piece, oldPos, turn, includePromoted, scopes, originalScopes)
   }
@@ -273,31 +331,121 @@ object Rule {
    * @return True if playerWhoseKingIsChecked's King is under attack, false otherwise.
    */
   def isInCheck(board: Board, playerWhoseKingIsChecked: Turn): Boolean = {
-    // 1. Find the King of 'playerWhoseKingIsChecked'
     val kingPiece = Piece.convert(Piece.◯.OU, playerWhoseKingIsChecked)
     board.squares.find(kingPiece) match {
       case None =>
-        // King is not on the board, so it cannot be in check from an on-board piece.
-        // This scenario implies the game might have already ended or is in an invalid state.
-        false
+        logger.warn(s"King not found for player $playerWhoseKingIsChecked. Cannot determine check status.")
+        false // Or throw an error, as this is an invalid state
       case Some(kingPos) =>
-        // 2. Check if any of the opponent's pieces can attack the King's position.
         val opponentTurn = playerWhoseKingIsChecked.change
 
-        for (y <- 0 to 8; x <- 0 to 8) {
-          val currentPiecePoint = Point(y,x)
-          val currentPiece = board.squares.get(currentPiecePoint)
-
-          // If it's an opponent's piece
-          if (currentPiece != Piece.❏ && Piece.▲△(currentPiece, opponentTurn)) {
-            // Generate its moves (non-promoting moves are sufficient for checking attack)
-            val movesForThisOpponentPiece = generateMovablePoints(board, currentPiecePoint, currentPiece, opponentTurn, false)
-            if (movesForThisOpponentPiece.exists { case (newPos, _) => newPos == kingPos }) {
-              return true // King is attacked by this piece
+        // Helper to check a specific relative position for an attacking piece
+        def isAttackedAtRelativePosition(dy: Int, dx: Int, attackerPieceTypes: Set[Piece]): Boolean = {
+          val attackFromPos = Point(kingPos.y + dy, kingPos.x + dx)
+          if (isOnBoard(attackFromPos)) {
+            board.pieceOnBoard(attackFromPos) match {
+              case Some(piece) if Piece.▲△(piece, opponentTurn) && attackerPieceTypes.contains(Piece.generalize(piece)) =>
+                true
+              case Some(piece) if Piece.▲△(piece, opponentTurn) && attackerPieceTypes.contains(piece) => // For specific promoted pieces
+                true
+              case _ => false
             }
+          } else false
+        }
+
+        // Helper to check for sliding piece attacks
+        def isAttackedBySlidingPiece(directions: List[(Int, Int)], attackerPieceTypes: Set[Piece]): Boolean = {
+          directions.exists { case (dy, dx) =>
+            var currentPos = Point(kingPos.y + dy, kingPos.x + dx)
+            while (isOnBoard(currentPos)) {
+              board.pieceOnBoard(currentPos) match {
+                case Some(piece) =>
+                  if (Piece.▲△(piece, opponentTurn) && (attackerPieceTypes.contains(Piece.generalize(piece)) || attackerPieceTypes.contains(piece))) {
+                    return true // Found an attacker
+                  }
+                  return false // Path blocked by another piece (either own or non-attacker opponent)
+                case None => // Empty square, continue along this direction
+                  currentPos = Point(currentPos.y + dy, currentPos.x + dx)
+              }
+            }
+            false // Reached edge of board without finding attacker in this direction
           }
         }
-        // No opponent piece found that can attack the King's position
+
+        // Define opponent's pieces (generalized and specific promoted)
+        val opponentPawn = Piece.convert(Piece.◯.FU, opponentTurn)
+        val opponentLance = Piece.convert(Piece.◯.KY, opponentTurn)
+        val opponentKnight = Piece.convert(Piece.◯.KE, opponentTurn)
+        val opponentSilver = Piece.convert(Piece.◯.GI, opponentTurn)
+        val opponentGold = Piece.convert(Piece.◯.KI, opponentTurn) // Also for TO, NG, NK, NY
+        val opponentBishop = Piece.convert(Piece.◯.KA, opponentTurn)
+        val opponentRook = Piece.convert(Piece.◯.HI, opponentTurn)
+        val opponentKing = Piece.convert(Piece.◯.OU, opponentTurn)
+
+        val opponentPromotedPawn = Piece.promote(opponentPawn) // TO
+        val opponentPromotedLance = Piece.promote(opponentLance) // NY
+        val opponentPromotedKnight = Piece.promote(opponentKnight) // NK
+        val opponentPromotedSilver = Piece.promote(opponentSilver) // NG
+        val opponentPromotedBishop = Piece.promote(opponentBishop) // UM
+        val opponentPromotedRook = Piece.promote(opponentRook) // RY
+
+        // 1. Check Pawn attacks
+        val pawnAttackDy = if (opponentTurn == Turn.Sente) -1 else 1
+        if (isAttackedAtRelativePosition(pawnAttackDy, 0, Set(Piece.◯.FU))) return true
+
+        // 2. Check Knight attacks
+        val knightDeltas = if (opponentTurn == Turn.Sente) List((-2, -1), (-2, 1)) else List((2, -1), (2, 1))
+        for ((dy, dx) <- knightDeltas) {
+          if (isAttackedAtRelativePosition(dy, dx, Set(Piece.◯.KE))) return true
+        }
+
+        // 3. Check Silver General attacks
+        val silverDeltas = if (opponentTurn == Turn.Sente) List((-1, -1), (-1, 0), (-1, 1), (1, -1), (1, 1))
+                           else List((1, -1), (1, 0), (1, 1), (-1, -1), (-1, 1))
+        for ((dy, dx) <- silverDeltas) {
+          if (isAttackedAtRelativePosition(dy, dx, Set(Piece.◯.GI))) return true
+        }
+
+        // 4. Check Gold General (and equivalents: TO, NG, NK, NY) attacks
+        val goldDeltas = if (opponentTurn == Turn.Sente) List((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, 0))
+                         else List((1, -1), (1, 0), (1, 1), (0, -1), (0, 1), (-1, 0))
+        val goldLikePieces = Set(Piece.◯.KI, Piece.◯.TO, Piece.◯.NG, Piece.◯.NK, Piece.◯.NY)
+        for ((dy, dx) <- goldDeltas) {
+          if (isAttackedAtRelativePosition(dy, dx, goldLikePieces)) return true
+        }
+
+        // 5. Check King attacks (from opponent's King, or Dragon/Horse single steps)
+        val kingDeltas = List((-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1))
+        val kingLikeAttackers = Set(Piece.◯.OU, Piece.◯.RY, Piece.◯.UM) // Generalized RY, UM for king-like moves
+        for ((dy, dx) <- kingDeltas) {
+          // Check for opponent King, or promoted Rook/Bishop that have King-like moves
+           val targetPos = Point(kingPos.y + dy, kingPos.x + dx)
+           if (isOnBoard(targetPos)) {
+             board.pieceOnBoard(targetPos) match {
+               case Some(p) if Piece.▲△(p, opponentTurn) =>
+                 if (Piece.generalize(p) == Piece.◯.OU) return true
+                 if (Piece.generalize(p) == Piece.◯.HI && Piece.isPromoted(p)) return true // RY has king moves
+                 if (Piece.generalize(p) == Piece.◯.KA && Piece.isPromoted(p)) return true // UM has king moves
+               case _ =>
+             }
+           }
+        }
+
+        // 6. Check Lance attacks
+        val lanceAttackDir = if (opponentTurn == Turn.Sente) List((-1, 0)) else List((1, 0))
+        if (isAttackedBySlidingPiece(lanceAttackDir, Set(Piece.◯.KY))) return true
+
+        // 7. Check Rook attacks (Rook or Dragon)
+        val rookDirections = List((-1,0), (1,0), (0,-1), (0,1))
+        val rookLikePieces = Set(Piece.◯.HI, Piece.◯.RY) // RY also slides like a rook
+        if (isAttackedBySlidingPiece(rookDirections, rookLikePieces)) return true
+
+        // 8. Check Bishop attacks (Bishop or Horse)
+        val bishopDirections = List((-1,-1), (-1,1), (1,-1), (1,1))
+        val bishopLikePieces = Set(Piece.◯.KA, Piece.◯.UM) // UM also slides like a bishop
+        if (isAttackedBySlidingPiece(bishopDirections, bishopLikePieces)) return true
+
+        // No attacks found
         false
     }
   }

@@ -767,4 +767,30 @@ class RuleSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     // same(his(0),his(3)) is false.
     Rule.isThreefoldRepetition(Board(), state) shouldBe false
   }
+
+  "Rule.generateMovablePoints" should "not generate any moves for dropping a King" in {
+    val board = createBoardWithHands() // Empty board initially
+
+    // Manually put Gote's King (△.OU) into Sente's (PlayerA) hand.
+    // board.capturedPieces.put(piece) adds 'piece' to the hand of the *opponent* of 'piece's owner.
+    // So, if piece is △.OU (Gote's King), it's added to PlayerA's (Sente's) hand.
+    // In PlayerA's hand, it will be considered as ▲.OU for dropping purposes.
+    board.capturedPieces.put(Piece.△.OU)
+
+    // Verify Player A has the King in hand
+    val kingInHandPiece = Piece.▲.OU // This is what Player A would attempt to drop
+    val kingGeneralized = Piece.◯.OU // Generalized King for counting
+    board.capturedPieces.count(PlayerA, kingGeneralized) should be >= 1
+
+    // The 'oldPos' for a drop is a special point indicating which piece from hand.
+    // Point.ofCaptured(piece_kind) is used to get this special point.
+    val kingDropOrigin = Point.ofCaptured(kingGeneralized)
+
+    // Generate drop moves for Player A attempting to drop the King
+    // The 'piece' parameter to generateMovablePoints for a drop is the specific piece type in hand.
+    val dropMoves = Rule.generateMovablePoints(board, kingDropOrigin, kingInHandPiece, PlayerA, false).toList
+
+    // Assert that no drop moves are generated for the King
+    dropMoves shouldBe empty
+  }
 }

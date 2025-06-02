@@ -34,10 +34,12 @@ object Rule {
    */
   def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn, includePromoted: Boolean): Iterator[Move] = {
     val scopes = movableScopes(piece)
-    (if (Point.isCaptured(oldPos)) {
+    (if (Point.isCaptured(oldPos)) { // This means it's a drop from hand
       board.allEmptyPoints().filter { np =>
-        !is2FU(board, piece, np, turn) && canMoveAtNextTurn(np, scopes)
-      }.map { (_, false) }
+        Piece.generalize(piece) != Piece.◯.OU && // ADDED: Cannot drop a King
+        !is2FU(board, piece, np, turn) &&
+        canMoveAtNextTurn(np, scopes)
+      }.map { (_, false) } // Drops are never promotions
     } else {
       generateMovePoints(board, piece, oldPos, turn, includePromoted, scopes, scopes)
     })

@@ -486,10 +486,10 @@ class EvaluationV2Spec extends AnyFlatSpec with Matchers {
     // Promotion Potential
     val promotionScoreDifference = 0
 
-    val expectedScore = materialScore + mobilityScoreDifference + kingSafetyScoreDifference + promotionScoreDifference + centerControlScoreDifference
+    val expectedEvalV2Score = materialScore + mobilityScoreDifference + kingSafetyScoreDifference + promotionScoreDifference + centerControlScoreDifference
     // Expected: -250 (Mat) + ((8+5)*2 - (8+8)*2) (Mob) + 0 (KS) + 0 (PP) + 10 (Center)
-    // Expected: -250 + (26 - 32) + 10 = -250 - 6 + 10 = -246
-    EvaluationV2.evaluate(boardCenterDiff, PlayerA) shouldBe expectedScore
+    // Expected: -250 + (26 - 32) (Mob = -6) + 0 (KS) + 0 (PP) + 10 (Center) = -250 - 6 + 10 = -246.
+    EvaluationV2.evaluate(boardCenterDiff, PlayerA) shouldBe expectedEvalV2Score
   }
 }
 

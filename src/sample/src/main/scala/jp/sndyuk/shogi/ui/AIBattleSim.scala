@@ -57,22 +57,22 @@ object AIBattleSim extends App {
         // Removed the redundant/problematic second block of capture logging.
 
         // Apply move
+        // currentAiPlayer is the player who is making the move.
         currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari) // validation=false as AI provides validated moves
+        // After this, currentState.turn is the *next* player.
 
-        val playerWhoMadeTheMove = currentState.turn.change // Player whose turn it just was (e.g. PlayerA if currentState.turn is now PlayerB)
-
-        // Check for King capture FIRST
-        // board.isFinish(player_whose_king_might_be_captured) returns true if that player's king is gone.
-        // So, we check if the player whose turn it *now* is (currentState.turn, the opponent) has lost their king.
-        if (board.isFinish(currentState.turn)) {
-          println(s"\nKING CAPTURED! Player ${playerWhoMadeTheMove} wins!")
+        // Check if currentAiPlayer (who just moved) has now captured the opponent's King.
+        // board.isFinish(P) means "Does player P have a King (necessarily opponent's) in hand?"
+        if (board.isFinish(currentAiPlayer)) {
+          println(s"\nKING CAPTURED! Player ${currentAiPlayer} wins!")
           gameRunning = false
         } else {
-          // If no King capture, then check if the NEXT player (currentState.turn) has any moves
-          // This was the existing checkmate logic, keep it as a secondary win condition.
-          val opponentLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
-          if (opponentLegalMoves.isEmpty) {
-            println(s"\nCHECKMATE! Player ${playerWhoMadeTheMove} wins! (Opponent ${currentState.turn} has no moves)")
+          // If no King was captured by currentAiPlayer, then check if the NEXT player has any moves.
+          // The next player is now currentState.turn.
+          val nextPlayerLegalMoves = jp.sndyuk.shogi.player.Utils.plans(board, currentState).toList
+          if (nextPlayerLegalMoves.isEmpty) {
+            // If nextPlayer has no moves, currentAiPlayer delivered checkmate/stalemate.
+            println(s"\nCHECKMATE! Player ${currentAiPlayer} wins! (Opponent ${currentState.turn} has no moves)")
             gameRunning = false
           }
         }

@@ -29,6 +29,7 @@ class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) exte
       currentBoardID = initialBoardID,
       gamePathHistoryIDs = Nil, // Initial call, path history is empty
       depth = currentSearchDepth,
+      quiescenceDepth = 0, // V2 does not use quiescence search
       alpha = alpha,
       beta = beta,
       maximizingPlayer = true,
@@ -36,8 +37,8 @@ class AlphaBetaAI_V2(val name: String = "AlphaBetaAI_V2", searchDepth: Int) exte
       evalFunc = EvaluationV2.evaluate
     )
 
-    bestMoveOpt
+    bestMoveOpt.asInstanceOf[Option[Transition]]
   }
 
-  override def toString: String = s"$name(depth=$searchDepth)"
+  override def toString: String = s"$name(depth=$searchDepth, qDepth=0)"
 }

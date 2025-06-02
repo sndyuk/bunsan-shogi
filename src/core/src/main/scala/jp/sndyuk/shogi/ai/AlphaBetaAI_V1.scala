@@ -29,20 +29,21 @@ class AlphaBetaAI_V1(val name: String = "AlphaBetaAI_V1", searchDepth: Int) exte
     val (_, bestMoveOpt) = AlphaBetaSearch.search(
       currentState = state,
       currentBoard = board,
-      currentBoardID = initialBoardID,
+      currentBoardID = initialBoardID, // Pass the generated ID
       gamePathHistoryIDs = Nil, // Initial call, path history is empty
       depth = currentSearchDepth,
+      quiescenceDepth = 0, // V1 does not use quiescence search
       alpha = alpha,
       beta = beta,
       maximizingPlayer = true,
       rootPlayerTurn = turn,
       evalFunc = EvaluationV1.evaluate
     )
-
-    bestMoveOpt
+    // The returned type of bestMoveOpt should be Option[Transition] as per search method
+    bestMoveOpt.asInstanceOf[Option[Transition]]
   }
 
-  override def toString: String = s"$name(depth=$searchDepth)"
+  override def toString: String = s"$name(depth=$searchDepth, qDepth=0)"
 
   // Companion object to define constants or utility if needed
   // private object AlphaBetaAI_V1 { // Not strictly needed for MATE_SCORE_GUARD if it's a private val

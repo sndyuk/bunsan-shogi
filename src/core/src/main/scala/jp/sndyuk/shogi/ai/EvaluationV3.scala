@@ -2,7 +2,9 @@ package jp.sndyuk.shogi.ai
 
 import jp.sndyuk.shogi.core._
 
-object EvaluationV3 extends EvaluationV2 {
+// EvaluationV3 cannot extend EvaluationV2 if EvaluationV2 is an object.
+// It will use EvaluationV2's methods directly.
+object EvaluationV3 {
 
   // Helper function to flip tables for Gote
   private def flipTable(senteTable: Array[Array[Int]]): Array[Array[Int]] = senteTable.reverse
@@ -107,80 +109,6 @@ object EvaluationV3 extends EvaluationV2 {
   private val UM_PST_GOTE: Array[Array[Int]] = flipTable(UM_PST_SENTE)
   private val RY_PST_GOTE: Array[Array[Int]] = flipTable(RY_PST_SENTE)
 
-  private def getPstForPiece(piece: Piece, turn: Turn): Option[Array[Array[Int]]] = {
-    val isSentePiece = Piece.▲(piece) // Check if the piece itself is Sente's type
-                                      // Or, more robustly, Piece.▲△(piece, PlayerA)
-
-    val tableSelector = if (turn == PlayerA) { // PST set for the current player
-      piece match {
-        case Piece.▲.FU => Some(FU_PST_SENTE)
-        case Piece.▲.KY => Some(KY_PST_SENTE)
-        case Piece.▲.KE => Some(KE_PST_SENTE)
-        case Piece.▲.GI => Some(GI_PST_SENTE)
-        case Piece.▲.KI => Some(KI_PST_SENTE)
-        case Piece.▲.KA => Some(KA_PST_SENTE)
-        case Piece.▲.HI => Some(HI_PST_SENTE)
-        case Piece.▲.OU => Some(OU_PST_SENTE)
-        case Piece.▲.TO => Some(TO_PST_SENTE)
-        case Piece.▲.NY => Some(NY_PST_SENTE)
-        case Piece.▲.NK => Some(NK_PST_SENTE)
-        case Piece.▲.NG => Some(NG_PST_SENTE)
-        case Piece.▲.UM => Some(UM_PST_SENTE)
-        case Piece.▲.RY => Some(RY_PST_SENTE)
-        // Gote pieces if turn is PlayerA (these are opponent's pieces)
-        case Piece.△.FU => Some(FU_PST_GOTE)
-        case Piece.△.KY => Some(KY_PST_GOTE)
-        case Piece.△.KE => Some(KE_PST_GOTE)
-        case Piece.△.GI => Some(GI_PST_GOTE)
-        case Piece.△.KI => Some(KI_PST_GOTE)
-        case Piece.△.KA => Some(KA_PST_GOTE)
-        case Piece.△.HI => Some(HI_PST_GOTE)
-        case Piece.△.OU => Some(OU_PST_GOTE)
-        case Piece.△.TO => Some(TO_PST_GOTE)
-        case Piece.△.NY => Some(NY_PST_GOTE)
-        case Piece.△.NK => Some(NK_PST_GOTE)
-        case Piece.△.NG => Some(NG_PST_GOTE)
-        case Piece.△.UM => Some(UM_PST_GOTE)
-        case Piece.△.RY => Some(RY_PST_GOTE)
-        case _ => None
-      }
-    } else { // turn == PlayerB, PST set for Gote
-       piece match {
-        case Piece.△.FU => Some(FU_PST_GOTE)
-        case Piece.△.KY => Some(KY_PST_GOTE)
-        case Piece.△.KE => Some(KE_PST_GOTE)
-        case Piece.△.GI => Some(GI_PST_GOTE)
-        case Piece.△.KI => Some(KI_PST_GOTE)
-        case Piece.△.KA => Some(KA_PST_GOTE)
-        case Piece.△.HI => Some(HI_PST_GOTE)
-        case Piece.△.OU => Some(OU_PST_GOTE)
-        case Piece.△.TO => Some(TO_PST_GOTE)
-        case Piece.△.NY => Some(NY_PST_GOTE)
-        case Piece.△.NK => Some(NK_PST_GOTE)
-        case Piece.△.NG => Some(NG_PST_GOTE)
-        case Piece.△.UM => Some(UM_PST_GOTE)
-        case Piece.△.RY => Some(RY_PST_GOTE)
-        // Sente pieces if turn is PlayerB (these are opponent's pieces)
-        case Piece.▲.FU => Some(FU_PST_SENTE)
-        case Piece.▲.KY => Some(KY_PST_SENTE)
-        case Piece.▲.KE => Some(KE_PST_SENTE)
-        case Piece.▲.GI => Some(GI_PST_SENTE)
-        case Piece.▲.KI => Some(KI_PST_SENTE)
-        case Piece.▲.KA => Some(KA_PST_SENTE)
-        case Piece.▲.HI => Some(HI_PST_SENTE)
-        case Piece.▲.OU => Some(OU_PST_SENTE)
-        case Piece.▲.TO => Some(TO_PST_SENTE)
-        case Piece.▲.NY => Some(NY_PST_SENTE)
-        case Piece.▲.NK => Some(NK_PST_SENTE)
-        case Piece.▲.NG => Some(NG_PST_SENTE)
-        case Piece.▲.UM => Some(UM_PST_SENTE)
-        case Piece.▲.RY => Some(RY_PST_SENTE)
-        case _ => None
-      }
-    }
-    tableSelector
-  }
-
   // Simpler PST getter: one for Sente pieces, one for Gote pieces.
   // The evaluation function will then use the one matching the piece's actual owner.
   private def getPstForSentePiece(piece: Piece): Option[Array[Array[Int]]] = piece match {
@@ -201,9 +129,9 @@ object EvaluationV3 extends EvaluationV2 {
     case _ => None
   }
 
-
-  override def evaluate(board: Board, turn: Turn): Int = {
-    val baseScore = super.evaluate(board, turn) // Score from EvaluationV2 (material, mobility, etc.)
+  // Removed 'override' as EvaluationV3 no longer extends EvaluationV2 directly.
+  def evaluate(board: Board, turn: Turn): Int = {
+    val baseScore = EvaluationV2.evaluate(board, turn) // Call EvaluationV2.evaluate directly
     var pstScoreAdjustment = 0
 
     for (y <- 0 to 8; x <- 0 to 8) {

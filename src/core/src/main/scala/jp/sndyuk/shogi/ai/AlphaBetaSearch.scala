@@ -268,16 +268,12 @@ object AlphaBetaSearch {
 
     // Similar logic to the main search, but only for capture moves
     if (maximizingPlayer) {
-      var currentMaxEval = Int.MinValue
+      var bestScoreFound = evalFunc(currentBoard, rootPlayerTurn) // Initialize with standing pat score
       var currentAlpha = alpha
+      currentAlpha = Math.max(currentAlpha, bestScoreFound)
 
-      // Initial evaluation of the standing position (score if no capture is made or if all captures are bad)
-      val standingPatScore = evalFunc(currentBoard, rootPlayerTurn)
-      currentMaxEval = standingPatScore // Initialize with standing pat score
-
-      currentAlpha = Math.max(currentAlpha, currentMaxEval)
-      if (beta <= currentAlpha) {
-          return (currentMaxEval, None)
+      if (currentAlpha >= beta) { // Beta cutoff based on standing pat
+          return (bestScoreFound, None)
       }
 
       for (move <- captureMoves) {
@@ -289,26 +285,22 @@ object AlphaBetaSearch {
                                          currentBoardID :: gamePathHistoryIDs,
                                          quiescenceDepth - 1, currentAlpha, beta, false, rootPlayerTurn, evalFunc)
 
-        if (eval > currentMaxEval) {
-          currentMaxEval = eval
+        if (eval > bestScoreFound) {
+          bestScoreFound = eval
         }
-        currentAlpha = Math.max(currentAlpha, eval)
-        if (beta <= currentAlpha) {
-          return (currentMaxEval, None) // Beta cut-off, move itself is not propagated up
+        currentAlpha = Math.max(currentAlpha, bestScoreFound) // Update alpha with the best score found so far
+        if (currentAlpha >= beta) { // Beta cut-off
+          return (bestScoreFound, None)
         }
       }
-      return (currentMaxEval, None) // Return best score found, move itself is not propagated up
+      return (bestScoreFound, None)
     } else { // Minimizing player
-      var currentMinEval = Int.MaxValue
+      var bestScoreFound = evalFunc(currentBoard, rootPlayerTurn) // Initialize with standing pat score
       var currentBeta = beta
+      currentBeta = Math.min(currentBeta, bestScoreFound)
 
-      // Initial evaluation of the standing position
-      val standingPatScore = evalFunc(currentBoard, rootPlayerTurn)
-      currentMinEval = standingPatScore // Initialize with standing pat score
-
-      currentBeta = Math.min(currentBeta, currentMinEval)
-      if (currentBeta <= alpha) {
-          return (currentMinEval, None)
+      if (currentBeta <= alpha) { // Alpha cutoff based on standing pat
+          return (bestScoreFound, None)
       }
 
       for (move <- captureMoves) {
@@ -320,15 +312,15 @@ object AlphaBetaSearch {
                                          currentBoardID :: gamePathHistoryIDs,
                                          quiescenceDepth - 1, alpha, currentBeta, true, rootPlayerTurn, evalFunc)
 
-        if (eval < currentMinEval) {
-          currentMinEval = eval
+        if (eval < bestScoreFound) {
+          bestScoreFound = eval
         }
-        currentBeta = Math.min(currentBeta, eval)
-        if (currentBeta <= alpha) {
-          return (currentMinEval, None) // Alpha cut-off, move itself is not propagated up
+        currentBeta = Math.min(currentBeta, bestScoreFound) // Update beta with the best score found so far
+        if (currentBeta <= alpha) { // Alpha cut-off
+          return (bestScoreFound, None)
         }
       }
-      return (currentMinEval, None) // Return best score found, move itself is not propagated up
+      return (bestScoreFound, None)
     }
   }
 }

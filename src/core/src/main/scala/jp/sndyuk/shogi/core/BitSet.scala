@@ -67,8 +67,7 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def copy(): BitSet = {
-    val newBitsArray = new Array[Long](this.bits.length)
-    System.arraycopy(this.bits, 0, newBitsArray, 0, this.bits.length)
+  val newBitsArray = this.bits.clone()
     new BitSet(this.length)(newBitsArray)
   }
 

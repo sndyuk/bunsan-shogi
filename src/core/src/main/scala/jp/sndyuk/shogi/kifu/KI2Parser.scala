@@ -55,6 +55,14 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
       ("右" | "左" | "直" | "寄" | "引" | "打" | "上").? ~ ("右" | "左" | "直" | "引" | "寄" | "上").? ~ ("成" | "不成").? ~ ("    " | "  ").? <~ sep ^^ {
         case _ ~ p ~ x ~ yOpt ~ _ ~ pieceStr ~ detailOpt1 ~ detailOpt2 ~ nariOpt ~ _ => { // Added _ to consume the optional move number part
           val turn = if (p == "▲") PlayerA else PlayerB
+          val newPosKi2Str = s"$x${yOpt.map {
+            case "一" => "一" case "二" => "二" case "三" => "三" case "四" => "四"
+            case "五" => "五" case "六" => "六" case "七" => "七" case "八" => "八"
+            case "九" => "九" case _ => "" // Should not happen with parser
+          }.getOrElse("")}"
+
+          println(s"KI2PARSER_DEBUG: Parsing move: player=$p, x=$x, yOpt=$yOpt, pieceStr=$pieceStr, details1=$detailOpt1, details2=$detailOpt2, nariOpt=$nariOpt, ki2Coords=$newPosKi2Str")
+
           val newPos = if (x == "同") {
             s.history.head.newPos
           } else
@@ -68,6 +76,7 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
               case "７" => 7
               case "８" => 8
               case "９" => 9
+              case _ => throw new IllegalStateException(s"KI2PARSER_DEBUG: Unexpected x value: $x") // Should be caught by parser
             }, yOpt match {
               case Some("一") => 1
               case Some("二") => 2
@@ -78,14 +87,19 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
               case Some("七") => 7
               case Some("八") => 8
               case Some("九") => 9
-              case _ => throw new UnsupportedOperationException
+              case None if x == "同" => s.history.head.newPos.y // If "同", y is taken from previous move's newPos.y
+              case None => throw new IllegalStateException(s"KI2PARSER_DEBUG: yOpt is None for non-'同' x value: $x")
+              case _ => throw new UnsupportedOperationException(s"KI2PARSER_DEBUG: Unexpected yOpt value: $yOpt")
             })
 
-          val pieceStr2 = if (x == "同" && yOpt.isDefined) {
-            yOpt.get
+          val pieceStrResolved = if (x == "同" && yOpt.isDefined) {
+             yOpt.get match { // yOpt would contain the piece string here if it's like "同銀"
+                case "一" | "二" | "三" | "四" | "五" | "六" | "七" | "八" | "九" => pieceStr // yOpt was a coordinate part
+                case otherPieceStr => otherPieceStr // yOpt was a piece string like "銀" in "同銀"
+            }
           } else pieceStr
 
-          val piece = pieceStr2 match {
+          val piece = pieceStrResolved match {
             case "玉" => Piece.convert(Piece.◯.OU, turn)
             case "歩" => Piece.convert(Piece.◯.FU, turn)
             case "金" => Piece.convert(Piece.◯.KI, turn)
@@ -100,13 +114,27 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
             case "馬" => Piece.promote(Piece.convert(Piece.◯.KA, turn))
             case "成桂" => Piece.promote(Piece.convert(Piece.◯.KE, turn))
             case "成香" => Piece.promote(Piece.convert(Piece.◯.KY, turn))
+            case _ => throw new IllegalStateException(s"KI2PARSER_DEBUG: Unknown piece string: $pieceStrResolved from original $pieceStr")
           }
 
           val nari = nariOpt.exists(_ == "成")
 
+          println(s"KI2PARSER_DEBUG: Before Utils.plans: turn=$turn, newPos(core.Point)=${newPos.x}${newPos.y}(ki2:$newPosKi2Str), piece=${Piece.name(piece)}(val:$piece), nari=$nari")
+          println(s"KI2PARSER_DEBUG: Current board state for plans:\n${this.board.toStringState(s)}")
+
           // Use this.board (the parser's current board state) for plans and piece checks
           val plan = Utils.plans(this.board, s).toList
+          println(s"KI2PARSER_DEBUG: After Utils.plans: plan.length=${plan.length}")
+          if ((Piece.generalize(piece) == Piece.◯.KA) && turn == PlayerA) {
+            plan.foreach(t => println(s"KI2PARSER_DEBUG: SENTE BISHOP Plan transition: oldPos=${t.oldPos.x}${t.oldPos.y}, newPos=${t.newPos.x}${t.newPos.y}, pieceAtOldPos=${Piece.name(this.board.piece(t.oldPos, turn))}(val:${this.board.piece(t.oldPos, turn)}), promote=${t.nari}"))
+          }
+
           val candidates = plan.filter(t => t.newPos == newPos && this.board.piece(t.oldPos, turn) == piece).toList
+          println(s"KI2PARSER_DEBUG: After filtering candidates: candidates.length=${candidates.length}")
+          if ((Piece.generalize(piece) == Piece.◯.KA) && turn == PlayerA) {
+            candidates.foreach(t => println(s"KI2PARSER_DEBUG: SENTE BISHOP Candidate transition: oldPos=${t.oldPos.x}${t.oldPos.y}, newPos=${t.newPos.x}${t.newPos.y}, pieceAtOldPos=${Piece.name(this.board.piece(t.oldPos, turn))}(val:${this.board.piece(t.oldPos, turn)}), promote=${t.nari}"))
+          }
+
           val oldPos = if (candidates.length > 1) {
             val right = detailOpt1.exists(_ == "右") || detailOpt2.exists(_ == "右")
             val left = detailOpt1.exists(_ == "左") || detailOpt2.exists(_ == "左")
@@ -172,14 +200,19 @@ class KI2Parser(board: Board = Board()) extends RegexParsers {
               if (isDrop) {
                 Point.ofCaptured(Piece.generalize(piece)) // Use generalized piece for Point.ofCaptured
               } else {
+                if ((Piece.generalize(piece) == Piece.◯.KA) && turn == PlayerA) {
+                  println(s"KI2PARSER_DEBUG: No candidates found for SENTE BISHOP to newPos=${newPos.x}${newPos.y} (ki2:$newPosKi2Str), piece=${Piece.name(piece)}(val:$piece)")
+                }
                 // No candidates found for a non-drop move. This is an error in KIF or parser logic.
-                throw new IllegalStateException(s"No candidate moves found for $pieceStr to $newPos for $turn. Parsed details: ${detailOpt1}, ${detailOpt2}")
+                throw new IllegalStateException(s"KI2PARSER_DEBUG: No candidate moves found for $pieceStrResolved to $newPos (ki2:$newPosKi2Str) for $turn. Piece ${Piece.name(piece)}(val:$piece). Parsed details: $detailOpt1, $detailOpt2. Board:\n${this.board.toStringState(s)}")
               }
             } else {
               candidates.head.oldPos
             }
           }
+          println(s"KI2PARSER_DEBUG: Determined oldPos=${oldPos.x}${oldPos.y}")
 
+          println(s"KI2PARSER_DEBUG: Before this.board.move: oldPos=${oldPos.x}${oldPos.y}, newPos=${newPos.x}${newPos.y}(ki2:$newPosKi2Str), piece=${Piece.name(piece)}(val:$piece), nari=$nari")
           // Use this.board (the parser's board instance) to call the move method
           s = this.board.move(s, oldPos, newPos, true, nari)
           Move(turn, oldPos, newPos, if (nari) Piece.promote(piece) else piece, None)

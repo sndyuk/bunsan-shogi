@@ -13,7 +13,67 @@ import jp.sndyuk.shogi.kifu.TempCore.{Board => KifuBoard, Position => KifuPositi
 class KifuExporterSpec extends AnyFlatSpec with Matchers {
 
   // --- Sample Kifu Data using TempCore types ---
-  val initialKifuBoard: KifuBoard = KifuBoard(Map.empty, SENTE) // Standard Hirate assumed by exporters
+  val hirateSetup: Map[KifuPosition, (Piece, Player)] = Map(
+    // Sente pieces (Player A, typically black, moves first)
+    // Back rank (rank 1 for Sente)
+    KifuPosition(1,1) -> (KY, SENTE), // Lance
+    KifuPosition(2,1) -> (KE, SENTE), // Knight
+    KifuPosition(3,1) -> (GI, SENTE), // Silver
+    KifuPosition(4,1) -> (KI, SENTE), // Gold
+    KifuPosition(5,1) -> (OU, SENTE), // King
+    KifuPosition(6,1) -> (KI, SENTE), // Gold
+    KifuPosition(7,1) -> (GI, SENTE), // Silver
+    KifuPosition(8,1) -> (KE, SENTE), // Knight
+    KifuPosition(9,1) -> (KY, SENTE), // Lance
+
+    // Middle rank (rank 2 for Sente)
+    // Standard USI: Sente Rook at 8h (KifuPosition(8,2)), Bishop at 2h (KifuPosition(2,2))
+    // X=1 is rightmost (USI file 1), X=9 is leftmost (USI file 9)
+    // Y=1 is Sente's back rank (USI rank a/1), Y=9 is Gote's back rank (USI rank i/9)
+    KifuPosition(8,2) -> (HI, SENTE), // Sente Rook (USI 8h)
+    KifuPosition(2,2) -> (KA, SENTE), // Sente Bishop (USI 2h)
+
+
+    // Pawn rank (rank 3 for Sente)
+    KifuPosition(1,3) -> (FU, SENTE), // Pawn
+    KifuPosition(2,3) -> (FU, SENTE),
+    KifuPosition(3,3) -> (FU, SENTE),
+    KifuPosition(4,3) -> (FU, SENTE),
+    KifuPosition(5,3) -> (FU, SENTE),
+    KifuPosition(6,3) -> (FU, SENTE),
+    KifuPosition(7,3) -> (FU, SENTE),
+    KifuPosition(8,3) -> (FU, SENTE),
+    KifuPosition(9,3) -> (FU, SENTE),
+
+    // Gote pieces (Player B, typically white, moves second)
+    // Back rank (rank 9 for Sente, which is rank 1 for Gote)
+    KifuPosition(1,9) -> (KY, GOTE), // Lance
+    KifuPosition(2,9) -> (KE, GOTE), // Knight
+    KifuPosition(3,9) -> (GI, GOTE), // Silver
+    KifuPosition(4,9) -> (KI, GOTE), // Gold
+    KifuPosition(5,9) -> (OU, GOTE), // King
+    KifuPosition(6,9) -> (KI, GOTE), // Gold
+    KifuPosition(7,9) -> (GI, GOTE), // Silver
+    KifuPosition(8,9) -> (KE, GOTE), // Knight
+    KifuPosition(9,9) -> (KY, GOTE), // Lance
+
+    // Middle rank (rank 8 for Sente, which is rank 2 for Gote)
+    // Standard USI: Gote Rook at 2b (KifuPosition(2,8)), Bishop at 8b (KifuPosition(8,8))
+    KifuPosition(2,8) -> (HI, GOTE), // Gote Rook (USI 2b)
+    KifuPosition(8,8) -> (KA, GOTE), // Gote Bishop (USI 8b)
+
+    // Pawn rank (rank 7 for Sente, which is rank 3 for Gote)
+    KifuPosition(1,7) -> (FU, GOTE), // Pawn
+    KifuPosition(2,7) -> (FU, GOTE),
+    KifuPosition(3,7) -> (FU, GOTE),
+    KifuPosition(4,7) -> (FU, GOTE),
+    KifuPosition(5,7) -> (FU, GOTE),
+    KifuPosition(6,7) -> (FU, GOTE),
+    KifuPosition(7,7) -> (FU, GOTE),
+    KifuPosition(8,7) -> (FU, GOTE),
+    KifuPosition(9,7) -> (FU, GOTE)
+  )
+  val initialKifuBoard: KifuBoard = KifuBoard(hirateSetup, SENTE)
 
   val sampleMoves1: Seq[KifuTransition] = Seq(
     KifuTransition(KifuMove(SENTE, Some(KifuPosition(7,7)), KifuPosition(7,6), FU)), // ▲7六歩  (CSA: +7776FU)
@@ -73,7 +133,7 @@ class KifuExporterSpec extends AnyFlatSpec with Matchers {
   }
 
   // --- KI2Exporter Tests ---
-  "KI2Exporter" should "export a simple game to KI2 format" ignore { // PENDING: Fails due to IllegalStateException: Cound not move 8八 to 7七, Turn: ▲. Suspected issue in core logic (Rule/Board.move or Utils.plans) for Sente Bishop 8h->7g.
+  "KI2Exporter" should "export a simple game to KI2 format" in { // PENDING: Fails due to IllegalStateException: Cound not move 8八 to 7七, Turn: ▲. Suspected issue in core logic (Rule/Board.move or Utils.plans) for Sente Bishop 8h->7g.
     val ki2Output = KI2Exporter.exportToString(initialKifuBoard, sampleMoves1, SENTE, None) // Assuming SENTE made last move, GOTE to play
 
     ki2Output should include ("手合割：平手\n")

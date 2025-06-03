@@ -26,6 +26,36 @@ This will load the Shogi web application.
 
 **Note on the Original Sample GUI:** The original Swing-based sample GUI application (from the `sample` module) is currently disabled in the `build.sbt` file due to refactoring work and tooling issues encountered during its update. The primary interface for this version is the web application.
 
+### Running Sample Applications
+
+The `sample` module contains command-line applications that demonstrate how to use the Shogi library programmatically. While the Web Application is the primary way to play a full game, these samples offer insights into specific functionalities.
+
+#### `AIBattleSim.scala`
+
+This application demonstrates an AI vs. AI simulation. It showcases:
+*   How to configure different AI types (e.g., `AlphaBetaAI_V1`, `AlphaBetaAI_V2`).
+*   How to set parameters like search depth for the AIs.
+*   Detailed game progress output, including AI thinking time, Nodes Per Second (NPS), moves made, and game results (checkmate, stalemate, etc.).
+
+To run the AI Battle Simulation:
+```sh
+sbt "sample/runMain jp.sndyuk.shogi.ui.AIBattleSim"
+```
+You can modify the AI types and their respective search depths directly within the `src/sample/src/main/scala/jp/sndyuk/shogi/ui/AIBattleSim.scala` file. Look for the AI instantiation section, where comments guide you on how to make these changes.
+
+#### `Console.scala`
+
+This application provides a console-based Shogi game, typically setting up a Human player against an AI player. It demonstrates:
+*   How a human player can input moves using Shogi algebraic notation.
+*   Basic interaction between human and AI players.
+
+To run the Console Game:
+```sh
+sbt "sample/runMain jp.sndyuk.shogi.ui.Console"
+```
+The application will prompt you for moves. The expected input format is `(file,rank)(file,rank)[+]` (e.g., `(7,7)(7,6)` to move a piece from file 7, rank 7 to file 7, rank 6, or `(2,2)(2,1)+` for a move with promotion). Refer to the application's startup message for detailed format instructions.
+You can modify the player types (e.g., Human vs. Human, AI vs. AI, or different AI for Player B) by editing the `src/sample/src/main/scala/jp/sndyuk/shogi/ui/Console.scala` file, as indicated by comments in the player instantiation section.
+
 ### Performance
 Scala 2.12.6 / 2.9 GHz Intel Core i7
 

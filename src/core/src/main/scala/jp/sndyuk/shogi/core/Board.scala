@@ -199,9 +199,7 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
     val piece = pointToPiece(pos, turn)
     val player = if (▲(piece)) playerA else playerB
     val gpiece = generalize(piece)
-    if (gpiece == 32) {
-      println(piece)
-    }
+    // Removed debug println for gpiece == 32
     val amount = count(player, find(gpiece))
     if (amount > 0) {
       val updated = add(player, gpiece, -1)

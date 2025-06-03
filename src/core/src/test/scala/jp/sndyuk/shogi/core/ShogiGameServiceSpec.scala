@@ -388,20 +388,123 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     validMoves should contain only (Position(2,5))
   }
 
-  it should "get valid moves for a rook" in {
-    val service = new ShogiGameService()
-    val validMoves = service.getValidMoves(Position(7,7))
+  it should "get valid moves for a Gote Rook at 2b (Position(7,7)) on initial board" in { // Corrected test name for clarity
+    val service = new ShogiGameService() // Starts a new game with default setup
+    val validMoves = service.getValidMoves(Position(7,7)) // Gote's Rook at USI 2b / core Point(6,2)
 
-    val expectedMoves = List(
-      Position(6,7), Position(5,7), Position(4,7), Position(3,7), Position(2,7), // Moves left
-      Position(8,7)  // Move right
+    // Expected moves based on subtask's analysis for Gote's Rook at USI 2b (Position(7,7))
+    // This position is Gote's left Rook.
+    // Horizontal: 7 moves. From x=2, can move to x=0,1,3,4,5,6,7,8 - but x=2 is current.
+    // So, Point(6,0), Point(6,1), Point(6,3), Point(6,4), Point(6,5), Point(6,6), Point(6,7), Point(6,8)
+    // These map to: Position(9,7), Position(8,7), Position(6,7), Position(5,7), Position(4,7), Position(3,7), Position(2,7), Position(1,7)
+    // The subtask list is: P(8,7), P(6,7), P(5,7), P(4,7), P(3,7), P(2,7), P(1,7) (7 horizontal moves)
+    // Vertical towards Gote's back rank: 1 move. From y=6, can move to y=7.
+    // Point(7,2) -> Position(7,8)
+    // Gote's pawns are at y=2 (from Sente's view). Rook at y=6. So cannot move to y=5, which is Position(7,6).
+    val expectedMoves = Set(
+      Position(8,7), // USI 1b
+      Position(6,7), // USI 3b
+      Position(5,7), // USI 4b
+      Position(4,7), // USI 5b
+      Position(3,7), // USI 6b
+      Position(2,7), // USI 7b
+      Position(1,7), // USI 8b
+      Position(7,8)  // USI 2a (towards Gote's back rank)
     )
-    validMoves should contain allElementsOf expectedMoves
-    validMoves.size shouldBe expectedMoves.size
+    validMoves.toSet should contain theSameElementsAs expectedMoves
+    validMoves.size shouldBe 8 // 7 horizontal + 1 vertical
 
-    validMoves should not contain Position(1,7)
-    validMoves should not contain Position(0,7)
-    validMoves should not contain Position(7,6)
-    validMoves should not contain Position(7,8)
+    // Verify it's blocked by its own pawn towards Sente's side
+    validMoves should not contain Position(7,6) // USI 2c (Gote Pawn location)
+  }
+
+  // Part 2: Sente Rook on a mostly empty board
+  it should "get all 16 valid moves for a Sente Rook on a mostly empty board" in {
+    val service = new ShogiGameService()
+    val senteKingPos = Position(9,9) // USI 1a (core Point(8,0)) - Sente's King
+    val goteKingPos = Position(1,1)   // USI 9i (core Point(0,8)) - Gote's King
+    val senteRookPos = Position(5,5)  // USI 5e (core Point(4,4)) - Sente's Rook
+
+    val customBoardSetup: Map[Position, (GameSimplePieceType, GamePlayer, Boolean)] = Map(
+      senteKingPos -> ((SimplePiece.OU, Player.SENTE, false)),
+      goteKingPos  -> ((SimplePiece.OU, Player.GOTE, false)),
+      senteRookPos -> ((SimplePiece.HI, Player.SENTE, false))
+    )
+
+    service.startNewGame(
+      initialBoardSetup = Some(customBoardSetup),
+      initialSenteCaptured = Nil,
+      initialGoteCaptured = Nil,
+      firstPlayer = Player.SENTE
+    )
+
+    val validMoves = service.getValidMoves(senteRookPos)
+
+    val expectedDestinations = scala.collection.mutable.Set[Position]()
+    // Horizontal moves (file changes, rank 5 stays)
+    for (file <- 1 to 9 if file != 5) expectedDestinations += Position(file, 5)
+    // Vertical moves (rank changes, file 5 stays)
+    for (rank <- 1 to 9 if rank != 5) expectedDestinations += Position(5, rank)
+
+    validMoves.toSet should contain theSameElementsAs expectedDestinations.toSet
+    validMoves.size shouldBe 16 // 8 horizontal + 8 vertical
+  }
+
+  // Part 3: Sente Rook with specific friendly and opponent blockers
+  it should "get correct restricted moves for a Sente Rook with blockers and capturable pieces" in {
+    val service = new ShogiGameService()
+    val senteKingPos = Position(9,9) // USI 1a
+    val goteKingPos  = Position(1,1) // USI 9i
+    val senteRookPos = Position(5,5) // USI 5e (core Point(4,4))
+
+    // Blockers and capturable pieces:
+    val sentePawnBlockerPos = Position(5,3) // USI 5g (core Point(2,4)) Sente Pawn - blocks upward
+    val gotePawnCapturablePos = Position(5,7) // USI 5c (core Point(6,4)) Gote Pawn - capturable downward
+    val senteGoldBlockerPos = Position(7,5) // USI 3e (core Point(4,2)) Sente Gold - blocks leftward
+    val goteSilverCapturablePos = Position(3,5) // USI 7e (core Point(4,6)) Gote Silver - capturable rightward
+
+    val customBoardSetup: Map[Position, (GameSimplePieceType, GamePlayer, Boolean)] = Map(
+      senteKingPos          -> ((SimplePiece.OU, Player.SENTE, false)),
+      goteKingPos           -> ((SimplePiece.OU, Player.GOTE, false)),
+      senteRookPos          -> ((SimplePiece.HI, Player.SENTE, false)),
+      sentePawnBlockerPos   -> ((SimplePiece.FU, Player.SENTE, false)),
+      gotePawnCapturablePos -> ((SimplePiece.FU, Player.GOTE, false)),
+      senteGoldBlockerPos   -> ((SimplePiece.KI, Player.SENTE, false)),
+      goteSilverCapturablePos -> ((SimplePiece.GI, Player.GOTE, false))
+    )
+
+    service.startNewGame(
+      initialBoardSetup = Some(customBoardSetup),
+      initialSenteCaptured = Nil,
+      initialGoteCaptured = Nil,
+      firstPlayer = Player.SENTE
+    )
+
+    val validMoves = service.getValidMoves(senteRookPos)
+
+    val expectedDestinations = Set(
+      // Upward moves (towards rank 1) from Position(5,5) / core Point(4,4)
+      // Blocked by Sente Pawn at Position(5,3) / core Point(2,4)
+      Position(5,4), // USI 5d / core Point(3,4)
+      // Position(5,3) is occupied by own piece
+
+      // Downward moves (towards rank 9) from Position(5,5) / core Point(4,4)
+      // Capturable Gote Pawn at Position(5,7) / core Point(6,4)
+      Position(5,6), // USI 5f / core Point(5,4)
+      Position(5,7), // Capture Gote Pawn USI 5g / core Point(6,4)
+
+      // Leftward moves (towards file 9) from Position(5,5) / core Point(4,4)
+      // Blocked by Sente Gold at Position(7,5) / core Point(4,2)
+      Position(6,5), // USI 4e / core Point(4,3)
+      // Position(7,5) is occupied by own piece
+
+      // Rightward moves (towards file 1) from Position(5,5) / core Point(4,4)
+      // Capturable Gote Silver at Position(3,5) / core Point(4,6)
+      Position(4,5), // USI 6e / core Point(4,5)
+      Position(3,5)  // Capture Gote Silver USI 7e / core Point(4,6)
+    )
+
+    validMoves.toSet should contain theSameElementsAs expectedDestinations
+    validMoves.size shouldBe 6
   }
 }

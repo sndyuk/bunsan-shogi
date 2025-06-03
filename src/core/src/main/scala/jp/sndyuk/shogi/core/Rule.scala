@@ -12,6 +12,13 @@ object Rule {
 
   val logger = Logger(LoggerFactory.getLogger(this.getClass().getName()))
 
+  case class GameStateDigest(
+    boardPieces: IndexedSeq[IndexedSeq[Piece]],
+    senteHand: Map[Piece, Int],
+    goteHand: Map[Piece, Int],
+    nextTurn: Turn
+  )
+
   /**
    * 駒が指定された場所に移動可能ならtrue
    */
@@ -210,45 +217,8 @@ object Rule {
   /**
    *  千日手判定
    */
-  def isThreefoldRepetition(board: Board, state: State): Boolean = {
-    val his = state.history // his(0) is the most recent move
-    val size = his.size
-
-    @inline def same(a: Transition, b: Transition): Boolean = a.newPos == b.newPos // And implicitly same player due to turn structure
-
-    // Check for 3-fold repetition by the current player (X . X . X pattern)
-    // Needs at least 5 moves in history for pattern P1, P2, P1, P2, P1 (indices 0,1,2,3,4)
-    if (size >= 5) {
-      // Current player's moves: his(0), his(2), his(4)
-      if (same(his(0), his(2)) && same(his(0), his(4))) {
-        return true
-      }
-      // Opponent's moves: his(1), his(3), his(5)
-      // Needs at least 6 moves for this specific check
-      if (size >= 6 && same(his(1), his(3)) && same(his(1), his(5))) {
-        return true
-      }
-    }
-
-    // Check for 3-fold repetition by sequence (X Y Z X Y Z X Y Z pattern)
-    // Needs at least 7 moves for pattern P1, P2, P3, P1, P2, P3, P1 (indices 0,1,2,3,4,5,6)
-    if (size >= 7) {
-      // Current player's sequence start: his(0), his(3), his(6)
-      if (same(his(0), his(3)) && same(his(0), his(6))) {
-        return true
-      }
-      // Opponent's sequence start (P2): his(1), his(4), his(7)
-      // Needs at least 8 moves for this specific check
-      if (size >= 8 && same(his(1), his(4)) && same(his(1), his(7))) {
-        return true
-      }
-      // Third player in sequence (P3, if applicable, though it's 2 player game, this means player C's turn): his(2), his(5), his(8)
-      // Needs at least 9 moves for this specific check
-      if (size >= 9 && same(his(2), his(5)) && same(his(2), his(8))) {
-        return true
-      }
-    }
-    false
+  def isThreefoldRepetition(currentBoardStateDigest: GameStateDigest, historyOfDigests: Seq[GameStateDigest]): Boolean = {
+    historyOfDigests.count(_ == currentBoardStateDigest) >= 3
   }
 
   /**

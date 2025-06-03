@@ -42,6 +42,97 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
     }
   }
 
+  "ShogiWebApp POST /api/game/ai_move" should "let AI Sente make a move" in {
+    // 1. Start a new game with AI as Sente
+    val newGamePayload = Json.obj(
+      "gameMode" -> "hva_sente",
+      "aiType" -> "v1",
+      "aiSearchDepth" -> 1
+    ).toString()
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200)
+      // val initialGameState = parseJson(response.body)
+      // (initialGameState \ "currentTurn").as[String] should equal ("SENTE")
+    }
+
+    // 2. Request AI move
+    post("/api/game/ai_move") {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val gameStateAfterAIMove = parseJson(response.body)
+      (gameStateAfterAIMove \ "currentTurn").as[String] should equal ("GOTE")
+      (gameStateAfterAIMove \ "gameHistory").as[List[JsObject]] should have size 1
+    }
+  }
+
+  it should "let AI Gote make a move after Sente's human move" in {
+    // 1. Start a new game with AI as Gote
+    val newGamePayload = Json.obj(
+      "gameMode" -> "hva_gote",
+      "aiType" -> "v1",
+      "aiSearchDepth" -> 1
+    ).toString()
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200)
+      // val initialGameState = parseJson(response.body)
+      // (initialGameState \ "currentTurn").as[String] should equal ("SENTE")
+    }
+
+    // 2. Make a human move for Sente (e.g., pawn 7g-7f)
+    val humanMovePayload = Json.obj(
+      "from" -> Json.obj("x" -> 2, "y" -> 6), // 7g
+      "to"   -> Json.obj("x" -> 2, "y" -> 5), // 7f
+      "promotion" -> false
+    ).toString()
+    post("/api/game/move", body = humanMovePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal(200)
+      // val gameStateAfterHumanMove = parseJson(response.body)
+      // (gameStateAfterHumanMove \ "currentTurn").as[String] should equal ("GOTE")
+    }
+
+    // 3. Request AI Gote move
+    post("/api/game/ai_move") {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val gameStateAfterAIMove = parseJson(response.body)
+      (gameStateAfterAIMove \ "currentTurn").as[String] should equal ("SENTE")
+      (gameStateAfterAIMove \ "gameHistory").as[List[JsObject]] should have size 2
+    }
+  }
+
+  it should "return 400 if it's not AI's turn" in {
+    // 1. Start a new game with AI as Gote (so it's Sente's turn)
+    val newGamePayload = Json.obj(
+      "gameMode" -> "hva_gote",
+      "aiType" -> "v1",
+      "aiSearchDepth" -> 1
+    ).toString()
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200)
+    }
+
+    // 2. Try to request AI move (but it's Sente's human turn)
+    post("/api/game/ai_move") {
+      status should equal (400)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "error").as[String] should equal ("Not AI's turn or no AI opponent configured.")
+    }
+  }
+
+  it should "return 400 if game is HVH mode" in {
+    // 1. Start a new game in HVH mode (empty body for /new)
+    post("/api/game/new") { status should equal (200) }
+
+    // 2. Try to request AI move
+    post("/api/game/ai_move") {
+      status should equal (400)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "error").as[String] should equal ("Not AI's turn or no AI opponent configured.")
+    }
+  }
+
   "ShogiWebApp POST /api/game/new" should "start a new game and return its state" in {
     post("/api/game/new") {
       status should equal (200)
@@ -52,6 +143,107 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
       // Further checks on board setup could be done if needed
     }
   }
+
+  "ShogiWebApp POST /api/game/new (AI modes)" should "start a new game with AI as Sente" in {
+    val newGamePayload = Json.obj(
+      "gameMode" -> "hva_sente",
+      "aiType" -> "v1",
+      "aiSearchDepth" -> 1
+    ).toString()
+
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      // Check if it's a valid GameState response, e.g., currentTurn is SENTE
+      (jsonResponse \ "currentTurn").as[String] should equal ("SENTE")
+      // gameMode itself is not part of GameState, verification of actual AI setup is in ShogiGameServiceSpec
+    }
+  }
+
+  it should "start a new game with AI as Gote" in {
+    val newGamePayload = Json.obj(
+      "gameMode" -> "hva_gote",
+      "aiType" -> "v2",
+      "aiSearchDepth" -> 2
+    ).toString()
+
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "currentTurn").as[String] should equal ("SENTE") // Game always starts with Sente
+    }
+  }
+
+  it should "start a new game with partial AI config (defaulting aiType and depth)" in {
+    val newGamePayload = Json.obj("gameMode" -> "hva_sente").toString()
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "currentTurn").as[String] should equal ("SENTE")
+    }
+  }
+
+  it should "still start a game if gameMode is invalid (service defaults to HVH or no AI)" in {
+    // ShogiGameService's startNewGame currently defaults to HVH if AI type is invalid,
+    // or if gameMode is not one that involves AI.
+    // ShogiWebApp passes the gameMode through.
+    val newGamePayload = Json.obj("gameMode" -> "invalid_mode").toString()
+    post("/api/game/new", body = newGamePayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
+      status should equal (200) // Expecting success as the service handles this by defaulting
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "currentTurn").as[String] should equal ("SENTE")
+      // We assume it defaulted to HVH, meaning no AI opponent was set in the service.
+    }
+  }
+
+  "ShogiWebApp GET /api/game/suggest_move" should "return a valid move suggestion" in {
+    // 1. Ensure a game is started
+    post("/api/game/new") { status should equal (200) }
+
+    // 2. Request a suggestion
+    get("/api/game/suggest_move") {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      // Expecting SimpleTransition format: {"move":"...", "boardStateAfterMove":{...}}
+      (jsonResponse \ "move").asOpt[String] shouldBe defined
+      (jsonResponse \ "move").as[String] should not be empty
+      (jsonResponse \ "boardStateAfterMove").asOpt[Map[String, String]] shouldBe defined
+    }
+  }
+
+  it should "return a suggestion with specific AI type and depth" in {
+    post("/api/game/new") { status should equal (200) }
+
+    get("/api/game/suggest_move?aiType=v1&aiSearchDepth=1") {
+      status should equal (200)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "move").asOpt[String] shouldBe defined
+      (jsonResponse \ "move").as[String] should not be empty
+    }
+  }
+
+  it should "return 400 for an invalid AI type in suggestion" in {
+    post("/api/game/new") { status should equal (200) }
+
+    get("/api/game/suggest_move?aiType=nonexistent_ai") {
+      status should equal (400)
+      response.header("Content-Type") should startWith ("application/json")
+      val jsonResponse = parseJson(response.body)
+      (jsonResponse \ "error").as[String] should equal ("Unknown AI type: nonexistent_ai")
+    }
+  }
+
+  // Testing the "AI cannot suggest a move (e.g. checkmate)" scenario via API is complex
+  // because it requires setting up a specific board state where the service's suggestMove
+  // would return Left. This depends on the AI correctly identifying no moves.
+  // The service-level tests for ShogiGameService already cover this logic with specific board states.
+  // For the API test, we primarily ensure the endpoint functions correctly for valid/invalid AI types.
 
   "ShogiWebApp GET /api/game/valid_moves" should "return valid moves for a piece" in {
     // Ensure a new game state

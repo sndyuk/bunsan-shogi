@@ -176,15 +176,12 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     val simpleTrans = GameStateMapper.coreTransitionToSimpleTransition(coreTrans, boardBefore, boardAfter)
 
     simpleTrans.move shouldBe "7g7f"
-    simpleTrans.boardStateAfterMove(Position(2,5)) shouldBe SimplePiece.FU // 7f is Position(file=2, rank=5) -> x=2, y=5
-                                                                         // No, pointToUSI(Point(y=5, x=2)) is 7f. Position is (x=2, y=5)
-    simpleTrans.boardStateAfterMove(Position(2,6)) shouldBe SimplePiece.FU // This is wrong. 7g is (2,6)
-    // Correcting: Point(y=5, x=2) is 7f. Position is (x=2, y=5).
-    // The piece FU is now at Position(2,5).
-    // The original position Position(2,6) (7g) should be empty.
-
-    // val expectedBoardSetupAfter = GameStateMapper.coreBoardToBoardSetup(boardAfter) // Removed this broad assertion
-    // simpleTrans.boardStateAfterMove shouldBe expectedBoardSetupAfter
+    // Position(2,5) is 7f. After move 7g7f, FU should be at 7f.
+    simpleTrans.boardStateAfterMove(Position(2,5)) shouldBe SimplePiece.FU
+    // Position(2,6) is 7g. This square should be empty after the move.
+    // The direct access simpleTrans.boardStateAfterMove(Position(2,6)) would fail if the key is not found (i.e. square is empty).
+    // The assertions below using .contains and .get are the correct way to check this.
+    // Removing: simpleTrans.boardStateAfterMove(Position(2,6)) shouldBe SimplePiece.FU
 
     // Explicitly check map contents using .get
     simpleTrans.boardStateAfterMove.contains(Position(2,6)) shouldBe false // 7g, should be empty

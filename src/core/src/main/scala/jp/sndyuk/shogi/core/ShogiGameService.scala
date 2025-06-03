@@ -2,11 +2,29 @@ package jp.sndyuk.shogi.core
 
 import jp.sndyuk.shogi.core.Player.Player
 import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
+import jp.sndyuk.shogi.ai.{ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2}
+// Removed: import jp.sndyuk.shogi.core.Transition // This was causing "permanently hidden" error
+
+object AIProvider {
+  def getAI(aiType: String, searchDepth: Int): Option[ShogiAI] = {
+    aiType.toLowerCase match {
+      case "v1" => Some(new AlphaBetaAI_V1("AlphaBetaAI_V1", searchDepth))
+      case "v2" => Some(new AlphaBetaAI_V2("AlphaBetaAI_V2", searchDepth))
+      case _    => None
+    }
+  }
+}
+
+// NOTE: The `suggestMove` method has been moved into ShogiGameService class.
+// This comment block is a placeholder for the removed incorrect placement.
 
 class ShogiGameService {
 
   var board: Board = _
   var currentState: State = _
+  var aiOpponent: Option[ShogiAI] = None
+  var gameMode: String = "hvh" // "hvh", "hva_sente", "hva_gote"
+  var aiSearchDepth: Int = 3
   // Store the initial setup parameters to aid history replay
   private var initialGameFirstPlayer: Player = Player.SENTE
   private var initialGameSetup: Option[Map[Position, (SimplePieceType, Player, Boolean)]] = None
@@ -15,19 +33,35 @@ class ShogiGameService {
 
 
   // Initialize a new game upon service creation using default parameters
-  startNewGame()
+  startNewGame(gameMode = "hvh", aiType = "v2", aiSearchDepth = 3)
 
   def startNewGame(
     initialBoardSetup: Option[Map[Position, (SimplePieceType, Player, Boolean)]] = None,
     initialSenteCaptured: List[SimplePieceType] = Nil,
     initialGoteCaptured: List[SimplePieceType] = Nil,
-    firstPlayer: Player = Player.SENTE
+    firstPlayer: Player = Player.SENTE,
+    gameMode: String = "hvh",
+    aiType: String = "v2",
+    aiSearchDepth: Int = 3
   ): GameState = {
     // Store initial parameters for potential future use (e.g. robust history replay)
     this.initialGameFirstPlayer = firstPlayer
     this.initialGameSetup = initialBoardSetup
     this.initialGameSenteCaptured = initialSenteCaptured
     this.initialGameGoteCaptured = initialGoteCaptured
+
+    this.gameMode = gameMode
+    this.aiSearchDepth = aiSearchDepth
+
+    if (gameMode == "hva_sente" || gameMode == "hva_gote") {
+      this.aiOpponent = AIProvider.getAI(aiType, this.aiSearchDepth)
+      if (this.aiOpponent.isEmpty) {
+        println(s"Warning: Could not initialize AI with type '$aiType'. Game will be Human vs Human.")
+        // For now, it will default to no AI opponent.
+      }
+    } else {
+      this.aiOpponent = None
+    }
 
     this.board = initialBoardSetup match {
       case Some(setup) =>
@@ -83,39 +117,36 @@ class ShogiGameService {
       val count = this.board.capturedPieces.count(PlayerB, generalizedPiece)
       List.fill(count)(
         GameStateMapper.corePieceToSimplePieceTypeAndPlayer(generalizedPiece) match {
-          case Some((spt, _, _)) => spt
+          case Some((spt, _, _)) => spt // spt should be SimplePieceType
           case None => throw new IllegalStateException(s"Could not map generalized captured piece $generalizedPiece to SimplePieceType")
         }
       )
     }.toList
 
-    val gameHistoryMapped: List[SimpleTransition] = {
+    // gameHistory in GameState is List[SimpleTransition]
+    // currentState.history is List[CoreTransition]
+    val gameHistoryMapped: List[jp.sndyuk.shogi.core.SimpleTransition] = { // FQN for SimpleTransition List
       if (this.currentState.history.isEmpty) {
         Nil
       } else {
         val gameStartingTurnFromService = GameStateMapper.playerToCoreTurn(this.initialGameFirstPlayer)
+        val initialBoardForReplay = initialBoardForHistoryReplay()
 
-        // Initial accumulator: (board state for the start of history, empty list of SimpleTransitions)
-        val initialAccumulator = (initialBoardForHistoryReplay(), List.empty[SimpleTransition])
-
-        val (_, transitionsReversed) =
-          this.currentState.history.reverse.zipWithIndex.foldLeft(initialAccumulator) {
-            case ((currentBoardState, accumulatedTransitions), (coreTrans, index)) =>
-
-              val boardBeforeThisMove = currentBoardState.copy() // Copy for "before" state
-              val playerForThisTransition = if (index % 2 == 0) gameStartingTurnFromService else gameStartingTurnFromService.change
-
-              val dummyStateForHistoryMove = State(Nil, playerForThisTransition)
-              // This move mutates currentBoardState (the one inside the accumulator)
-              currentBoardState.move(dummyStateForHistoryMove, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
-
-              val boardAfterThisMove = currentBoardState.copy() // Copy for "after" state (after mutation)
+        // Fold over the core history (List[jp.sndyuk.shogi.core.Transition])
+        val (_, simpleTransitionsReversed) =
+          this.currentState.history.foldLeft((initialBoardForReplay, List.empty[jp.sndyuk.shogi.core.SimpleTransition])) { // FQN for SimpleTransition List
+            // coreTrans is item from currentState.history, which is List[jp.sndyuk.shogi.core.Transition]
+            case ((currentBoardSim, accTransitions), coreTrans: jp.sndyuk.shogi.core.Transition) => // FQN for coreTrans type
+              val boardBeforeThisMove = currentBoardSim.copy()
+              val playerForThisTransition = if (accTransitions.size % 2 == 0) gameStartingTurnFromService else gameStartingTurnFromService.change
+              val dummyStateForHistoryMove = State(Nil, playerForThisTransition) // State is jp.sndyuk.shogi.core.State
+              currentBoardSim.move(dummyStateForHistoryMove, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
+              val boardAfterThisMove = currentBoardSim.copy()
 
               val simpleTrans = GameStateMapper.coreTransitionToSimpleTransition(coreTrans, boardBeforeThisMove, boardAfterThisMove)
-
-              (currentBoardState, simpleTrans :: accumulatedTransitions) // Pass mutated board state and new transition
+              (currentBoardSim, simpleTrans :: accTransitions)
           }
-        transitionsReversed.reverse // Reverse to get chronological order
+        simpleTransitionsReversed // Already chronological due to foldLeft on history and prepending to accumulator
       }
     }
 
@@ -186,5 +217,76 @@ class ShogiGameService {
       .toList
       .distinct // Moves might result in same newPos (e.g. with and without promotion if piece can't promote there)
                 // but Position doesn't carry promotion info.
+  }
+
+  def requestAIMove(): Either[String, GameState] = {
+    val currentPlayer = GameStateMapper.coreTurnToPlayer(this.currentState.turn)
+    val isAISenteTurn = gameMode == "hva_sente" && currentPlayer == Player.SENTE
+    val isAIGoteTurn = gameMode == "hva_gote" && currentPlayer == Player.GOTE
+
+    if (aiOpponent.isDefined && (isAISenteTurn || isAIGoteTurn)) {
+      aiOpponent.get.findBestMove(this.currentState, this.board, this.currentState.turn, this.aiSearchDepth) match {
+        case (Some(transition: jp.sndyuk.shogi.core.Transition), nodesVisited) => // FQN for Transition
+          // println(s"AI (${if (isAISenteTurn) "SENTE" else "GOTE"}) found move: $transition, Nodes visited: $nodesVisited")
+
+          val coreFromPos = transition.oldPos
+          val coreToPos = transition.newPos
+          val promotion = transition.nari
+
+          var droppedPieceType: Option[SimplePieceType] = None // Renamed for clarity
+          val isDrop = Point.isCaptured(coreFromPos)
+
+          if (isDrop) {
+            // When dropping, coreFromPos represents the piece type in hand.
+            // this.board.piece(coreFromPos, turn) correctly gets the Piece enum (e.g. Piece.sFU)
+            val pieceEnumToDrop = this.board.piece(coreFromPos, this.currentState.turn)
+            if (pieceEnumToDrop != Piece.❏) { // Check if the piece is actually in hand
+              GameStateMapper.corePieceToSimplePieceTypeAndPlayer(pieceEnumToDrop) match {
+                case Some((spt, _, _)) => droppedPieceType = Some(spt)
+                case None =>
+                  // This should ideally not happen if GameStateMapper is comprehensive
+                  return Left(s"Error: AI tried to drop an unmappable piece '$pieceEnumToDrop' (could not map to SimplePieceType).")
+              }
+            } else {
+              // This case means AI chose a piece to drop that isn't in its hand according to board.piece
+              return Left(s"Error: AI selected an invalid hand piece for drop (Piece: ${Piece.name(Piece.generalize(coreFromPos.piece))}), or piece not available.")
+            }
+          }
+
+          val fromPosMapped = GameStateMapper.corePointToPosition(coreFromPos) // Will map to Position(0,0) for drops if old mapping is kept
+          val toPosMapped = GameStateMapper.corePointToPosition(coreToPos)
+
+          // Call makeMove with the inferred drop information
+          makeMove(fromPosMapped, toPosMapped, promotion, droppedPieceType)
+
+        case (None, nodesVisited) =>
+          // println(s"AI (${if (isAISenteTurn) "SENTE" else "GOTE"}) found no move. Nodes visited: $nodesVisited")
+          Left("AI found no valid move or game has ended.")
+      }
+    } else {
+      Left("Not AI's turn or no AI opponent configured.")
+    }
+  }
+
+  def suggestMove(aiType: String, searchDepth: Int): Either[String, jp.sndyuk.shogi.core.SimpleTransition] = { // FQN for SimpleTransition
+    AIProvider.getAI(aiType = aiType, searchDepth = searchDepth) match {
+      case None => Left(s"Unknown AI type: $aiType")
+      case Some(ai) =>
+        val currentBoardCopy = this.board.copy()
+        val currentStateCopy = this.currentState.copy()
+        val turnForAI = this.currentState.turn
+
+        val (optTransition, nodesVisited) = ai.findBestMove(currentStateCopy, currentBoardCopy, turnForAI, searchDepth)
+
+        optTransition match {
+          case Some(coreTrans: jp.sndyuk.shogi.core.Transition) => // FQN for Transition
+            val tempBoardAfterMove = currentBoardCopy.copy()
+            tempBoardAfterMove.move(currentStateCopy, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
+            val simpleTrans = GameStateMapper.coreTransitionToSimpleTransition(coreTrans, currentBoardCopy, tempBoardAfterMove)
+            Right(simpleTrans)
+          case None =>
+            Left("AI could not suggest a valid move (game might be at an end state or AI error).")
+        }
+    }
   }
 }

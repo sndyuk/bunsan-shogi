@@ -97,8 +97,8 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
 
     // Attempt to move Gote's piece (e.g. pawn at 3c / Position(x=6,y=2)) during Sente's turn
     val movePayload = Json.obj(
-      "from" -> Json.obj("x" -> 6, "y" -> 2), 
-      "to"   -> Json.obj("x" -> 6, "y" -> 3), 
+      "from" -> Json.obj("x" -> 6, "y" -> 2),
+      "to"   -> Json.obj("x" -> 6, "y" -> 3),
       "promotion" -> false
     ).toString()
 
@@ -148,10 +148,10 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
     post("/api/game/move", body = dropPayload.getBytes("UTF-8"), headers = Map("Content-Type" -> "application/json")) {
       // Expecting this to fail because Sente has no FU in hand in a default new game.
       // This tests that the drop path is taken, but the game logic (Rule.canMove) will reject it.
-      status should equal (400) 
+      status should equal (400)
       response.header("Content-Type") should startWith ("application/json") // Fixed: use header
       val jsonResponse = parseJson(response.body)
-      (jsonResponse \ "error").as[String] should include ("Invalid move") 
+      (jsonResponse \ "error").as[String] should include ("Invalid move")
     }
   }
 }

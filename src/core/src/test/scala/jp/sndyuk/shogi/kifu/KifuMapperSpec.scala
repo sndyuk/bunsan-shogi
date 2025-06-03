@@ -29,9 +29,9 @@ class KifuMapperSpec extends AnyFlatSpec with Matchers {
     // core.Point(y,x) -> KifuTempCore.Position(file=9-x, rank=y+1)
     corePointToKifuPosition(CorePoint(0,0)) shouldBe KifuTempCore.Position(9,1) // 9a
     corePointToKifuPosition(CorePoint(8,8)) shouldBe KifuTempCore.Position(1,9) // 1i
-    
+
     // Sente's Pawn at 7g is core.Point(y=6, x=2) -> Kifu Position(7,7)
-    corePointToKifuPosition(CorePoint(6,2)) shouldBe KifuTempCore.Position(7,7) 
+    corePointToKifuPosition(CorePoint(6,2)) shouldBe KifuTempCore.Position(7,7)
 
     // Sente's Rook at 2h is core.Point(y=7, x=7) -> Kifu Position(2,8)
     corePointToKifuPosition(CorePoint(7,7)) shouldBe KifuTempCore.Position(2,8)
@@ -40,7 +40,7 @@ class KifuMapperSpec extends AnyFlatSpec with Matchers {
   it should "map corePiece (raw Int type) to base KifuTempCore.Piece" in {
     corePieceToKifuPiece(CorePieceObject.▲.FU) shouldBe KifuTempCore.FU
     corePieceToKifuPiece(CorePieceObject.△.HI) shouldBe KifuTempCore.HI
-    corePieceToKifuPiece(CorePieceObject.▲.RY) shouldBe KifuTempCore.HI 
+    corePieceToKifuPiece(CorePieceObject.▲.RY) shouldBe KifuTempCore.HI
     corePieceToKifuPiece(CorePieceObject.◯.KI) shouldBe KifuTempCore.KI
     assertThrows[IllegalArgumentException] {
       corePieceToKifuPiece(CorePieceObject.❏) // Corrected: Was CorePieceObject.Piece.❏
@@ -71,7 +71,7 @@ class KifuMapperSpec extends AnyFlatSpec with Matchers {
   it should "map a promotion move core.Transition to KifuTempCore.Move" in {
     // Sente FU from 7g (core.Point(6,2)) to 7c (core.Point(2,2)), promoting
     val coreTrans = CoreTransition(CorePoint(6,2), CorePoint(2,2), true, None)
-    val boardBefore = CoreBoard() 
+    val boardBefore = CoreBoard()
 
     val kifuMove = coreTransitionToKifuMove(coreTrans, CorePlayerA, boardBefore)
 
@@ -88,8 +88,8 @@ class KifuMapperSpec extends AnyFlatSpec with Matchers {
     // oldPos for drop: Point.ofCaptured(Piece.◯.FU) is Point(y=9, x=2 for FU)
     val dropOldPos = CorePoint.ofCaptured(CorePieceObject.◯.FU) // This is Point(9,2)
     val coreTrans = CoreTransition(dropOldPos, CorePoint(4,4), false, None)
-    
-    val boardBeforeDrop = CoreBoard() 
+
+    val boardBeforeDrop = CoreBoard()
     val kifuMove = coreTransitionToKifuMove(coreTrans, CorePlayerA, boardBeforeDrop)
 
     kifuMove.player shouldBe KifuTempCore.SENTE

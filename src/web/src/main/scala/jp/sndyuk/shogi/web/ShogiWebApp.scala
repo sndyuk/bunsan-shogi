@@ -2,7 +2,7 @@ package jp.sndyuk.shogi.web
 
 import org.scalatra._
 // GameState is used for Json.toJson(gameState), Position for toCorePosition, ShogiGameService is instantiated, SimplePiece for drop type matching
-import jp.sndyuk.shogi.core.{GameState, Position, ShogiGameService, SimplePiece} 
+import jp.sndyuk.shogi.core.{GameState, Position, ShogiGameService, SimplePiece}
 import play.api.libs.json.{Json, Format, JsValue, Writes} // Play JSON imports
 
 // --- JSON Case Classes for API Requests ---
@@ -34,7 +34,7 @@ object CoreTypeFormats {
   // SimplePieceType format is in GameState.scala's SimplePiece companion object
   // Player format is in GameState.scala's Player companion object
   // GameState format is in GameState.scala's GameState companion object
-  
+
   // For List[Position] - default Play JSON list writer should work if Position has a format.
   implicit val listPositionWrites: Writes[List[Position]] = Writes.list[Position](Position.positionJsonFormat)
 
@@ -82,7 +82,7 @@ class ShogiWebApp extends ScalatraServlet {
           val validMoves = shogiGameService.getValidMoves(fromPos) // Returns List[core.Position]
           Json.toJson(validMoves).toString() // Uses implicit listPositionWrites
         } catch {
-          case e: Exception => 
+          case e: Exception =>
             halt(BadRequest(Json.obj("error" -> s"Error processing valid_moves: ${e.getMessage}").toString()))
         }
       case _ =>
@@ -117,13 +117,13 @@ class ShogiWebApp extends ScalatraServlet {
               // Convert droppedPiece string to SimplePiece.SimplePieceType
               // Assuming piece names are like "FU", "KA" etc. as in SimplePiece enum
               val pieceType = SimplePiece.withName(dropMove.droppedPiece.toUpperCase)
-              
+
               // For drops, fromPos is not used by service's makeMove logic if piece type is given
               // However, makeMove signature expects a fromPos. We can use a dummy or conventional one.
               // ShogiGameService's makeMove uses Point.ofCaptured for drops if fromPos indicates a hand piece.
               // Here, we are directly specifying droppedPieceType, so fromPos is less critical for that path.
               // Let's use a dummy Position like (-1,-1) as it's not a valid board square.
-              val dummyFromPos = Position(-1, -1) 
+              val dummyFromPos = Position(-1, -1)
 
               shogiGameService.makeMove(dummyFromPos, toPos, promotion = false, Some(pieceType)) match {
                 case Right(gs: GameState) => Json.toJson(gs).toString() // Explicit type

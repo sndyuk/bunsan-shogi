@@ -8,11 +8,23 @@ Shogi library for Scala.
 - **Player Management:** Code structure for managing human and AI players.
 - **Sample GUI Application:** Includes a basic graphical interface to demonstrate library usage.
 
-### Try sample applications
+### Running the Web Application
 
-```sh
-$ sbt "project sample" run
-```
+The project includes a web-based interface for playing Shogi. To run the web application:
+
+1.  Ensure you have JDK 11 and sbt installed as per the "Building from Source" section.
+2.  Open your terminal or command prompt.
+3.  Navigate to the root directory of the project.
+4.  Run the following command to start the web server:
+    ```sh
+    sbt "web/runMain jp.sndyuk.shogi.web.WebServer"
+    ```
+5.  Once the server has started (you should see log messages indicating it's running on port 8080), open a web browser and navigate to:
+    `http://localhost:8080/`
+
+This will load the Shogi web application.
+
+**Note on the Original Sample GUI:** The original Swing-based sample GUI application (from the `sample` module) is currently disabled in the `build.sbt` file due to refactoring work and tooling issues encountered during its update. The primary interface for this version is the web application.
 
 ### Performance
 Scala 2.12.6 / 2.9 GHz Intel Core i7

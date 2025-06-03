@@ -35,7 +35,7 @@ object KifuMapper {
       case 5 => KifuTempCore.KA
       case 6 => KifuTempCore.KE
       case 7 => KifuTempCore.KY
-      case 8 => KifuTempCore.OU 
+      case 8 => KifuTempCore.OU
       case _ => throw new IllegalArgumentException(s"Unknown captured piece indicator for Kifu mapping: $indicator")
     }
   }
@@ -56,7 +56,7 @@ object KifuMapper {
       case _ => throw new IllegalArgumentException(s"Unknown or unexpected generalized core piece: $generalizedCorePiece (${CorePieceObject.name(generalizedCorePiece)})")
     }
   }
-  
+
   def simplePieceTypeToKifuPiece(spt: SimplePiece.SimplePieceType): KifuTempCore.Piece = spt match {
     case SimplePiece.FU => KifuTempCore.FU
     case SimplePiece.KY => KifuTempCore.KY
@@ -80,7 +80,7 @@ object KifuMapper {
     val kifuPlayer = coreTurnToKifuPlayer(playerWhoseMoveItWas)
     val kifuToPos = corePointToKifuPosition(coreTrans.newPos)
     val isDrop = CorePoint.isCaptured(coreTrans.oldPos)
-    
+
     val kifuFromPosOpt: Option[KifuTempCore.Position] = if (isDrop) {
       None
     } else {

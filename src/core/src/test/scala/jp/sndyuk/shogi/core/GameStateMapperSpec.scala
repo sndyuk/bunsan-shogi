@@ -81,7 +81,7 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     boardSetup(Position(7, 6)) shouldBe SimplePiece.FU
     // Gote Pawn at Point(2,1) -> Position(1,2)
     boardSetup(Position(1, 2)) shouldBe SimplePiece.FU
-    
+
     // Check a few empty squares are not in the map (or handle how empty squares are represented if they are)
     // GameStateMapper.coreBoardToBoardSetup filters out Piece.❏, so they won't be keys
     boardSetup.get(Position(3,3)) shouldBe None // An empty square in initial setup e.g. Point(3,3) -> Pos(3,3)
@@ -126,7 +126,7 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     GameStateMapper.simplePieceToUSIChar(SimplePiece.KY) shouldBe "L"
     GameStateMapper.simplePieceToUSIChar(SimplePiece.OU) shouldBe "K"
   }
-  
+
   it should "map core.Point to USI string" in {
     // GameStateMapper has private pointToUSI, testing indirectly via coreTransitionToMoveString
     // If it were public:
@@ -164,10 +164,10 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
   it should "map coreTransition to SimpleTransition" in {
     val boardBefore = Board() // Standard initial
     val boardAfter = boardBefore.copy() // Changed var to val
-    
+
     // Sente FU from 7g to 7f. Point(y,x): 7g is (6,2), 7f is (5,2)
     val coreTrans = Transition(Point(6,2), Point(5,2), false, None)
-    
+
     // Manually apply the move to boardAfter for testing
     val pieceToMove = boardAfter.squares.get(Point(6,2))
     boardAfter.squares.setAndGet(Piece.❏, Point(6,2))
@@ -182,15 +182,15 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     // Correcting: Point(y=5, x=2) is 7f. Position is (x=2, y=5).
     // The piece FU is now at Position(2,5).
     // The original position Position(2,6) (7g) should be empty.
-    
+
     // val expectedBoardSetupAfter = GameStateMapper.coreBoardToBoardSetup(boardAfter) // Removed this broad assertion
     // simpleTrans.boardStateAfterMove shouldBe expectedBoardSetupAfter
-    
+
     // Explicitly check map contents using .get
     simpleTrans.boardStateAfterMove.contains(Position(2,6)) shouldBe false // 7g, should be empty
     val valAtOldPos = simpleTrans.boardStateAfterMove.get(Position(2,6))
     valAtOldPos shouldBe None
-    
+
     simpleTrans.boardStateAfterMove.contains(Position(2,5)) shouldBe true // 7f, should have FU
     val valAtNewPos = simpleTrans.boardStateAfterMove.get(Position(2,5))
     valAtNewPos shouldBe Some(SimplePiece.FU)

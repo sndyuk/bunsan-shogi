@@ -1,190 +1,177 @@
-package jp.sndyuk.shogi.core // Piece, Turn, PlayerA, PlayerB, Point, Board, Transition are in this package
+package jp.sndyuk.shogi.core
 
-import jp.sndyuk.shogi.core.Player.Player
-import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
+import jp.sndyuk.shogi.core.{Piece => CorePieceType}
+import jp.sndyuk.shogi.core.Piece._
+import jp.sndyuk.shogi.core.{Turn => CoreTurnAlias}
+import jp.sndyuk.shogi.core.Player.{Player => GamePlayer}
+import jp.sndyuk.shogi.core.SimplePiece.{SimplePieceType => GameSimplePieceType}
+// Ensure jp.sndyuk.shogi.core.Position is imported if not automatically available
+// For Position case class defined in GameState.scala, it's in jp.sndyuk.shogi.core.Position
+// For SimpleTransition case class defined in GameState.scala, it's in jp.sndyuk.shogi.core.SimpleTransition
 
 object GameStateMapper {
 
-  // --- Existing functions from previous subtask ---
-  def coreTurnToPlayer(coreTurn: Turn): Player = {
-    if (coreTurn == PlayerA) Player.SENTE else Player.GOTE
+  // --- Basic Mappings (Turn, CorePiece <-> SimplePieceType/Player) ---
+  def coreTurnToPlayer(coreTurn: CoreTurnAlias): GamePlayer = coreTurn match {
+    case PlayerA => Player.SENTE
+    case PlayerB => Player.GOTE
   }
 
-  def playerToCoreTurn(player: Player): Turn = {
-    if (player == Player.SENTE) PlayerA else PlayerB
+  def playerToCoreTurn(player: GamePlayer): CoreTurnAlias = player match {
+    case Player.SENTE => PlayerA
+    case Player.GOTE  => PlayerB
   }
 
-  def corePieceToSimplePieceTypeAndPlayer(corePiece: Piece): Option[(SimplePieceType, Player, Boolean)] = {
-    if (corePiece == Piece.❏) {
-      None
-    } else {
-      val player = if (Piece.△(corePiece)) Player.GOTE else Player.SENTE
-      val isPromoted = Piece.isPromoted(corePiece)
-      val generalizedPiece = Piece.generalize(corePiece)
+  def corePieceToSimplePieceTypeAndPlayer(corePiece: CorePieceType): Option[(GameSimplePieceType, GamePlayer, Boolean)] = {
+    if (corePiece == ❏) None else {
+      val gamePlayer = if (Piece.△(corePiece)) Player.GOTE else Player.SENTE
+      val isPromotedFlag = isPromoted(corePiece)
+      val generalizedPiece = generalize(corePiece)
       val simplePieceType = generalizedPiece match {
-        case Piece.◯.FU => SimplePiece.FU
-        case Piece.◯.KY => SimplePiece.KY
-        case Piece.◯.KE => SimplePiece.KE
-        case Piece.◯.GI => SimplePiece.GI
-        case Piece.◯.KI => SimplePiece.KI
-        case Piece.◯.KA => SimplePiece.KA
-        case Piece.◯.HI => SimplePiece.HI
-        case Piece.◯.OU => SimplePiece.OU
-        case _ => throw new IllegalArgumentException(s"Unknown generalized piece: ${Piece.name(generalizedPiece)} raw: $generalizedPiece")
+        case ◯.FU => SimplePiece.FU
+        case ◯.KY => SimplePiece.KY
+        case ◯.KE => SimplePiece.KE
+        case ◯.GI => SimplePiece.GI
+        case ◯.KI => SimplePiece.KI
+        case ◯.KA => SimplePiece.KA
+        case ◯.HI => SimplePiece.HI
+        case ◯.OU => SimplePiece.OU
+        case _    => throw new IllegalArgumentException(s"Unknown generalized piece: $generalizedPiece, original core piece: $corePiece")
       }
-      Some((simplePieceType, player, isPromoted))
+      Some((simplePieceType, gamePlayer, isPromotedFlag))
     }
   }
 
-  def simplePiecePlayerToCorePiece(simplePieceType: SimplePieceType, player: Player, isPromoted: Boolean): Piece = {
-    val basePiece = simplePieceType match {
-      case SimplePiece.FU => Piece.◯.FU
-      case SimplePiece.KY => Piece.◯.KY
-      case SimplePiece.KE => Piece.◯.KE
-      case SimplePiece.GI => Piece.◯.GI
-      case SimplePiece.KI => Piece.◯.KI
-      case SimplePiece.KA => Piece.◯.KA
-      case SimplePiece.HI => Piece.◯.HI
-      case SimplePiece.OU => Piece.◯.OU
-      case _ => throw new IllegalArgumentException(s"Unknown SimplePieceType: $simplePieceType")
+  def simplePiecePlayerToCorePiece(simplePiece: GameSimplePieceType, player: GamePlayer, isPromotedFlag: Boolean): CorePieceType = {
+    val baseGeneralizedPiece = simplePiece match {
+      case SimplePiece.FU => ◯.FU
+      case SimplePiece.KY => ◯.KY
+      case SimplePiece.KE => ◯.KE
+      case SimplePiece.GI => ◯.GI
+      case SimplePiece.KI => ◯.KI
+      case SimplePiece.KA => ◯.KA
+      case SimplePiece.HI => ◯.HI
+      case SimplePiece.OU => ◯.OU
     }
-    val coreTurn = playerToCoreTurn(player)
-    val playerPiece = Piece.convert(basePiece, coreTurn)
-    if (isPromoted) Piece.promote(playerPiece) else playerPiece
+    val corePlayerTurn = playerToCoreTurn(player)
+    val playerPiece = convert(baseGeneralizedPiece, corePlayerTurn)
+    if (isPromotedFlag) promote(playerPiece) else playerPiece
   }
 
-  // --- New functions for this subtask ---
-
-  // 1. Core Point to GameState Position Mapping (and vice-versa)
+  // --- Point <-> Position Mappings ---
   def corePointToPosition(corePoint: Point): Position = {
-    // core.Point is (y: Int, x: Int)
-    // GameState.Position is (x: Int, y: Int)
-    // Position.x from corePoint.x, Position.y from corePoint.y
+    // Core Point(y,x) from core.Point
+    // GameState Position(x,y) from GameState.Position
+    // Position.x = corePoint.x (File) and Position.y = corePoint.y (Rank)
     Position(corePoint.x, corePoint.y)
   }
 
   def positionToCorePoint(position: Position): Point = {
-    // GameState.Position is (x: Int, y: Int)
-    // core.Point is (y: Int, x: Int)
+    // Position(x,y) -> file_0idx_rtl, rank_0idx_ttb
+    // Core Point(y,x) -> rank_0idx_ttb, file_0idx_rtl
+    // So, Point.y = position.y (Rank) and Point.x = position.x (File)
     Point(position.y, position.x)
   }
 
-  // 2. Core Board to GameState Board Setup Mapping
-  def coreBoardToBoardSetup(coreBoard: Board): Map[Position, SimplePieceType] = {
-    coreBoard.allBlocks.flatMap { block =>
-      if (block.piece == Piece.❏) {
-        None
-      } else {
-        corePieceToSimplePieceTypeAndPlayer(block.piece) match {
-          case Some((spt, _, _)) => Some(corePointToPosition(block.point) -> spt)
-          case None => None // Should not happen if piece is not EMPTY
-        }
-      }
+  // --- Board Setup Mappings ---
+  def coreBoardToBoardSetup(coreBoard: Board): Map[Position, GameSimplePieceType] = {
+    coreBoard.allBlocks.filter(_.piece != ❏).map { block =>
+      corePointToPosition(block.point) ->
+        (corePieceToSimplePieceTypeAndPlayer(block.piece) match {
+          case Some((spt, _, _)) => spt // We only need SimplePieceType for boardSetup value
+          case None              => throw new IllegalStateException(s"coreBoardToBoardSetup: Non-empty Piece ${block.piece} at ${block.point} mapped to None for SimplePieceType")
+        })
     }.toMap
   }
 
-  // 3. GameState Board Info to Core Board
   def reconstructCoreBoard(
-    boardSetup: Map[Position, (SimplePieceType, Player, Boolean)],
-    senteCaptured: List[SimplePieceType],
-    goteCaptured: List[SimplePieceType]
+    boardSetup: Map[Position, (GameSimplePieceType, GamePlayer, Boolean)],
+    senteCaptured: List[GameSimplePieceType],
+    goteCaptured: List[GameSimplePieceType]
   ): Board = {
-    // Ensure Squares() and CapturedPieces() are the correct constructors for empty states
-    val newCoreBoard = new Board(new Squares(), new CapturedPieces())
+    // new Board() creates a board with empty Squares and empty CapturedPieces due to default arguments.
+    // It does NOT call board.init() itself. Board.apply() calls board.init().
+    val newBoard = new Board()
 
-    boardSetup.foreach { case (position, (spt, player, isPromoted)) =>
-      val corePoint = positionToCorePoint(position)
+    boardSetup.foreach { case (pos, (spt, player, isPromoted)) =>
+      val coreP = positionToCorePoint(pos)
       val corePiece = simplePiecePlayerToCorePiece(spt, player, isPromoted)
-      newCoreBoard.squares <+ (corePiece, corePoint) // Or set(corePiece, corePoint)
+      newBoard.squares <+ (corePiece, coreP) // place piece on board
     }
 
     senteCaptured.foreach { spt =>
-      // To make piece appear in Sente's hand, 'put' must receive a Gote piece,
-      // as 'put' assumes the piece color indicates the player who lost it.
-      val goteVersionOfPiece = simplePiecePlayerToCorePiece(spt, Player.GOTE, false) 
-      newCoreBoard.capturedPieces.put(goteVersionOfPiece)
+      val gotePieceVariant = simplePiecePlayerToCorePiece(spt, Player.GOTE, false)
+      newBoard.capturedPieces.put(gotePieceVariant)
     }
-
     goteCaptured.foreach { spt =>
-      // To make piece appear in Gote's hand, 'put' must receive a Sente piece.
-      val senteVersionOfPiece = simplePiecePlayerToCorePiece(spt, Player.SENTE, false)
-      newCoreBoard.capturedPieces.put(senteVersionOfPiece)
+      val sentePieceVariant = simplePiecePlayerToCorePiece(spt, Player.SENTE, false)
+      newBoard.capturedPieces.put(sentePieceVariant)
     }
-    newCoreBoard
+    newBoard
   }
 
-  // 4. Core Transition to SimpleTransition Move String (USI format) - Helpers
+  // --- USI Move String and Transition Mappings ---
   private def pointToUSI(point: Point): String = {
-    // core.Point(y,x): USI file is (9-x).toString, USI rank is ('a'.toInt + y).toChar
-    (9 - point.x).toString + ('a'.toInt + point.y).toChar.toString
+    // Core Point is (y,x) where y=row (0-8, top-to-bottom), x=col (0-8, right-to-left, Shogi file 9 to 1)
+    // USI: file (1-9), rank (a-i)
+    // USI file = 9 - point.x
+    // USI rank char = ('a' + point.y).toChar
+    s"${9 - point.x}${('a' + point.y).toChar}"
   }
 
-  private def capturedPointIndicatorToSimplePieceType(indicator: Int): SimplePieceType = {
-    // From Point.ofCaptured(piece: Piece): Point
-    // case ◯.OU => (9, 8) -> x=8
-    // case ◯.KI => (9, 1) -> x=1
-    // case ◯.FU => (9, 2) -> x=2
-    // case ◯.GI => (9, 3) -> x=3
-    // case ◯.HI => (9, 4) -> x=4
-    // case ◯.KA => (9, 5) -> x=5
-    // case ◯.KE => (9, 6) -> x=6
-    // case ◯.KY => (9, 7) -> x=7
-    indicator match {
-      case 1 => SimplePiece.KI
-      case 2 => SimplePiece.FU
-      case 3 => SimplePiece.GI
-      case 4 => SimplePiece.HI
-      case 5 => SimplePiece.KA
-      case 6 => SimplePiece.KE
-      case 7 => SimplePiece.KY
-      case 8 => SimplePiece.OU
-      case _ => throw new IllegalArgumentException(s"Unknown captured piece indicator: $indicator")
-    }
+  // This method was determined to be unused due to changes in coreTransitionToMoveString logic.
+  // private def capturedCorePointXToSimplePieceType(indicatorX: Int): GameSimplePieceType = { ... }
+
+
+  def simplePieceToUSIChar(spt: GameSimplePieceType): String = spt match {
+    case SimplePiece.FU => "P"
+    case SimplePiece.KY => "L"
+    case SimplePiece.KE => "N"
+    case SimplePiece.GI => "S"
+    case SimplePiece.KI => "G"
+    case SimplePiece.OU => "K" // King is K, not OU
+    case SimplePiece.KA => "B"
+    case SimplePiece.HI => "R"
   }
 
-  def simplePieceToUSIChar(spt: SimplePieceType): String = {
-    spt match {
-      case SimplePiece.FU => "P" // Pawn
-      case SimplePiece.KY => "L" // Lance
-      case SimplePiece.KE => "N" // Knight
-      case SimplePiece.GI => "S" // Silver
-      case SimplePiece.KI => "G" // Gold
-      case SimplePiece.OU => "K" // King
-      case SimplePiece.KA => "B" // Bishop
-      case SimplePiece.HI => "R" // Rook
-      // Note: Promoted pieces are not handled by this function, USI adds "+" suffix for moves.
-      // For drops, only unpromoted pieces are used.
-      case _ => throw new IllegalArgumentException(s"Unknown SimplePieceType for USI char: $spt")
-    }
-  }
-
-  // 4. Core Transition to SimpleTransition Move String (USI format) - Main function
   def coreTransitionToMoveString(coreTransition: Transition, boardBeforeMove: Board): String = {
-    val oldPos = coreTransition.oldPos
-    val newPos = coreTransition.newPos
-
-    if (Point.isCaptured(oldPos)) { // It's a drop
-      // oldPos.x indicates the piece type based on Point.ofCaptured convention
-      val droppedSpt = capturedPointIndicatorToSimplePieceType(oldPos.x)
-      simplePieceToUSIChar(droppedSpt) + "*" + pointToUSI(newPos)
-    } else { // It's a move from board
-      val moveStr = pointToUSI(oldPos) + pointToUSI(newPos)
-      if (coreTransition.nari) {
-        moveStr + "+"
-      } else {
-        moveStr
+    // Point.isCaptured(point: Point): Boolean = point.x == 9 && point.y >=0 && point.y <= 7
+    // This means for a drop, oldPos.x is 9, and oldPos.y indicates the piece type.
+    if (Point.isCaptured(coreTransition.oldPos)) { // It's a drop
+      // For drops, oldPos.y should be 9. Piece type is encoded in oldPos.x.
+      // See Point.ofCaptured(piece) and Point.toString for captured pieces.
+      val pieceX = coreTransition.oldPos.x
+      val droppedSpt = pieceX match {
+          // Mapping based on Point.ofCaptured(piece: Piece) which stores type in x for y=9
+          case 1 => SimplePiece.KI // ◯.KI -> Point(y=9, x=1) in Point.ofCaptured if we adapt its y to x.
+                                   // Point.scala ofCaptured: KI -> (9,1) (y,x)
+                                   // Point.scala toString for captured: x match { case 1 => "金" (KI) }
+          case 2 => SimplePiece.FU // FU -> (9,2)
+          case 3 => SimplePiece.GI // GI -> (9,3)
+          case 4 => SimplePiece.HI // HI -> (9,4)
+          case 5 => SimplePiece.KA // KA -> (9,5)
+          case 6 => SimplePiece.KE // KE -> (9,6)
+          case 7 => SimplePiece.KY // KY -> (9,7)
+          // OU (King) is case 8 in Point.ofCaptured but cannot be dropped.
+          case _ => throw new IllegalArgumentException(s"Unknown captured piece indicator x-value for drop: $pieceX. oldPos was ${coreTransition.oldPos}")
       }
+      s"${simplePieceToUSIChar(droppedSpt)}*${pointToUSI(coreTransition.newPos)}"
+    } else { // It's a move from board
+      val fromStr = pointToUSI(coreTransition.oldPos)
+      val toStr = pointToUSI(coreTransition.newPos)
+      val promotionSuffix = if (coreTransition.nari) "+" else ""
+      s"$fromStr$toStr$promotionSuffix"
     }
   }
 
-  // 5. Core Transition and Resulting Board to SimpleTransition Mapping
   def coreTransitionToSimpleTransition(
     coreTransition: Transition,
-    boardBeforeMove: Board, // May be needed if drop piece identification is complex
+    boardBeforeMove: Board,
     boardAfterMove: Board
   ): SimpleTransition = {
-    val moveString = coreTransitionToMoveString(coreTransition, boardBeforeMove) // Pass boardBeforeMove
-    val boardStateAfterMove = coreBoardToBoardSetup(boardAfterMove)
-    SimpleTransition(moveString, boardStateAfterMove)
+    SimpleTransition(
+      move = coreTransitionToMoveString(coreTransition, boardBeforeMove),
+      boardStateAfterMove = coreBoardToBoardSetup(boardAfterMove)
+    )
   }
 }

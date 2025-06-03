@@ -29,10 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const gameState = await response.json();
-            
+
             currentTurn = gameState.currentTurn;
             boardState = gameState.boardSetup; // Expects map like {"0,0": "KY", "0,1":"KE", ...} where x,y are 0-indexed
-            
+
             renderBoard(gameState.boardSetup); // boardSetup is Map<Position, SimplePieceType>
             renderCapturedPieces(gameState.capturedPiecesPlayer1, gameState.capturedPiecesPlayer2);
             updateGameStatus(`Turn: ${currentTurn}. History moves: ${gameState.gameHistory.length}`);
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    
+
     function renderCapturedPieces(senteCaptured, goteCaptured) {
         senteCapturedDiv.innerHTML = '<p>Sente\'s Captured:</p>';
         goteCapturedDiv.innerHTML = '<p>Gote\'s Captured:</p>';
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Display valid drop locations (all empty squares)
         displayValidDropLocations();
     }
-    
+
     function clearHighlights() {
         document.querySelectorAll('.board-cell.selected').forEach(c => c.classList.remove('selected'));
         validMoveHighlights.forEach(cell => cell.classList.remove('valid-move'));
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`/api/game/valid_moves?x=${fromPos.x}&y=${fromPos.y}`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const validMoves = await response.json(); // Expects List[Position]
-            
+
             validMoves.forEach(pos => {
                 const cell = document.querySelector(`.board-cell[data-x='${pos.x}'][data-y='${pos.y}']`);
                 if (cell) {

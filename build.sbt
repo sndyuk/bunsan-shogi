@@ -18,8 +18,8 @@ lazy val root = (project in file("."))
   .aggregate(
     template,
     core,
-    // sample, // Commented out from aggregate
-    web     
+    sample, // Re-enabled in aggregate
+    web
   )
 
 lazy val template = (project in file("src/template"))
@@ -42,7 +42,7 @@ lazy val core = (project in file("src/core"))
   )
   .dependsOn(template)
 
-/* // Commenting out the entire sample module definition
+// Re-enabled the sample module definition
 lazy val sample = (project in file("src/sample"))
   .settings(
     commonSettings,
@@ -54,7 +54,6 @@ lazy val sample = (project in file("src/sample"))
     )
   )
   .dependsOn(core)
-*/
 
 lazy val web = (project in file("src/web"))
   .settings(
@@ -64,9 +63,9 @@ lazy val web = (project in file("src/web"))
       "org.scalatra" %% "scalatra" % "2.8.4",
       "org.scalatra" %% "scalatra-scalatest" % "2.8.4" % "test",
       "ch.qos.logback" % "logback-classic" % "1.2.13",
-      "org.eclipse.jetty" % "jetty-webapp" % "9.4.53.v20231009", 
-      "org.eclipse.jetty" % "jetty-server" % "9.4.53.v20231009", 
-      "org.eclipse.jetty" % "jetty-servlet" % "9.4.53.v20231009", 
+      "org.eclipse.jetty" % "jetty-webapp" % "9.4.53.v20231009",
+      "org.eclipse.jetty" % "jetty-server" % "9.4.53.v20231009",
+      "org.eclipse.jetty" % "jetty-servlet" % "9.4.53.v20231009",
       "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided"
     )
   )

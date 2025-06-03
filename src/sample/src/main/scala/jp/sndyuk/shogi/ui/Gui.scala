@@ -316,11 +316,11 @@ object Gui extends SimpleSwingApplication with Shogi {
           // Determine initial board state for history replay.
           // This is complex. For now, assume standard CoreBoard() was the start.
           // This will be incorrect if the game was loaded from a custom state.
-          var tempBoard = CoreBoard() 
-          
+          var tempBoard = CoreBoard()
+
           // Determine the starting player of the game based on current state and history length
           val gameStartingTurn = if (currState.history.length % 2 == 0) {
-            currState.turn 
+            currState.turn
           } else {
             currState.turn.change
           }
@@ -328,11 +328,11 @@ object Gui extends SimpleSwingApplication with Shogi {
           currState.history.reverse.zipWithIndex.map { case (coreTrans, index) =>
             val boardBeforeThisMove = tempBoard.copy()
             val playerForThisTransition = if (index % 2 == 0) gameStartingTurn else gameStartingTurn.change
-            
+
             val dummyStateForHistoryMove = CoreState(Nil, playerForThisTransition)
             tempBoard.move(dummyStateForHistoryMove, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
             // tempBoard is now boardAfterThisMove
-            
+
             GameStateMapper.coreTransitionToSimpleTransition(coreTrans, boardBeforeThisMove, tempBoard)
           }.toList // Already in chronological order due to .reverse.map
         }
@@ -399,10 +399,10 @@ object Gui extends SimpleSwingApplication with Shogi {
             initialGoteCaptured = loadedGameState.capturedPiecesPlayer2,
             firstPlayer = loadedGameState.currentTurn
           )
-          
+
           // Update Gui's internal board and state from the service's state
           // This assumes shogiGameService.board and .currentState are accessible (e.g. public val)
-          Gui.this.board = shogiGameService.board.copy() 
+          Gui.this.board = shogiGameService.board.copy()
           Gui.this.currState = shogiGameService.currentState.copy()
 
           // Refresh UI
@@ -410,7 +410,7 @@ object Gui extends SimpleSwingApplication with Shogi {
           // The 'player' for afterMove is the one whose turn it *was* or who is active.
           // After loading, it's start of new currentTurn.
           val currentPlayerObject = if (Gui.this.currState.turn == PlayerA) Gui.this.playerA else Gui.this.playerB
-          afterMove(currentPlayerObject, null, null) 
+          afterMove(currentPlayerObject, null, null)
 
           Dialog.showMessage(boardPanel.peer, "Game loaded via ShogiGameService.", title = "Load Complete")
 
@@ -435,11 +435,11 @@ object Gui extends SimpleSwingApplication with Shogi {
       // Determine initial board state for history replay for Kifu export.
       // Assuming game started from standard CoreBoard() if not loaded otherwise.
       // This is a simplification; a robust solution would track the true initial state.
-      var tempBoardForKifu = CoreBoard() 
-      
+      var tempBoardForKifu = CoreBoard()
+
       // Determine the starting player of the game.
       val gameStartingTurnForKifu = if (currState.history.length % 2 == 0) {
-        currState.turn 
+        currState.turn
       } else {
         currState.turn.change
       }
@@ -447,19 +447,19 @@ object Gui extends SimpleSwingApplication with Shogi {
       val kifuHistoryMoves = currState.history.reverse.zipWithIndex.map { case (coreTrans, index) =>
         val boardBeforeThisMove = tempBoardForKifu.copy()
         val playerForThisMove = if (index % 2 == 0) gameStartingTurnForKifu else gameStartingTurnForKifu.change
-        
+
         val kifuMove = KifuMapper.coreTransitionToKifuMove(coreTrans, playerForThisMove, boardBeforeThisMove)
-        
+
         // Apply move to tempBoardForKifu to get state for the next iteration's boardBeforeThisMove
         val dummyState = CoreState(Nil, playerForThisMove)
         tempBoardForKifu.move(dummyState, coreTrans.oldPos, coreTrans.newPos, false, coreTrans.nari)
-        
+
         KifuTempCore.Transition(kifuMove) // Assuming KifuTempCore.Transition just wraps a KifuTempCore.Move
       }.toList // Already chronological due to .reverse.map
 
       // Initial board state for kifu (usually for CSA non-standard starts)
       // Using a placeholder as KifuMapper.coreBoardToKifuBoard is not implemented.
-      val kifuInitialBoard = KifuTempCore.Board(Map.empty, KifuTempCore.SENTE) 
+      val kifuInitialBoard = KifuTempCore.Board(Map.empty, KifuTempCore.SENTE)
 
       // Current turn for kifu (player whose turn it is *now*)
       val kifuCurrentTurn = KifuMapper.coreTurnToKifuPlayer(currState.turn)

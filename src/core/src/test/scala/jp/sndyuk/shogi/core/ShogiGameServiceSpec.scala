@@ -41,7 +41,7 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     gameState.boardSetup.size shouldBe 2
     gameState.boardSetup(Position(4,8)) shouldBe SimplePiece.OU
     gameState.boardSetup(Position(0,0)) shouldBe SimplePiece.FU
-    
+
     gameState.capturedPiecesPlayer1 should contain only (SimplePiece.HI)
     gameState.capturedPiecesPlayer2 should contain only (SimplePiece.KA)
     gameState.gameHistory shouldBe empty
@@ -75,7 +75,7 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     val move1Result = service.makeMove(Position(2,6), Position(2,5), promotion = false)
     move1Result shouldBe a [Right[_,_]]
     val gameState1 = move1Result.getOrElse(fail("Move 1 failed"))
-    
+
     gameState1.currentTurn shouldBe Player.GOTE
     gameState1.boardSetup(Position(2,5)) shouldBe SimplePiece.FU
     gameState1.boardSetup.get(Position(2,6)) shouldBe None
@@ -98,27 +98,27 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     // Try to move Sente's King like a Rook
     val invalidMoveResult = service.makeMove(Position(4,8), Position(4,0), promotion = false)
     invalidMoveResult shouldBe a [Left[_,_]]
-    invalidMoveResult.left.getOrElse("") should include ("Invalid move") 
+    invalidMoveResult.left.getOrElse("") should include ("Invalid move")
   }
-  
+
   it should "handle piece drops correctly" in {
     val service = new ShogiGameService()
     val customSetup: Map[Position, (GameSimplePieceType, GamePlayer, Boolean)] = Map(
-      Position(4,8) -> ((SimplePiece.OU, Player.SENTE, false)) 
+      Position(4,8) -> ((SimplePiece.OU, Player.SENTE, false))
     )
     val senteCaptured = List(SimplePiece.FU)
     service.startNewGame(Some(customSetup), senteCaptured, Nil, Player.SENTE)
 
-    val dropResult = service.makeMove(fromPos = Position(0,0), 
-                                      toPos = Position(4,4), 
-                                      promotion = false, 
+    val dropResult = service.makeMove(fromPos = Position(0,0),
+                                      toPos = Position(4,4),
+                                      promotion = false,
                                       droppedPieceType = Some(SimplePiece.FU))
-    
+
     dropResult shouldBe a [Right[_,_]]
     val gameState = dropResult.getOrElse(fail("Drop move failed"))
     gameState.boardSetup(Position(4,4)) shouldBe SimplePiece.FU
     gameState.currentTurn shouldBe Player.GOTE
-    gameState.capturedPiecesPlayer1 shouldBe empty 
+    gameState.capturedPiecesPlayer1 shouldBe empty
     gameState.gameHistory.head.move shouldBe "P*5e"
   }
 
@@ -135,38 +135,40 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     val pieceAtSourceBeforeMove = service.board.piece(GameStateMapper.positionToCorePoint(Position(6,1)), PlayerA)
     pieceAtSourceBeforeMove shouldBe Piece.▲.FU // Expect Sente FU at core Point(1,6)
 
-    // Sente FU 2c (Position(6,1)) to 2b (Position(1,1)), promote.
-    val promoteResult = service.makeMove(Position(6,1), Position(1,1), promotion = true) // Corrected fromPos
+    // Sente FU from Position(6,1) (core Point(1,6) which is USI 3b)
+    // to Position(6,0) (core Point(0,6) which is USI 3a) for promotion.
+    val promoteResult = service.makeMove(Position(6,1), Position(6,0), promotion = true)
     promoteResult shouldBe a [Right[_,_]]
     val gameState = promoteResult.getOrElse(fail("Promotion move failed"))
-    
-    gameState.gameHistory.head.move shouldBe "2c2b+"
-    val coreBoard = service.board 
-    val pieceOnBoard = coreBoard.squares.get(GameStateMapper.positionToCorePoint(Position(1,1)))
+
+    gameState.gameHistory.head.move shouldBe "3b3a+"
+    val coreBoard = service.board
+    // Check the piece at the destination Position(6,0)
+    val pieceOnBoard = coreBoard.squares.get(GameStateMapper.positionToCorePoint(Position(6,0)))
     Piece.isPromoted(pieceOnBoard) shouldBe true
     Piece.generalize(pieceOnBoard) shouldBe Piece.◯.FU
   }
 
   it should "get valid moves for a pawn" in {
-    val service = new ShogiGameService() 
+    val service = new ShogiGameService()
     val validMoves = service.getValidMoves(Position(2,6))
-    validMoves should contain only (Position(2,5)) 
+    validMoves should contain only (Position(2,5))
   }
 
   it should "get valid moves for a rook" in {
-    val service = new ShogiGameService() 
+    val service = new ShogiGameService()
     val validMoves = service.getValidMoves(Position(7,7))
-    
+
     val expectedMoves = List(
       Position(6,7), Position(5,7), Position(4,7), Position(3,7), Position(2,7), // Moves left
       Position(8,7)  // Move right
     )
     validMoves should contain allElementsOf expectedMoves
-    validMoves.size shouldBe expectedMoves.size 
+    validMoves.size shouldBe expectedMoves.size
 
-    validMoves should not contain Position(1,7) 
-    validMoves should not contain Position(0,7) 
-    validMoves should not contain Position(7,6) 
-    validMoves should not contain Position(7,8) 
+    validMoves should not contain Position(1,7)
+    validMoves should not contain Position(0,7)
+    validMoves should not contain Position(7,6)
+    validMoves should not contain Position(7,8)
   }
 }

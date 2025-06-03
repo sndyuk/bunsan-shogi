@@ -88,31 +88,31 @@ class ShogiGameService {
         }
       )
     }.toList
-    
+
     val gameHistoryMapped: List[SimpleTransition] = {
       if (this.currentState.history.isEmpty) {
         Nil
       } else {
         val gameStartingTurnFromService = GameStateMapper.playerToCoreTurn(this.initialGameFirstPlayer)
-        
+
         // Initial accumulator: (board state for the start of history, empty list of SimpleTransitions)
         val initialAccumulator = (initialBoardForHistoryReplay(), List.empty[SimpleTransition])
 
-        val (_, transitionsReversed) = 
-          this.currentState.history.reverse.zipWithIndex.foldLeft(initialAccumulator) { 
+        val (_, transitionsReversed) =
+          this.currentState.history.reverse.zipWithIndex.foldLeft(initialAccumulator) {
             case ((currentBoardState, accumulatedTransitions), (coreTrans, index)) =>
-              
+
               val boardBeforeThisMove = currentBoardState.copy() // Copy for "before" state
               val playerForThisTransition = if (index % 2 == 0) gameStartingTurnFromService else gameStartingTurnFromService.change
-              
+
               val dummyStateForHistoryMove = State(Nil, playerForThisTransition)
               // This move mutates currentBoardState (the one inside the accumulator)
               currentBoardState.move(dummyStateForHistoryMove, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
-              
+
               val boardAfterThisMove = currentBoardState.copy() // Copy for "after" state (after mutation)
-              
+
               val simpleTrans = GameStateMapper.coreTransitionToSimpleTransition(coreTrans, boardBeforeThisMove, boardAfterThisMove)
-              
+
               (currentBoardState, simpleTrans :: accumulatedTransitions) // Pass mutated board state and new transition
           }
         transitionsReversed.reverse // Reverse to get chronological order
@@ -146,13 +146,13 @@ class ShogiGameService {
       case None =>
         val op = GameStateMapper.positionToCorePoint(fromPos)
         // Use board.piece to correctly fetch from board OR captured set if op indicates a captured piece
-        pieceToMove = this.board.piece(op, this.currentState.turn) 
+        pieceToMove = this.board.piece(op, this.currentState.turn)
         if (pieceToMove == Piece.❏) { // Check if the determined piece is empty
              return Left(s"Invalid move: No piece at source position $fromPos (x=${fromPos.x}, y=${fromPos.y}; core op: x=${op.x}, y=${op.y}) or specified captured piece not available.")
         }
         op
     }
-    
+
     if (pieceToMove == Piece.❏) { // Should be caught by specific drop/move logic, but as a safeguard
         return Left("Invalid move: Selected piece is empty or could not be determined.")
     }
@@ -160,7 +160,7 @@ class ShogiGameService {
     if (Rule.canMove(this.board, pieceToMove, oldCorePoint, newCorePoint, this.currentState.turn, promotion)) {
       // The board.move method will mutate `this.board` and return a new State with updated history and turn.
       val nextState = this.board.move(this.currentState, oldCorePoint, newCorePoint, validation = false, nari = promotion)
-      this.currentState = nextState 
+      this.currentState = nextState
       Right(getGameState())
     } else {
       Left("Invalid move: Rule violation.")
@@ -176,7 +176,7 @@ class ShogiGameService {
     if (piece == Piece.❏) {
       // If coreFromPoint was a board point, it means empty square.
       // If coreFromPoint was a captured piece point, board.piece would return ❏ if that piece isn't in hand.
-      return Nil 
+      return Nil
     }
 
     // Rule.generateMovablePoints takes oldPos (which can be a captured piece point)

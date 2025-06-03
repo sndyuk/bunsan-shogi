@@ -19,13 +19,13 @@ object WebServer {
       println("ERROR: Could not find 'webroot' directory in classpath. Static files might not be served correctly.")
       // Fallback to previous direct path, but this might not be reliable in all execution environments (e.g. from JAR)
       println("Falling back to relative path: src/web/src/main/resources/webroot")
-      context.setResourceBase("src/web/src/main/resources/webroot") 
+      context.setResourceBase("src/web/src/main/resources/webroot")
     } else {
       val resourceBasePath = webrootUrl.get.toExternalForm
       println(s"Setting resourceBase to: $resourceBasePath (found via classloader)")
       context.setResourceBase(resourceBasePath)
     }
-    
+
     context.setInitParameter(ScalatraListener.LifeCycleKey, "jp.sndyuk.shogi.web.ScalatraBootstrap")
     context.addEventListener(new ScalatraListener())
 

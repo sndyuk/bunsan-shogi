@@ -7,7 +7,10 @@ import jp.sndyuk.shogi.core.Player.{Player => GamePlayer}
 import jp.sndyuk.shogi.core.SimplePiece.{SimplePieceType => GameSimplePieceType}
 // Ensure jp.sndyuk.shogi.core.Position is imported if not automatically available
 // For Position case class defined in GameState.scala, it's in jp.sndyuk.shogi.core.Position
-// For SimpleTransition case class defined in GameState.scala, it's in jp.sndyuk.shogi.core.SimpleTransition
+// For SimpleTransition and PieceInfo case classes defined in GameState.scala, they are in jp.sndyuk.shogi.core
+// Note: PieceInfo is now GameState.PieceInfo if defined inside GameState object, or just PieceInfo if top-level in package.
+// Assuming PieceInfo is accessible as jp.sndyuk.shogi.core.PieceInfo or GameState.PieceInfo based on previous step.
+// For clarity, let's assume direct import or it's in scope.
 
 object GameStateMapper {
 
@@ -72,18 +75,21 @@ object GameStateMapper {
   }
 
   // --- Board Setup Mappings ---
-  def coreBoardToBoardSetup(coreBoard: Board): Map[Position, GameSimplePieceType] = {
+  def coreBoardToBoardSetup(coreBoard: Board): Map[String, PieceInfo] = {
     coreBoard.allBlocks.filter(_.piece != ❏).map { block =>
-      corePointToPosition(block.point) ->
+      val corePoint = block.point // This is jp.sndyuk.shogi.core.Point (0-indexed x, y)
+      val keyString = s"${corePoint.x}_${corePoint.y}" // Format as "x_y" using core 0-indexed coords
+      keyString ->
         (corePieceToSimplePieceTypeAndPlayer(block.piece) match {
-          case Some((spt, _, _)) => spt // We only need SimplePieceType for boardSetup value
-          case None              => throw new IllegalStateException(s"coreBoardToBoardSetup: Non-empty Piece ${block.piece} at ${block.point} mapped to None for SimplePieceType")
+          // corePieceToSimplePieceTypeAndPlayer returns Option[(GameSimplePieceType, GamePlayer, Boolean)]
+          case Some((spt, player, isPromoted)) => PieceInfo(spt, player, isPromoted) // Ensure PieceInfo is used
+          case None => throw new IllegalStateException(s"coreBoardToBoardSetup: Non-empty Piece ${block.piece} at ${block.point} mapped to None for PieceInfo components")
         })
     }.toMap
   }
 
   def reconstructCoreBoard(
-    boardSetup: Map[Position, (GameSimplePieceType, GamePlayer, Boolean)],
+    boardSetup: Map[String, PieceInfo],
     senteCaptured: List[GameSimplePieceType],
     goteCaptured: List[GameSimplePieceType]
   ): Board = {
@@ -91,10 +97,23 @@ object GameStateMapper {
     // It does NOT call board.init() itself. Board.apply() calls board.init().
     val newBoard = new Board()
 
-    boardSetup.foreach { case (pos, (spt, player, isPromoted)) =>
-      val coreP = positionToCorePoint(pos)
-      val corePiece = simplePiecePlayerToCorePiece(spt, player, isPromoted)
-      newBoard.squares <+ (corePiece, coreP) // place piece on board
+    boardSetup.foreach { case (keyString, pieceInfo) =>
+      // keyString is "x_y", needs to be parsed back to core.Point
+      // PieceInfo contains spt, player, isPromoted
+      val parts = keyString.split('_')
+      if (parts.length == 2) {
+        try {
+          val x = parts(0).toInt
+          val y = parts(1).toInt
+          val coreP = Point(y, x) // core.Point is (y,x)
+          val corePiece = simplePiecePlayerToCorePiece(pieceInfo.pieceType, pieceInfo.player, pieceInfo.isPromoted)
+          newBoard.squares <+ (corePiece, coreP) // place piece on board
+        } catch {
+          case e: NumberFormatException => throw new IllegalArgumentException(s"Invalid keyString format in boardSetup: $keyString. Expected 'x_y' with integers.", e)
+        }
+      } else {
+        throw new IllegalArgumentException(s"Invalid keyString format in boardSetup: $keyString. Expected 'x_y'.")
+      }
     }
 
     senteCaptured.foreach { spt =>
@@ -164,12 +183,12 @@ object GameStateMapper {
 
   def coreTransitionToSimpleTransition(
     coreTransition: Transition,
-    boardBeforeMobe: Board,
+    boardBeforeMove: Board, // Corrected typo: Mobe -> Move
     boardAfterMove: Board
   ): SimpleTransition = {
     SimpleTransition(
-      move = coreTransitionToMoveString(coreTransition, boardBeforeMobe),
-      boardStateAfterMove = coreBoardToBoardSetup(boardAfterMove)
+      move = coreTransitionToMoveString(coreTransition, boardBeforeMove), // Corrected typo: Mobe -> Move
+      boardStateAfterMove = coreBoardToBoardSetup(boardAfterMove) // This now passes Map[String, PieceInfo]
     )
   }
 }

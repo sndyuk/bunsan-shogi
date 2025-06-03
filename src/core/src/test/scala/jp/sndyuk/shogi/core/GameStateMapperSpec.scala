@@ -2,8 +2,7 @@ package jp.sndyuk.shogi.core
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import jp.sndyuk.shogi.core.Player.{Player => GamePlayer} // Alias to avoid conflict with object Player
-import jp.sndyuk.shogi.core.SimplePiece.{SimplePieceType => GameSimplePieceType}
+// Unused aliases GamePlayer and GameSimplePieceType were removed. Direct usages like Player.SENTE are preferred.
 
 
 class GameStateMapperSpec extends AnyFlatSpec with Matchers {
@@ -52,57 +51,70 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "map core.Point to Position and vice-versa" in {
-    val p00_core = Point(0, 0)
-    val p00_game = Position(0, 0)
-    GameStateMapper.corePointToPosition(p00_core) shouldBe p00_game
-    GameStateMapper.positionToCorePoint(p00_game) shouldBe p00_core
+    // Valid Shogi positions (1-9 for file/rank)
+    // Position(file, rank) maps to Point(y = rank-1, x = 9-file)
 
-    val p88_core = Point(8, 8)
-    val p88_game = Position(8, 8)
-    GameStateMapper.corePointToPosition(p88_core) shouldBe p88_game
-    GameStateMapper.positionToCorePoint(p88_game) shouldBe p88_core
+    val p11_game = Position(1, 1) // File 1, Rank 1 (bottom-right for Sente view if board inverted)
+    val p11_core = Point(0, 8)    // y=0 (rank 'a'), x=8 (file '1' in USI, file 9 by 0-idx)
+                                  // Corrected: x = 9-1 = 8, y = 1-1 = 0
+    GameStateMapper.corePointToPosition(p11_core) shouldBe Position(1,1) // Check with corrected understanding
+    GameStateMapper.positionToCorePoint(p11_game) shouldBe p11_core
 
-    val p34_core = Point(3, 4) // y=3, x=4
-    val p34_game = Position(4, 3) // x=4, y=3
-    GameStateMapper.corePointToPosition(p34_core) shouldBe p34_game
-    GameStateMapper.positionToCorePoint(p34_game) shouldBe p34_core
+    val p99_game = Position(9, 9) // File 9, Rank 9 (top-left for Sente view if board inverted)
+    val p99_core = Point(8, 0)    // x = 9-9 = 0, y = 9-1 = 8
+    GameStateMapper.corePointToPosition(p99_core) shouldBe Position(9,9)
+    GameStateMapper.positionToCorePoint(p99_game) shouldBe p99_core
+
+    val p54_game = Position(5, 4) // File 5, Rank 4
+    val p54_core = Point(3, 4)    // x = 9-5 = 4, y = 4-1 = 3
+    GameStateMapper.corePointToPosition(p54_core) shouldBe Position(5,4)
+    GameStateMapper.positionToCorePoint(p54_game) shouldBe p54_core
   }
 
-  it should "map coreBoard to boardSetup" in {
+  // Helper to convert Position (1-indexed) to "x_y" string key (0-indexed core Point x,y)
+  private def posToKey(pos: Position): String = {
+    val coreP = GameStateMapper.positionToCorePoint(pos)
+    s"${coreP.x}_${coreP.y}"
+  }
+
+  it should "map coreBoard to boardSetup (Map[String, PieceInfo])" in {
     val board = Board() // Initial layout
     val boardSetup = GameStateMapper.coreBoardToBoardSetup(board)
 
-    // Sente King at Point(8,4) -> Position(4,8)
-    boardSetup(Position(4, 8)) shouldBe SimplePiece.OU
-    // Gote King at Point(0,4) -> Position(4,0)
-    boardSetup(Position(4, 0)) shouldBe SimplePiece.OU
+    // Sente King at Point(y=8, x=4) is Position(file=5, rank=9). Key "4_8"
+    boardSetup(posToKey(Position(5,9))) shouldBe PieceInfo(SimplePiece.OU, Player.SENTE, false)
+    // Gote King at Point(y=0, x=4) is Position(file=5, rank=1). Key "4_0"
+    boardSetup(posToKey(Position(5,1))) shouldBe PieceInfo(SimplePiece.OU, Player.GOTE, false)
 
-    // Sente Pawn at Point(6,7) -> Position(7,6)
-    boardSetup(Position(7, 6)) shouldBe SimplePiece.FU
-    // Gote Pawn at Point(2,1) -> Position(1,2)
-    boardSetup(Position(1, 2)) shouldBe SimplePiece.FU
+    // Sente Pawn at Point(y=6, x=2) is Position(file=7, rank=7). Key "2_6"
+    boardSetup(posToKey(Position(7,7))) shouldBe PieceInfo(SimplePiece.FU, Player.SENTE, false)
+    // Gote Pawn at Point(y=2, x=2) is Position(file=7, rank=3). Key "2_2"
+    boardSetup(posToKey(Position(7,3))) shouldBe PieceInfo(SimplePiece.FU, Player.GOTE, false)
 
-    // Check a few empty squares are not in the map (or handle how empty squares are represented if they are)
-    // GameStateMapper.coreBoardToBoardSetup filters out Piece.❏, so they won't be keys
-    boardSetup.get(Position(3,3)) shouldBe None // An empty square in initial setup e.g. Point(3,3) -> Pos(3,3)
+    // Check an empty square: Position(5,5) maps to core Point(y=4, x=4). Key "4_4"
+    boardSetup.get(posToKey(Position(5,5))) shouldBe None
   }
 
-  it should "reconstruct coreBoard from boardSetup and captured pieces" in {
-    val boardSetupMap: Map[Position, (GameSimplePieceType, GamePlayer, Boolean)] = Map(
-      Position(4, 8) -> ((SimplePiece.OU, Player.SENTE, false)), // Sente King
-      Position(4, 0) -> ((SimplePiece.OU, Player.GOTE, false)),  // Gote King
-      Position(2, 2) -> ((SimplePiece.FU, Player.SENTE, false))  // Sente Pawn
+  it should "reconstruct coreBoard from boardSetup (Map[String, PieceInfo]) and captured pieces" in {
+    val boardSetupMap: Map[String, PieceInfo] = Map(
+      posToKey(Position(5, 9)) -> PieceInfo(SimplePiece.OU, Player.SENTE, false), // Sente King
+      posToKey(Position(5, 1)) -> PieceInfo(SimplePiece.OU, Player.GOTE, false),  // Gote King
+      posToKey(Position(7, 7)) -> PieceInfo(SimplePiece.FU, Player.SENTE, false)  // Sente Pawn
     )
     val senteCaptured = List(SimplePiece.HI, SimplePiece.KA)
     val goteCaptured = List(SimplePiece.GI)
 
     val board = GameStateMapper.reconstructCoreBoard(boardSetupMap, senteCaptured, goteCaptured)
 
-    // Verify pieces on board
+    // Verify pieces on board (using core Point(y,x) for board.squares.get)
+    // Sente King: Position(5,9) -> Point(8,4)
     board.squares.get(Point(8, 4)) shouldBe Piece.▲.OU
+    // Gote King: Position(5,1) -> Point(0,4)
     board.squares.get(Point(0, 4)) shouldBe Piece.△.OU
-    board.squares.get(Point(2, 2)) shouldBe Piece.▲.FU
-    board.squares.get(Point(1,1)) shouldBe Piece.❏ // Empty square
+    // Sente Pawn: Position(7,7) -> Point(6,2)
+    board.squares.get(Point(6, 2)) shouldBe Piece.▲.FU
+    // Empty square: e.g. Point(0,0)
+    board.squares.get(Point(0,0)) shouldBe Piece.❏
 
     // Verify captured pieces
     board.capturedPieces.count(PlayerA, Piece.◯.HI) shouldBe 1
@@ -166,33 +178,29 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     val boardAfter = boardBefore.copy() // Changed var to val
 
     // Sente FU from 7g to 7f. Point(y,x): 7g is (6,2), 7f is (5,2)
-    val coreTrans = Transition(Point(6,2), Point(5,2), false, None)
+    // Position: 7g is Position(7,7), 7f is Position(7,6)
+    val coreTrans = Transition(Point(6,2), Point(5,2), false, None) // Sente moves FU 7g -> 7f
 
     // Manually apply the move to boardAfter for testing
-    val pieceToMove = boardAfter.squares.get(Point(6,2))
-    boardAfter.squares.setAndGet(Piece.❏, Point(6,2))
-    boardAfter.squares.setAndGet(pieceToMove, Point(5,2))
+    val pieceToMove = boardAfter.squares.get(Point(6,2)) // Get piece from 7g (core Point(6,2))
+    boardAfter.squares.setAndGet(Piece.❏, Point(6,2))    // Empty 7g
+    boardAfter.squares.setAndGet(pieceToMove, Point(5,2)) // Place piece at 7f (core Point(5,2))
 
     val simpleTrans = GameStateMapper.coreTransitionToSimpleTransition(coreTrans, boardBefore, boardAfter)
 
     simpleTrans.move shouldBe "7g7f"
-    // Position(2,5) is 7f. After move 7g7f, FU should be at 7f.
-    simpleTrans.boardStateAfterMove(Position(2,5)) shouldBe SimplePiece.FU
-    // Position(2,6) is 7g. This square should be empty after the move.
-    // The direct access simpleTrans.boardStateAfterMove(Position(2,6)) would fail if the key is not found (i.e. square is empty).
-    // The assertions below using .contains and .get are the correct way to check this.
-    // Removing: simpleTrans.boardStateAfterMove(Position(2,6)) shouldBe SimplePiece.FU
 
-    // Explicitly check map contents using .get
-    simpleTrans.boardStateAfterMove.contains(Position(2,6)) shouldBe false // 7g, should be empty
-    val valAtOldPos = simpleTrans.boardStateAfterMove.get(Position(2,6))
-    valAtOldPos shouldBe None
+    // Key for 7f (new position) is Point(y=5,x=2) -> "2_5"
+    val newPosKey = posToKey(Position(7,6)) // Position(7,6) -> Point(5,2) -> "2_5"
+    simpleTrans.boardStateAfterMove(newPosKey) shouldBe PieceInfo(SimplePiece.FU, Player.SENTE, false)
 
-    simpleTrans.boardStateAfterMove.contains(Position(2,5)) shouldBe true // 7f, should have FU
-    val valAtNewPos = simpleTrans.boardStateAfterMove.get(Position(2,5))
-    valAtNewPos shouldBe Some(SimplePiece.FU)
+    // Key for 7g (old position) is Point(y=6,x=2) -> "2_6"
+    val oldPosKey = posToKey(Position(7,7)) // Position(7,7) -> Point(6,2) -> "2_6"
+    simpleTrans.boardStateAfterMove.get(oldPosKey) shouldBe None
 
-    // Check that other pieces from initial setup are still there
-    simpleTrans.boardStateAfterMove.get(GameStateMapper.corePointToPosition(Point(8,4))) shouldBe Some(SimplePiece.OU) // Sente King
+    // Check that other pieces from initial setup are still there, e.g., Sente King
+    // Sente King is at Position(5,9) -> Point(8,4) -> key "4_8"
+    val senteKingKey = posToKey(Position(5,9))
+    simpleTrans.boardStateAfterMove.get(senteKingKey) shouldBe Some(PieceInfo(SimplePiece.OU, Player.SENTE, false))
   }
 }

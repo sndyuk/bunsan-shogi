@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameStatusDiv = document.getElementById('game-status');
     const newGameBtn = document.getElementById('new-game-btn');
 
-    let selectedPiece = null; // { x, y, pieceType, player (inferred/known) } or { pieceTypeToDrop, player }
+    let selectedPiece = null; // { x, y, pieceType, player, isPromoted } or { pieceTypeToDrop, player }
     let currentTurn = null;   // Will be 'SENTE' or 'GOTE' (string based on Player enum)
-    let boardState = {};      // Map: "x,y" -> "FU" (SimplePieceType string)
+    let boardState = {};      // Map: "x_y" -> PieceInfo { pieceType, player, isPromoted }
     let validMoveHighlights = []; // Store currently highlighted cells for valid moves
 
     // --- Piece Representation ---
@@ -31,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const gameState = await response.json();
 
             currentTurn = gameState.currentTurn;
-            boardState = gameState.boardSetup; // Expects map like {"0,0": "KY", "0,1":"KE", ...} where x,y are 0-indexed
+            boardState = gameState.boardSetup; // Expects map like {"0_0": {pieceType:"KY",...}, "0_1":{pieceType:"KE",...}}
 
-            renderBoard(gameState.boardSetup); // boardSetup is Map<Position, SimplePieceType>
+            renderBoard(gameState.boardSetup); // boardSetup is Map<String, PieceInfo>
             renderCapturedPieces(gameState.capturedPiecesPlayer1, gameState.capturedPiecesPlayer2);
             updateGameStatus(`Turn: ${currentTurn}. History moves: ${gameState.gameHistory.length}`);
             clearHighlights();
@@ -55,17 +55,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.dataset.x = f; // Store x (file)
                 cell.dataset.y = r; // Store y (rank)
 
-                const pieceKey = `${f},${r}`; // Create key string "x,y"
-                const pieceTypeStr = boardSetup[pieceKey]; // e.g., "FU"
+                const pieceKey = `${f}_${r}`; // Create key string "x_y" to match backend
+                const pieceInfo = boardSetup[pieceKey];
 
-                if (pieceTypeStr) {
-                    cell.textContent = pieceToDisplay[pieceTypeStr.toUpperCase()] || pieceTypeStr;
-                    // TODO: Add player indication (e.g., class for styling Sente/Gote pieces)
-                    // This requires player info per piece, not just SimplePieceType.
-                    // For now, a placeholder: if (r < 5) cell.classList.add('gote-piece-display');
+                if (pieceInfo) {
+                    cell.textContent = pieceToDisplay[pieceInfo.pieceType.toUpperCase()] || pieceInfo.pieceType;
+                    if (pieceInfo.player === 'SENTE') {
+                        cell.classList.add('sente-piece');
+                    } else if (pieceInfo.player === 'GOTE') {
+                        cell.classList.add('gote-piece');
+                    }
+                    if (pieceInfo.isPromoted) {
+                        cell.classList.add('promoted-piece');
+                    }
                 }
 
-                cell.addEventListener('click', () => onCellClick(f, r, pieceTypeStr));
+                cell.addEventListener('click', () => onCellClick(f, r)); // pieceInfo will be retrieved from boardState
                 shogiBoardDiv.appendChild(cell);
             }
         }
@@ -92,8 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList(goteCaptured, goteCapturedDiv, 'GOTE');
     }
 
-    async function onCellClick(x, y, pieceTypeStr) {
+    async function onCellClick(x, y) { // pieceTypeStr removed, retrieve from boardState
         clearHighlights(); // Clear previous valid move highlights
+
+        const pieceKey = `${x}_${y}`; // Create key string "x_y" to match backend
+        const pieceInfo = boardState[pieceKey];
 
         if (selectedPiece) { // A piece or captured piece was already selected
             if (selectedPiece.pieceTypeToDrop) { // Trying to drop a captured piece
@@ -106,9 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 makeMoveAttempt({ x: selectedPiece.x, y: selectedPiece.y }, { x, y }, promotion, null);
             }
         } else { // First click: selecting a piece on the board
-            if (pieceTypeStr) {
-                console.log(`Selected piece ${pieceTypeStr} at (${x},${y})`);
-                selectedPiece = { x, y, pieceType: pieceTypeStr /* TODO: player? */ };
+            if (pieceInfo) {
+                console.log(`Selected piece ${pieceInfo.pieceType} of player ${pieceInfo.player} at (${x},${y}), Promoted: ${pieceInfo.isPromoted}`);
+                selectedPiece = { x, y, pieceType: pieceInfo.pieceType, player: pieceInfo.player, isPromoted: pieceInfo.isPromoted };
                 document.querySelector(`.board-cell[data-x='${x}'][data-y='${y}']`).classList.add('selected');
                 fetchValidMoves({ x, y });
             }
@@ -155,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // For drops, all empty squares are potential targets.
         for (let r = 0; r < 9; r++) {
             for (let f = 0; f < 9; f++) {
-                const pieceKey = `${f},${r}`;
+                const pieceKey = `${f}_${r}`; // Create key string "x_y" to match backend
                 if (!boardState[pieceKey]) { // If cell is empty
                     const cell = document.querySelector(`.board-cell[data-x='${f}'][data-y='${r}']`);
                     if (cell) {

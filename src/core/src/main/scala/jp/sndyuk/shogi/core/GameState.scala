@@ -29,19 +29,9 @@ object Position {
   // Format for Position when it's a standalone object or value
   implicit val positionJsonFormat: Format[Position] = Json.format[Position]
 
-  // For using Position as a key in a Map[Position, Piece]
-  // We need to read/write it as a String key in JSON.
-  // Example: {"1,2": "KING", "3,4": "PAWN"}
-  implicit val positionMapKeyReads: KeyReads[Position] = (key: String) => {
-    key.split(',').map(_.trim) match {
-      case Array(xStr, yStr) =>
-        Try(Position(xStr.toInt, yStr.toInt))
-          .map(JsSuccess(_))
-          .getOrElse(JsError(s"Invalid Position string for map key: $key"))
-      case _ => JsError(s"Invalid Position string for map key: $key")
-    }
-  }
-  implicit val positionMapKeyWrites: KeyWrites[Position] = (pos: Position) => s"${pos.x},${pos.y}"
+  // positionMapKeyReads and positionMapKeyWrites are removed as Map[Position, _]
+  // is no longer used for boardSetup in GameState or SimpleTransition.
+  // String keys are used directly now.
 }
 
 // Updated Shogi-specific Piece enum
@@ -57,18 +47,24 @@ object SimplePiece extends Enumeration {
   }
 }
 
+// Case class to hold detailed info about a piece on the board
+case class PieceInfo(pieceType: SimplePieceType, player: Player, isPromoted: Boolean)
+object PieceInfo {
+  implicit val pieceInfoFormat: Format[PieceInfo] = Json.format[PieceInfo]
+}
+
 // Minimal Transition class
-case class SimpleTransition(move: String, boardStateAfterMove: Map[Position, SimplePieceType])
+// boardStateAfterMove is now Map[String, PieceInfo] as per the new return type of coreBoardToBoardSetup
+case class SimpleTransition(move: String, boardStateAfterMove: Map[String, PieceInfo])
 
 object SimpleTransition {
-  // This will pick up Position.positionMapKeyReads/Writes for the Map keys
-  // and Piece.pieceFormat for the Map values.
+  // For Map[String, PieceInfo], Play JSON uses default Map format as PieceInfo has a formatter (pieceInfoFormat).
   implicit val transitionFormat: Format[SimpleTransition] = Json.format[SimpleTransition]
 }
 
 
 case class GameState(
-    boardSetup: Map[Position, SimplePieceType], // Pieces and their positions
+    boardSetup: Map[String, PieceInfo], // Pieces and their positions, keyed by "x_y" string
     currentTurn: Player, // Player whose turn it is
     capturedPiecesPlayer1: List[SimplePieceType], // Captured pieces by Player 1
     capturedPiecesPlayer2: List[SimplePieceType], // Captured pieces by Player 2
@@ -76,7 +72,9 @@ case class GameState(
 )
 
 object GameState {
-  // This will also pick up Position.positionMapKeyReads/Writes and Piece.pieceFormat
+  // For boardSetup (Map[String, PieceInfo]), Play JSON uses default Map format
+  // as PieceInfo has a formatter (pieceInfoFormat).
+  // Player.playerFormat, SimplePiece.pieceFormat are used for other fields.
   implicit val gameStateFormat: Format[GameState] = Json.format[GameState]
 }
 

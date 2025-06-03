@@ -12,7 +12,9 @@ import play.api.libs.json.{Json, Format, JsValue, Writes} // Play JSON imports
 case class WebPosition(x: Int, y: Int)
 object WebPosition {
   implicit val format: Format[WebPosition] = Json.format[WebPosition]
-  def toCorePosition(wp: WebPosition): Position = Position(wp.x, wp.y)
+  // wp.x is 0-8 file index from app.js (0=USI 9, 8=USI 1)
+  // wp.y is 0-8 rank index from app.js (0=USI 1, 8=USI 9)
+  def toCorePosition(wp: WebPosition): Position = Position(x = 9 - wp.x, y = wp.y + 1)
   def fromCorePosition(cp: Position): WebPosition = WebPosition(cp.x, cp.y)
 }
 
@@ -61,8 +63,6 @@ class ShogiWebApp extends ScalatraServlet {
   before() {
     contentType = "application/json"
   }
-
-  import CoreTypeFormats._ // Make implicit writers available
 
   // --- API Endpoints ---
 
@@ -134,10 +134,19 @@ class ShogiWebApp extends ScalatraServlet {
 
     (xParam, yParam) match {
       case (Some(x), Some(y)) =>
+        // xParam (x) is 0-8 file index from app.js (0=USI 9, 8=USI 1)
+        // yParam (y) is 0-8 rank index from app.js (0=USI 1, 8=USI 9)
+        val usiFile = 9 - x
+        val usiRank = y + 1
         try {
-          val fromPos = Position(x,y) // This is jp.sndyuk.shogi.core.Position
-          val validMoves = shogiGameService.getValidMoves(fromPos) // Returns List[core.Position]
-          Json.toJson(validMoves).toString() // Uses implicit listPositionWrites
+          val fromPos = Position(usiFile, usiRank) // jp.sndyuk.shogi.core.Position
+          val validCorePositions = shogiGameService.getValidMoves(fromPos) // This is List[jp.sndyuk.shogi.core.Position]
+
+          // NEW: Transform to List[WebPosition]
+          val validWebPositions = validCorePositions.map { corePos =>
+            WebPosition(x = 9 - corePos.x, y = corePos.y - 1)
+          }
+          Json.toJson(validWebPositions).toString() // Serialize the transformed list
         } catch {
           case e: Exception =>
             halt(BadRequest(Json.obj("error" -> s"Error processing valid_moves: ${e.getMessage}").toString()))

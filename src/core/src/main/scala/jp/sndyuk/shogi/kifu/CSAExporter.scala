@@ -20,9 +20,9 @@ object CSAExporter {
                       // Re-evaluate if needed, but direct package access or the top-level import should suffice.
 
   def exportToString(
-      board: Board, // Current or initial board state
-      history: Seq[Transition], // Sequence of moves made
-      currentTurnPlayer: Turn, // Player whose turn it is (if game is ongoing)
+      board: TempCore.Board, // Current or initial board state
+      history: Seq[TempCore.Transition], // Sequence of moves made
+      currentTurnPlayer: TempCore.Turn, // Player whose turn it is (if game is ongoing)
       result: Option[String] // Game result e.g., "%TORYO"
   ): String = {
     val sb = new StringBuilder
@@ -61,9 +61,9 @@ object CSAExporter {
       // for (y <- 1 to 9) {
       //   sb.append(s"P$y")
       //   for (x <- 9 to 1 by -1) { // CSA board x-coords are right to left (9 to 1)
-      //     board.pieceAt(Position(x,y)) match {
-      //       case Some((piece, SENTE)) => sb.append(s"+${piece.toCSA}")
-      //       case Some((piece, GOTE)) => sb.append(s"-${piece.toCSA}")
+      //     board.pieceAt(TempCore.Position(x,y)) match {
+      //       case Some((piece, TempCore.SENTE)) => sb.append(s"+${piece.toCSA}")
+      //       case Some((piece, TempCore.GOTE)) => sb.append(s"-${piece.toCSA}")
       //       case None => sb.append(" *  * ")
       //     }
       //   }
@@ -99,18 +99,18 @@ object CSAExporter {
   // Helper for testing
   def main(args: Array[String]): Unit = {
     // Example Usage:
-    val initialBoard = Board(Map.empty, SENTE) // Simplified board
+    val initialBoard = TempCore.Board(Map.empty, TempCore.SENTE) // Simplified board
 
     val gameHistory = Seq(
-      Transition(Move(SENTE, Some(Position(7,7)), Position(7,6), FU)),
-      Transition(Move(GOTE, Some(Position(3,3)), Position(3,4), FU)),
-      Transition(Move(SENTE, Some(Position(8,8)), Position(2,2), KA, promote = true), comment = Some("A great move!")),
-      Transition(Move(GOTE, None, Position(5,5), KI, isDrop = true)) // Drop
+      TempCore.Transition(TempCore.Move(TempCore.SENTE, Some(TempCore.Position(7,7)), TempCore.Position(7,6), TempCore.FU)),
+      TempCore.Transition(TempCore.Move(TempCore.GOTE, Some(TempCore.Position(3,3)), TempCore.Position(3,4), TempCore.FU)),
+      TempCore.Transition(TempCore.Move(TempCore.SENTE, Some(TempCore.Position(8,8)), TempCore.Position(2,2), TempCore.KA, promote = true), comment = Some("A great move!")),
+      TempCore.Transition(TempCore.Move(TempCore.GOTE, None, TempCore.Position(5,5), TempCore.KI, isDrop = true)) // Drop
     )
 
     // Assuming Sente made the last move, it's Gote's turn if game is ongoing
     // Or, if game ended, currentTurnPlayer might be the one who resigned or was checkmated.
-    val turn = GOTE
+    val turn = TempCore.GOTE
 
     println("--- CSA Output ---")
     val csaOutput = exportToString(initialBoard, gameHistory, turn, Some("%TORYO"))
@@ -118,8 +118,8 @@ object CSAExporter {
 
     // Example for non-standard start (very simplified representation)
     // This part of board representation needs to be robust based on actual Board structure
-    // val customBoard = Board(Map(Position(5,5) -> (OU, SENTE)), SENTE)
-    // val csaCustom = exportToString(customBoard, Seq(), SENTE, None)
+    // val customBoard = TempCore.Board(Map(TempCore.Position(5,5) -> (TempCore.OU, TempCore.SENTE)), TempCore.SENTE)
+    // val csaCustom = exportToString(customBoard, Seq(), TempCore.SENTE, None)
     // println("\n--- CSA Custom Start (Conceptual) ---")
     // println(csaCustom)
 

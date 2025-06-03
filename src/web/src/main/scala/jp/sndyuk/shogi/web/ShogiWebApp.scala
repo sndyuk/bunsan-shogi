@@ -2,7 +2,10 @@ package jp.sndyuk.shogi.web
 
 import org.scalatra._
 // GameState is used for Json.toJson(gameState), Position for toCorePosition, ShogiGameService is instantiated, SimplePiece for drop type matching
+// GameState, Position, ShogiGameService, SimplePiece are used.
+// SimpleTransition type will be fully qualified. Its JSON formatter is imported explicitly.
 import jp.sndyuk.shogi.core.{GameState, Position, ShogiGameService, SimplePiece}
+import jp.sndyuk.shogi.core.SimpleTransition.transitionFormat // Explicitly import the formatter
 import play.api.libs.json.{Json, Format, JsValue, Writes} // Play JSON imports
 
 // --- JSON Case Classes for API Requests ---
@@ -23,6 +26,12 @@ object BoardMoveRequest {
 case class DropMoveRequest(to: WebPosition, droppedPiece: String) // piece as String like "FU", "KA"
 object DropMoveRequest {
   implicit val format: Format[DropMoveRequest] = Json.format[DropMoveRequest]
+}
+
+// For new game with options
+case class NewGameRequest(gameMode: Option[String], aiType: Option[String], aiSearchDepth: Option[Int])
+object NewGameRequest {
+  implicit val format: Format[NewGameRequest] = Json.format[NewGameRequest]
 }
 
 // --- Implicit Play JSON Writers for Core Types (if not already globally available) ---
@@ -65,9 +74,57 @@ class ShogiWebApp extends ScalatraServlet {
 
   // POST /game/new
   post("/game/new") {
-    // For now, starts a default new game. Could be extended to take parameters.
-    val newGameState: GameState = shogiGameService.startNewGame() // Explicit type
-    Json.toJson(newGameState).toString()
+    val body = request.body
+    if (body.trim.isEmpty) {
+      // No body, start a default game
+      val newGameState = shogiGameService.startNewGame(gameMode = "hvh", aiType = "v2", aiSearchDepth = 3) // Default HVH
+      Json.toJson(newGameState).toString()
+    } else {
+      // Body present, try to parse as NewGameRequest
+      val jsonBody: JsValue = try {
+        Json.parse(body)
+      } catch {
+        case e: Exception => halt(BadRequest(Json.obj("error" -> s"Invalid JSON body: ${e.getMessage}").toString()))
+      }
+
+      jsonBody.validate[NewGameRequest].asOpt match {
+        case Some(req) =>
+          val gameMode = req.gameMode.getOrElse("hvh")
+          val aiType = req.aiType.getOrElse("v2")
+          val aiSearchDepth = req.aiSearchDepth.getOrElse(3)
+
+          val newGameState = shogiGameService.startNewGame(
+            // initialBoardSetup, initialSenteCaptured, initialGoteCaptured, firstPlayer will use defaults in service
+            gameMode = gameMode,
+            aiType = aiType,
+            aiSearchDepth = aiSearchDepth
+          )
+          Json.toJson(newGameState).toString()
+        case None =>
+          BadRequest(Json.obj("error" -> "Invalid request format for new game. Expected NewGameRequest or empty body for default.").toString())
+      }
+    }
+  }
+
+  // GET /game/suggest_move
+  get("/game/suggest_move") {
+    val aiTypeParam = params.get("aiType").getOrElse("v2")
+    val aiSearchDepthParam = params.getAs[Int]("aiSearchDepth").getOrElse(3)
+
+    // This method shogiGameService.suggestMove(aiType, depth) needs to be implemented in ShogiGameService
+    // It should return Either[String, SimpleTransition]
+    shogiGameService.suggestMove(aiTypeParam, aiSearchDepthParam) match {
+      case Right(simpleTrans: jp.sndyuk.shogi.core.SimpleTransition) => Json.toJson(simpleTrans).toString() // Use FQN for type
+      case Left(errorMsg)     => BadRequest(Json.obj("error" -> errorMsg).toString())
+    }
+  }
+
+  // POST /game/ai_move
+  post("/game/ai_move") {
+    shogiGameService.requestAIMove() match {
+      case Right(gameState) => Json.toJson(gameState).toString()
+      case Left(errorMsg)   => BadRequest(Json.obj("error" -> errorMsg).toString())
+    }
   }
 
   // GET /game/valid_moves?x=:x&y=:y

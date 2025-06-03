@@ -249,7 +249,9 @@ class ShogiGameService {
               }
             } else {
               // This case means AI chose a piece to drop that isn't in its hand according to board.piece
-              return Left(s"Error: AI selected an invalid hand piece for drop (Piece: ${Piece.name(Piece.generalize(coreFromPos.piece))}), or piece not available.")
+              // coreFromPos.x directly holds the Int value of the generalized piece intended for drop.
+              val intendedGeneralizedPiece: Piece = coreFromPos.x
+              return Left(s"Error: AI selected an invalid hand piece for drop (Piece: ${Piece.name(intendedGeneralizedPiece)}), or piece not available.")
             }
           }
 

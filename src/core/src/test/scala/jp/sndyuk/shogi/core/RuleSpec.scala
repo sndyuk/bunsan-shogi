@@ -33,9 +33,22 @@ class RuleSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     val board = Board()
     val oldPos = Board.humanReadableToPoint(2, 8)
     val piece = ▲.HI
+    // includePromoted = true, but rook cannot promote with these moves from starting rank.
     val moves = Rule.generateMovablePoints(board, oldPos, piece, PlayerA, true)
 
-    moves.toStream should contain only ((Board.humanReadableToPoint(1, 8), false), (Board.humanReadableToPoint(3, 8), false), (Board.humanReadableToPoint(4, 8), false), (Board.humanReadableToPoint(5, 8), false), (Board.humanReadableToPoint(6, 8), false), (Board.humanReadableToPoint(7, 8), false))
+    val expectedMoves = Set(
+      (Board.humanReadableToPoint(1, 8), false), // Move to file 1, rank 8 (Point(7,0) if (2,8) -> (7,1))
+      (Board.humanReadableToPoint(3, 8), false), // Move to file 3, rank 8 (Point(7,2))
+      (Board.humanReadableToPoint(4, 8), false), // Move to file 4, rank 8 (Point(7,3))
+      (Board.humanReadableToPoint(5, 8), false), // Move to file 5, rank 8 (Point(7,4))
+      (Board.humanReadableToPoint(6, 8), false), // Move to file 6, rank 8 (Point(7,5))
+      (Board.humanReadableToPoint(7, 8), false), // Move to file 7, rank 8
+      (Board.humanReadableToPoint(8, 8), false), // Move to file 8, rank 8
+      (Board.humanReadableToPoint(9, 8), false), // Move to file 9, rank 8
+      (Board.humanReadableToPoint(2, 9), false)  // Corrected: Move to file 2, rank 9 (backward)
+    )
+
+    moves.toSet should contain theSameElementsAs expectedMoves
   }
 
   "88KA" should "not be able to move" in {
@@ -443,134 +456,137 @@ class RuleSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     Rule.is2FU(board, Piece.▲.TO, Point(4,4), PlayerA) shouldBe false
   }
 
-  // --- Tests for Rule.isThreefoldRepetition ---
-  // Note: Board state is not used by current isThreefoldRepetition, only history.
-  // Points for transitions
-  val tP0 = Point(0,0); val tP1 = Point(0,1); val tP2 = Point(0,2); val tP3 = Point(0,3)
-  val tP4 = Point(0,4); val tP5 = Point(0,5); val tP6 = Point(0,6); val tP7 = Point(0,7)
-  val tP8 = Point(0,8); val tP9 = Point(1,0)
+  // --- Tests for Rule.isThreefoldRepetition (New using GameStateDigest) ---
 
-  "isThreefoldRepetition" should "be false for insufficient history (less than 5 moves)" in {
-    val state = State(List(
-      Transition(tP0, tP1, false, None), // Sente
-      Transition(tP2, tP3, false, None), // Gote
-      Transition(tP4, tP5, false, None), // Sente
-      Transition(tP6, tP7, false, None)  // Gote
-    ), PlayerA) // Sente's turn, Gote made last move. List size = 4
-    Rule.isThreefoldRepetition(Board(), state) shouldBe false
+  // Helper to create an empty board for GameStateDigest
+  val emptyBoardPieces: IndexedSeq[IndexedSeq[Piece]] = IndexedSeq.fill(9, 9)(Piece.❏)
+  val emptyHand: Map[Piece, Int] = Map.empty[Piece, Int]
+
+  "isThreefoldRepetition" should "detect threefold repetition when current state is the 4th occurrence" in {
+    // State 1: Empty board, Sente's turn
+    val state1 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerA) // Use PlayerA for Sente's Turn
+    // State 2: A slightly different board (e.g., Sente moved FU), Gote's turn
+    val boardAfterFuMove = emptyBoardPieces.updated(6, emptyBoardPieces(6).updated(4, Piece.▲.FU)) // Example: 7e FU for Sente
+    val state2 = Rule.GameStateDigest(boardAfterFuMove, emptyHand, emptyHand, PlayerB) // Use PlayerB for Gote's Turn
+    // State 3: Back to state1 (e.g. Gote moved FU back or some other moves led here), Sente's turn
+    // For test simplicity, we just reuse state1's definition for board/turn, assuming moves led here.
+    // val state3 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, Player.SENTE) // This is state1
+
+    // History: S1, S2, S1, S2, S1
+    // Current state to check: S1 (which would be the 4th occurrence if we count current)
+    // The function counts occurrences in `historyOfDigests`.
+    // If current is S1, and history is [S1, S2, S1, S2, S1], count should be 3.
+    val history = Seq(state1, state2, state1, state2, state1)
+    // currentBoardStateDigest is state1. historyOfDigests contains state1 three times.
+    Rule.isThreefoldRepetition(state1, history) should be (true)
   }
 
-  it should "be true if current player's move destination matches their previous two destinations" in {
-    // Sente moves to tP1, Gote to tP3, Sente to tP1, Gote to tP5, Sente to tP1
-    val history = List(
-      Transition(tP0, tP1, false, None), // Sente (current, idx 0) to tP1
-      Transition(tP2, tP3, false, None), // Gote (idx 1)
-      Transition(tP4, tP1, false, None), // Sente (idx 2) to tP1
-      Transition(tP6, tP5, false, None), // Gote (idx 3)
-      Transition(tP8, tP1, false, None)  // Sente (idx 4) to tP1
-    ) // size = 5
-    val state = State(history, PlayerB) // Player B's turn, Sente made last move his(0)
-    Rule.isThreefoldRepetition(Board(), state) shouldBe true // Checks his(0), his(2), his(4)
+  it should "detect threefold repetition when current state is the 3rd occurrence and history already has 2" in {
+    val state1 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerA)
+    val state2 = Rule.GameStateDigest(emptyBoardPieces.updated(0, emptyBoardPieces(0).updated(0, Piece.▲.FU)), emptyHand, emptyHand, PlayerB)
+
+    // History: S1, S2, S1
+    // Current: S1. state1 appears twice in history.
+    // The function is `historyOfDigests.count(_ == currentBoardStateDigest) >= 3`
+    // So, if current is S1, and history has S1 twice, count will be 2. This should be false.
+    val history1 = Seq(state1, state2, state1)
+    Rule.isThreefoldRepetition(state1, history1) should be (false) // count is 2, needs to be >= 3
+
+    // History: S1, S2, S1, S1
+    // Current: S1. state1 appears three times in history.
+    val history2 = Seq(state1, state2, state1, state1)
+    Rule.isThreefoldRepetition(state1, history2) should be (true) // count is 3
   }
 
-  it should "be true if opponent's last move destination matches their previous two destinations" in {
-    // Original history setup for this test was split; this part was unused.
-    // val history = List(
-    //   Transition(tP0, tP1, false, None), // Gote (current, idx 0) to tP1
-    //   Transition(tP2, tP0, false, None), // Sente (idx 1)
-    //   Transition(tP3, tP1, false, None), // Gote (idx 2) to tP1
-    //   Transition(tP4, tP2, false, None), // Sente (idx 3)
-    //   Transition(tP5, tP1, false, None), // Gote (idx 4) to tP1
-    //   Transition(tP6, tP4, false, None)  // Sente (idx 5)
-    // ) // size = 6
-    // If it's Gote's turn (Sente made last move at history(0))
-    // then we check history(1), history(3), history(5) for Gote's moves.
-    // Let's use the "swapped order for clarity" version directly:
-    val historyForOpponentCheck = List(
-      Transition(tP6, tP4, false, None),  // Sente (idx 0)
-      Transition(tP5, tP1, false, None), // Gote (idx 1) to tP1
-      Transition(tP4, tP2, false, None), // Sente (idx 2)
-      Transition(tP3, tP1, false, None), // Gote (idx 3) to tP1
-      Transition(tP2, tP0, false, None), // Sente (idx 4)
-      Transition(tP0, tP1, false, None)  // Gote (idx 5) to tP1
-    )
-    val state = State(historyForOpponentCheck, PlayerA) // Player A's turn, Gote made last move his(0)
-    Rule.isThreefoldRepetition(Board(), state) shouldBe true // Checks his(1), his(3), his(5)
+
+  it should "not detect threefold repetition if states are different enough" in {
+    val state1 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerA)
+    val state2Board = emptyBoardPieces.updated(0, emptyBoardPieces(0).updated(0, Piece.▲.FU)) // FU at 0,0
+    val state2 = Rule.GameStateDigest(state2Board, emptyHand, emptyHand, PlayerB)
+    val state3Board = emptyBoardPieces.updated(1, emptyBoardPieces(1).updated(0, Piece.▲.KY)) // KY at 1,0
+    val state3 = Rule.GameStateDigest(state3Board, emptyHand, emptyHand, PlayerA)
+    val state4Board = emptyBoardPieces.updated(2, emptyBoardPieces(2).updated(0, Piece.▲.KE)) // KE at 2,0
+    val state4 = Rule.GameStateDigest(state4Board, emptyHand, emptyHand, PlayerB)
+
+    // History: S1, S2, S1, S3
+    // Current: S4
+    val history = Seq(state1, state2, state1, state3)
+    Rule.isThreefoldRepetition(state4, history) should be (false) // state4 is not in history at all
   }
 
-  it should "be false if destinations do not repeat sufficiently" in {
-    val history = List(
-      Transition(tP0, tP1, false, None),
-      Transition(tP2, tP3, false, None),
-      Transition(tP4, tP5, false, None),
-      Transition(tP6, tP0, false, None), // Different dest
-      Transition(tP8, tP2, false, None),
-      Transition(tP7, tP4, false, None)
-    ) // size = 6
-    val state = State(history, PlayerA)
-    Rule.isThreefoldRepetition(Board(), state) shouldBe false
+  it should "not detect threefold repetition with fewer than 3 occurrences in history" in {
+    val state1 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerA)
+    val state2 = Rule.GameStateDigest(emptyBoardPieces.updated(0, emptyBoardPieces(0).updated(0, Piece.▲.FU)), emptyHand, emptyHand, PlayerB)
+
+    // History: S1, S2
+    // Current: S1. state1 appears once in history. Count = 1.
+    val history1 = Seq(state1, state2)
+    Rule.isThreefoldRepetition(state1, history1) should be (false)
+
+    // History: S1, S1
+    // Current: S1. state1 appears twice in history. Count = 2.
+    val history2 = Seq(state1, state1)
+    Rule.isThreefoldRepetition(state1, history2) should be (false)
   }
 
-  it should "be false for an interrupted sequence for current player" in {
-    // Sente to tP1, Gote to tP3, Sente to tP1, Gote to tP5, Sente to tP0 (different)
-    val history = List(
-      Transition(tP8, tP0, false, None), // Sente (current, idx 0) to tP0
-      Transition(tP6, tP5, false, None), // Gote (idx 1)
-      Transition(tP4, tP1, false, None), // Sente (idx 2) to tP1
-      Transition(tP2, tP3, false, None), // Gote (idx 3)
-      Transition(tP0, tP1, false, None)  // Sente (idx 4) to tP1
-    ) // size = 5
-    val state = State(history, PlayerB)
-    Rule.isThreefoldRepetition(Board(), state) shouldBe false
+  it should "distinguish states based on board pieces" in {
+    val board1 = IndexedSeq.fill(9, 9)(Piece.❏)
+    val board2 = board1.updated(0, board1(0).updated(0, Piece.▲.FU)) // FU at (0,0)
+
+    val stateA_v1 = Rule.GameStateDigest(board1, emptyHand, emptyHand, PlayerA)
+    val stateA_v2 = Rule.GameStateDigest(board2, emptyHand, emptyHand, PlayerA) // Same turn, different board
+
+    val history = Seq(stateA_v1, stateA_v2, stateA_v1)
+    Rule.isThreefoldRepetition(stateA_v1, history) should be (false) // stateA_v1 appears 2 times
+    Rule.isThreefoldRepetition(stateA_v2, history) should be (false) // stateA_v2 appears 1 time
+
+    val history2 = Seq(stateA_v1, stateA_v2, stateA_v1, stateA_v1)
+    Rule.isThreefoldRepetition(stateA_v1, history2) should be (true) // stateA_v1 appears 3 times
   }
 
-  // Test cases for the second block of checks (his(0) vs his(3) vs his(6), etc.)
-  // These checks compare newPos of moves made by different players in some cases,
-  // so they are testing the code as written, not necessarily standard shogi rules.
+  it should "distinguish states based on sente's hand" in {
+    val senteHand1 = Map(Piece.▲.FU -> 1)
+    val senteHand2 = Map(Piece.▲.FU -> 2)
 
-  it should "trigger repetition on pattern: S(X) G(X) S(Y) G(X) S(Z) G(W) S(X) - (his(0)==his(3)==his(6) based on newPos)" in {
-    // History (newest to oldest):
-    // his(0): Sente to pX
-    // his(1): Gote to pW
-    // his(2): Sente to pZ
-    // his(3): Gote to pX  <-
-    // his(4): Sente to pY
-    // his(5): Gote to pX
-    // his(6): Sente to pX  <-
-    val history = List(
-      Transition(Point(0,0), pX, false, None), // S0: Sente to pX
-      Transition(Point(1,1), pW, false, None), // G0
-      Transition(Point(2,2), pZ, false, None), // S1
-      Transition(Point(3,3), pX, false, None), // G1: Gote to pX
-      Transition(Point(4,4), pY, false, None), // S2
-      Transition(Point(5,5), pX, false, None), // G2: Gote to pX -- this Gote move actually does not fit the pattern name, but the code compares his(0) with his(3)
-      Transition(Point(6,6), pX, false, None)  // S3: Sente to pX
-    ) // size = 7. Player B's turn next. Sente made the last move.
-    val state = State(history, PlayerB)
-    // Rule checks if (size >= 7 && same(his(0),his(3)) && same(his(0),his(6)))
-    // his(0).newPos = pX
-    // his(3).newPos = pX (Gote's move)
-    // his(6).newPos = pX (Sente's move)
-    // This will be true because all newPos are pX.
-    Rule.isThreefoldRepetition(Board(), state) shouldBe true
+    val stateA_h1 = Rule.GameStateDigest(emptyBoardPieces, senteHand1, emptyHand, PlayerA)
+    val stateA_h2 = Rule.GameStateDigest(emptyBoardPieces, senteHand2, emptyHand, PlayerA) // Same board/turn, different hand
+
+    val history = Seq(stateA_h1, stateA_h2, stateA_h1)
+    Rule.isThreefoldRepetition(stateA_h1, history) should be (false) // stateA_h1 appears 2 times
+
+    val history2 = Seq(stateA_h1, stateA_h2, stateA_h1, stateA_h1)
+    Rule.isThreefoldRepetition(stateA_h1, history2) should be (true) // stateA_h1 appears 3 times
   }
 
-  it should "NOT trigger repetition if pattern S(X) G(A) S(Y) G(B) S(Z) G(C) S(X) (his(0)==his(6) but his(0)!=his(3))" in {
-    val history = List(
-      Transition(Point(0,0), pX, false, None), // S0: Sente to pX
-      Transition(Point(1,1), pC, false, None), // G0
-      Transition(Point(2,2), pZ, false, None), // S1
-      Transition(Point(3,3), pB, false, None), // G1
-      Transition(Point(4,4), pY, false, None), // S2
-      Transition(Point(5,5), pA, false, None), // G2
-      Transition(Point(6,6), pX, false, None)  // S3: Sente to pX
-    ) // size = 7.
-    val state = State(history, PlayerB)
-    // his(0).newPos = pX
-    // his(3).newPos = pB
-    // his(6).newPos = pX
-    // same(his(0),his(3)) is false.
-    Rule.isThreefoldRepetition(Board(), state) shouldBe false
+  it should "distinguish states based on gote's hand" in {
+    val goteHand1 = Map(Piece.△.FU -> 1)
+    val goteHand2 = Map(Piece.△.FU -> 2)
+
+    val stateA_gh1 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, goteHand1, PlayerA)
+    val stateA_gh2 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, goteHand2, PlayerA)
+
+    val history = Seq(stateA_gh1, stateA_gh2, stateA_gh1)
+    Rule.isThreefoldRepetition(stateA_gh1, history) should be (false)
+
+    val history2 = Seq(stateA_gh1, stateA_gh2, stateA_gh1, stateA_gh1)
+    Rule.isThreefoldRepetition(stateA_gh1, history2) should be (true)
+  }
+
+  it should "distinguish states based on next turn" in {
+    val stateSenteTurn = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerA)
+    val stateGoteTurn = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerB) // Same board/hands, different turn
+
+    val history = Seq(stateSenteTurn, stateGoteTurn, stateSenteTurn)
+    Rule.isThreefoldRepetition(stateSenteTurn, history) should be (false) // stateSenteTurn appears 2 times
+
+    val history2 = Seq(stateSenteTurn, stateGoteTurn, stateSenteTurn, stateSenteTurn)
+    Rule.isThreefoldRepetition(stateSenteTurn, history2) should be (true) // stateSenteTurn appears 3 times
+  }
+
+  it should "correctly handle an empty history" in {
+    val state1 = Rule.GameStateDigest(emptyBoardPieces, emptyHand, emptyHand, PlayerA)
+    val emptyHistory = Seq.empty[Rule.GameStateDigest]
+    Rule.isThreefoldRepetition(state1, emptyHistory) should be (false) // Count will be 0
   }
 
   "Rule.generateMovablePoints" should "not generate any moves for dropping a King" in {

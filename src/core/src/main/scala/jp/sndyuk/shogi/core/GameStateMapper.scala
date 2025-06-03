@@ -59,18 +59,16 @@ object GameStateMapper {
   }
 
   // --- Point <-> Position Mappings ---
-  def corePointToPosition(corePoint: Point): Position = {
-    // Core Point(y,x) from core.Point
-    // GameState Position(x,y) from GameState.Position
-    // Position.x = corePoint.x (File) and Position.y = corePoint.y (Rank)
-    Position(corePoint.x, corePoint.y)
+  def positionToCorePoint(position: Position): Point = {
+    // GameState.Position(x: Int, y: Int) with x=file (1-9), y=rank (1-9 for a-i)
+    // core.Point(y: Int, x: Int) with y = rank_idx (0-8 for a-i), x = file_idx (0-8 for USI 9-1)
+    Point(y = position.y - 1, x = 9 - position.x)
   }
 
-  def positionToCorePoint(position: Position): Point = {
-    // Position(x,y) -> file_0idx_rtl, rank_0idx_ttb
-    // Core Point(y,x) -> rank_0idx_ttb, file_0idx_rtl
-    // So, Point.y = position.y (Rank) and Point.x = position.x (File)
-    Point(position.y, position.x)
+  def corePointToPosition(corePoint: Point): Position = {
+    // core.Point(y: Int, x: Int) with y = rank_idx (0-8 for a-i), x = file_idx (0-8 for USI 9-1)
+    // GameState.Position(x: Int, y: Int) with x=file (1-9), y=rank (1-9 for a-i)
+    Position(x = 9 - corePoint.x, y = corePoint.y + 1)
   }
 
   // --- Board Setup Mappings ---
@@ -166,11 +164,11 @@ object GameStateMapper {
 
   def coreTransitionToSimpleTransition(
     coreTransition: Transition,
-    boardBeforeMove: Board,
+    boardBeforeMobe: Board,
     boardAfterMove: Board
   ): SimpleTransition = {
     SimpleTransition(
-      move = coreTransitionToMoveString(coreTransition, boardBeforeMove),
+      move = coreTransitionToMoveString(coreTransition, boardBeforeMobe),
       boardStateAfterMove = coreBoardToBoardSetup(boardAfterMove)
     )
   }

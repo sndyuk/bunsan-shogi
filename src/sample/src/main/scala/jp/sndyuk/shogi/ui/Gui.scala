@@ -42,11 +42,14 @@ import jp.sndyuk.shogi.player.Player
 import jp.sndyuk.shogi.player.Utils
 import jp.sndyuk.shogi.ai.AlphaBetaAI_V1
 
+// Import alias for CoreBoard at the top
+import jp.sndyuk.shogi.core.{Board => CoreBoard}
 // NEW IMPORTS for GameStateMapper and ShogiGameService
 import jp.sndyuk.shogi.core.GameStateMapper
 import jp.sndyuk.shogi.core.ShogiGameService
 import jp.sndyuk.shogi.kifu.KifuMapper // NEW Import for KifuMapper
-import jp.sndyuk.shogi.kifu.CSAExporter.{TempCore => KifuTempCore} // Re-added
+// Corrected import for KifuTempCore
+import jp.sndyuk.shogi.kifu.{TempCore => KifuTempCore}
 
 
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])
@@ -91,7 +94,7 @@ object Gui extends SimpleSwingApplication with Shogi {
 
   val fontOfPiece = new Font("Osaka", Font.PLAIN, textSize)
 
-  var board = CoreBoard() // Changed val to var, and used CoreBoard alias
+  var board = CoreBoard() // This should now use the alias defined at the top
 
   val commandReader = new CommandReader {
 
@@ -246,11 +249,13 @@ object Gui extends SimpleSwingApplication with Shogi {
   import jp.sndyuk.shogi.kifu.{CSAExporter, KI2Exporter}
   // Kifu exporters currently use their own TempCore, we need to map to that.
   // Ideally, exporters would use jp.sndyuk.shogi.core types directly or a shared Kifu model.
-  import jp.sndyuk.shogi.kifu.CSAExporter.{TempCore => KifuTempCore}
+  // This import is already corrected/covered by the one at the top of the file.
+  // import jp.sndyuk.shogi.kifu.{TempCore => KifuTempCore} // Corrected path
 
   // Core types from the game logic
+  // The CoreBoard alias is moved to the top. Other specific aliases can remain if used locally.
   import jp.sndyuk.shogi.core.{
-    Board => CoreBoard,
+    // Board => CoreBoard, // Alias moved to top
     Piece => CorePiece,
     Point => CorePoint,
     State => CoreState,

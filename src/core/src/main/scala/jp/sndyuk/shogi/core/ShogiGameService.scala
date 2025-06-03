@@ -27,7 +27,7 @@ class ShogiGameService {
   var aiSearchDepth: Int = 3
   // Store the initial setup parameters to aid history replay
   private var initialGameFirstPlayer: Player = Player.SENTE
-  private var initialGameSetup: Option[Map[Position, (SimplePieceType, Player, Boolean)]] = None
+  private var initialGameSetup: Option[Map[String, PieceInfo]] = None // Updated type
   private var initialGameSenteCaptured: List[SimplePieceType] = Nil
   private var initialGameGoteCaptured: List[SimplePieceType] = Nil
 
@@ -36,7 +36,7 @@ class ShogiGameService {
   startNewGame(gameMode = "hvh", aiType = "v2", aiSearchDepth = 3)
 
   def startNewGame(
-    initialBoardSetup: Option[Map[Position, (SimplePieceType, Player, Boolean)]] = None,
+    initialBoardSetup: Option[Map[String, PieceInfo]] = None, // Updated type
     initialSenteCaptured: List[SimplePieceType] = Nil,
     initialGoteCaptured: List[SimplePieceType] = Nil,
     firstPlayer: Player = Player.SENTE,

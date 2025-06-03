@@ -101,3 +101,33 @@ body {
     cursor: pointer;
     margin-top: 20px;
 }
+
+/* Player piece styling */
+.gote-piece {
+    transform: rotate(180deg); /* Flips Gote's pieces */
+}
+
+/* Promoted piece styling */
+.promoted-piece {
+    color: red; /* Example: Make promoted pieces red */
+    /* Add other distinct styling, e.g., a border or background change if desired */
+    /* font-weight: bold; */ /* Another option */
+}
+
+/* Ensure selected pieces are still clearly visible if color changes */
+.board-cell.selected {
+    background-color: #a0e9e5; /* Existing selection color */
+}
+
+.board-cell.valid-move {
+    background-color: #d4f0dd; /* Existing valid move color */
+}
+
+/* If promoted pieces are red, selected promoted piece should still show selection */
+.promoted-piece.selected {
+    /* color: red; /* Ensure it stays red */
+    /* background-color: #a0e9e5; /* And also shows selection */
+    /* No specific override needed if base .selected and .promoted-piece styles don't conflict badly.
+       If .selected changes text color, then we might need to re-assert red for promoted.
+       Current .selected only changes background, so it should be fine. */
+}

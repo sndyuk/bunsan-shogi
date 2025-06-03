@@ -9,7 +9,10 @@ import Piece.△
 
 class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
-  "A piece" should "move to a point" in {
+  // Note: Points like (9,2) are used in some tests below to refer to specific types/slots of pieces in hand,
+  // likely based on an internal convention within the Board class for representing captured pieces.
+
+  "Sente Pawn at 1,7" should "move one step forward to 1,6 on an empty board state" in {
 
     val state = State(Nil, PlayerA)
     val oldPos = Board.humanReadableToPoint(1, 7)
@@ -20,7 +23,7 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     result shouldBe State(List(Transition(oldPos, newPos, false, None)), PlayerB)
   }
 
-  "A piece" should "not move to a point" in {
+  "Sente Pawn at 1,7" should "not be able to move two steps forward to 1,5 on an empty board state" in {
 
     val state = State(Nil, PlayerA)
     val oldPos = Board.humanReadableToPoint(1, 7)
@@ -31,6 +34,7 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     result shouldBe None
   }
 
+  // Helper to create a history of Sente pawn moving 17->16->15->14 and Gote pawn 93->94->95->96
   private def move17FUTo14FU_93FUTo96FU = {
     List(
       Transition(Board.humanReadableToPoint(1, 7), Board.humanReadableToPoint(1, 6), false, None),
@@ -41,7 +45,7 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
       Transition(Board.humanReadableToPoint(9, 5), Board.humanReadableToPoint(9, 6), false, None)).reverse
   }
 
-  "A piece" should "be promoted" in {
+  "Sente Pawn at 1,4" should "be promoted when moving to 1,3 after a sequence of moves" in {
 
     val transtions = move17FUTo14FU_93FUTo96FU
     val state = State(transtions, PlayerA)
@@ -53,7 +57,7 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     result shouldBe State(Transition(oldPos, newPos, true, Some(△.FU)) :: transtions, PlayerB)
   }
 
-  "A piece" should "not be promoted" in {
+  "Sente Pawn at 1,7" should "not be allowed to promote when moving to 1,6 (move becomes invalid)" in {
 
     val state = State(Nil, PlayerA)
     val oldPos = Board.humanReadableToPoint(1, 7)
@@ -64,7 +68,7 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     result shouldBe None
   }
 
-  "A piece" should "capture an player B's piece" in {
+  "Sente's promoted Pawn capturing at 1,3" should "add a FU to Sente's hand" in {
 
     val transtions = move17FUTo14FU_93FUTo96FU
     val state = State(transtions, PlayerA)
@@ -80,13 +84,14 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     result shouldBe ▲.FU
   }
 
+  // Helper extending move17FUTo14FU_93FUTo96FU with Sente promoting and moving 14->13(promote)->12, and Gote moving 96->97
   private def move17FUTo12TO_93FUTo97FU = {
     List(Transition(Board.humanReadableToPoint(1, 4), Board.humanReadableToPoint(1, 3), true, None),
       Transition(Board.humanReadableToPoint(9, 6), Board.humanReadableToPoint(9, 7), false, None),
       Transition(Board.humanReadableToPoint(1, 3), Board.humanReadableToPoint(1, 2), false, None)).reverse ::: move17FUTo14FU_93FUTo96FU
   }
 
-  "Player B" should "put a captured piece" in {
+  "Player B" should "be able to drop a captured FU from hand to 1,3" in {
 
     val transtions = move17FUTo12TO_93FUTo97FU
     val state = State(transtions, PlayerB)
@@ -102,7 +107,7 @@ class BoardSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     capturedPiece shouldBe None
   }
 
-  "Player B" should "not put a captured piece becase of 2 FU" in {
+  "Player B" should "get an IllegalStateException when attempting to drop a FU that results in Nifu" in {
 
     val transtions = move17FUTo12TO_93FUTo97FU
     val state = State(transtions, PlayerB)

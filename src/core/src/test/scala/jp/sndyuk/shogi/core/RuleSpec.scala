@@ -50,243 +50,48 @@ class RuleSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   // --- Tests for Rule.movableScopes ---
 
-  "▲.FU (Sente Pawn)" should "have correct movable scopes" in {
-    val piece = ▲.FU
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List((-1, 0, false))
-  }
+  val movableScopesTestData = List(
+    // Sente Pieces
+    (▲.FU, "▲.FU (Sente Pawn)", List((-1, 0, false))),
+    (▲.KY, "▲.KY (Sente Lance)", List((-1, 0, Rule.∞))),
+    (▲.KE, "▲.KE (Sente Knight)", List((-2, -1, false), (-2, 1, false))),
+    (▲.GI, "▲.GI (Sente Silver)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (1, -1, false), (1, 1, false))),
+    (▲.KI, "▲.KI (Sente Gold)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false))),
+    (▲.KA, "▲.KA (Sente Bishop)", List((-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞))),
+    (▲.HI, "▲.HI (Sente Rook)", List((-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞))),
+    (▲.OU, "▲.OU (Sente King)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false), (1, -1, false), (1, 1, false))),
+    // Promoted Sente Pieces
+    (▲.TO, "▲.TO (Promoted Sente Pawn)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false))),
+    (▲.NY, "▲.NY (Promoted Sente Lance)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false))),
+    (▲.NK, "▲.NK (Promoted Sente Knight)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false))),
+    (▲.NG, "▲.NG (Promoted Sente Silver)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false))),
+    (▲.UM, "▲.UM (Promoted Sente Bishop)", List((-1, 0, false), (-1, 1, false), (0, 1, false), (1, 1, false), (1, 0, false), (1, -1, false), (0, -1, false), (-1, -1, false), (-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞))),
+    (▲.RY, "▲.RY (Promoted Sente Rook)", List((-1, 0, false), (-1, 1, false), (0, 1, false), (1, 1, false), (1, 0, false), (1, -1, false), (0, -1, false), (-1, -1, false), (-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞))),
+    // Gote Pieces
+    (△.FU, "△.FU (Gote Pawn)", List((1, 0, false))),
+    (△.KY, "△.KY (Gote Lance)", List((1, 0, Rule.∞))),
+    (△.KE, "△.KE (Gote Knight)", List((2, -1, false), (2, 1, false))),
+    (△.GI, "△.GI (Gote Silver)", List((1, 0, false), (1, -1, false), (1, 1, false), (-1, -1, false), (-1, 1, false))),
+    (△.KI, "△.KI (Gote Gold)", List((1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false))),
+    (△.KA, "△.KA (Gote Bishop)", List((-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞))),
+    (△.HI, "△.HI (Gote Rook)", List((-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞))),
+    (△.OU, "△.OU (Gote King)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false), (1, -1, false), (1, 1, false))),
+    // Promoted Gote Pieces
+    (△.TO, "△.TO (Promoted Gote Pawn)", List((1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false))),
+    (△.NY, "△.NY (Promoted Gote Lance)", List((1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false))),
+    (△.NK, "△.NK (Promoted Gote Knight)", List((1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false))),
+    (△.NG, "△.NG (Promoted Gote Silver)", List((1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false))),
+    (△.UM, "△.UM (Promoted Gote Bishop)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false), (1, -1, false), (1, 1, false), (-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞))),
+    (△.RY, "△.RY (Promoted Gote Rook)", List((-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false), (1, -1, false), (1, 1, false), (-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞)))
+  )
 
-  "▲.KY (Sente Lance)" should "have correct movable scopes" in {
-    val piece = ▲.KY
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List((-1, 0, Rule.∞))
-  }
-
-  "▲.KE (Sente Knight)" should "have correct movable scopes" in {
-    val piece = ▲.KE
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List((-2, -1, false), (-2, 1, false))
-  }
-
-  "▲.GI (Sente Silver)" should "have correct movable scopes" in {
-    val piece = ▲.GI
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (1, -1, false), (1, 1, false)
-    )
-  }
-
-  "▲.KI (Sente Gold)" should "have correct movable scopes" in {
-    val piece = ▲.KI
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false)
-    )
-  }
-
-  "▲.KA (Sente Bishop)" should "have correct movable scopes" in {
-    val piece = ▲.KA
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞)
-    )
-  }
-
-  "▲.HI (Sente Rook)" should "have correct movable scopes" in {
-    val piece = ▲.HI
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞)
-    )
-  }
-
-  "▲.OU (Sente King)" should "have correct movable scopes" in {
-    val piece = ▲.OU
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false),
-      (0, -1, false), (0, 1, false),
-      (1, 0, false), (1, -1, false), (1, 1, false)
-    )
-  }
-
-  // Promoted Sente Pieces
-  "▲.TO (Promoted Sente Pawn)" should "have correct movable scopes (same as Gold)" in {
-    val piece = ▲.TO
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false)
-    )
-  }
-
-  "▲.NY (Promoted Sente Lance)" should "have correct movable scopes (same as Gold)" in {
-    val piece = ▲.NY
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false)
-    )
-  }
-
-  "▲.NK (Promoted Sente Knight)" should "have correct movable scopes (same as Gold)" in {
-    val piece = ▲.NK
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false)
-    )
-  }
-
-  "▲.NG (Promoted Sente Silver)" should "have correct movable scopes (same as Gold)" in {
-    val piece = ▲.NG
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false), (1, 0, false)
-    )
-  }
-
-  "▲.UM (Promoted Sente Bishop)" should "have correct movable scopes" in {
-    val piece = ▲.UM
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      // King moves (from ▲.OU)
-      (-1, 0, false), (-1, 1, false), (0, 1, false), (1, 1, false),
-      (1, 0, false), (1, -1, false), (0, -1, false), (-1, -1, false),
-      // Bishop moves (from ▲.KA)
-      (-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞)
-    )
-  }
-
-  "▲.RY (Promoted Sente Rook)" should "have correct movable scopes" in {
-    val piece = ▲.RY
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      // King moves (from ▲.OU)
-      (-1, 0, false), (-1, 1, false), (0, 1, false), (1, 1, false),
-      (1, 0, false), (1, -1, false), (0, -1, false), (-1, -1, false),
-      // Rook moves (from ▲.HI)
-      (-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞)
-    )
-  }
-
-  // --- Tests for Gote Rule.movableScopes ---
-
-  "△.FU (Gote Pawn)" should "have correct movable scopes" in {
-    val piece = △.FU
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List((1, 0, false))
-  }
-
-  "△.KY (Gote Lance)" should "have correct movable scopes" in {
-    val piece = △.KY
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List((1, 0, Rule.∞))
-  }
-
-  "△.KE (Gote Knight)" should "have correct movable scopes" in {
-    val piece = △.KE
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List((2, -1, false), (2, 1, false))
-  }
-
-  "△.GI (Gote Silver)" should "have correct movable scopes" in {
-    val piece = △.GI
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (1, 0, false), (1, -1, false), (1, 1, false), (-1, -1, false), (-1, 1, false)
-    )
-  }
-
-  "△.KI (Gote Gold)" should "have correct movable scopes" in {
-    val piece = △.KI
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false)
-    )
-  }
-
-  "△.KA (Gote Bishop)" should "have correct movable scopes" in {
-    val piece = △.KA
-    val scopes = Rule.movableScopes(piece)
-    // Note: Bishop moves are symmetrical for Sente and Gote in terms of deltas
-    scopes should contain theSameElementsAs List(
-      (-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞)
-    )
-  }
-
-  "△.HI (Gote Rook)" should "have correct movable scopes" in {
-    val piece = △.HI
-    val scopes = Rule.movableScopes(piece)
-    // Note: Rook moves are symmetrical for Sente and Gote in terms of deltas
-    scopes should contain theSameElementsAs List(
-      (-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞)
-    )
-  }
-
-  "△.OU (Gote King)" should "have correct movable scopes" in {
-    val piece = △.OU
-    val scopes = Rule.movableScopes(piece)
-    // Note: King moves are symmetrical
-    scopes should contain theSameElementsAs List(
-      (-1, 0, false), (-1, -1, false), (-1, 1, false),
-      (0, -1, false), (0, 1, false),
-      (1, 0, false), (1, -1, false), (1, 1, false)
-    )
-  }
-
-  // Promoted Gote Pieces
-  "△.TO (Promoted Gote Pawn)" should "have correct movable scopes (same as Gote Gold)" in {
-    val piece = △.TO
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false)
-    )
-  }
-
-  "△.NY (Promoted Gote Lance)" should "have correct movable scopes (same as Gote Gold)" in {
-    val piece = △.NY
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false)
-    )
-  }
-
-  "△.NK (Promoted Gote Knight)" should "have correct movable scopes (same as Gote Gold)" in {
-    val piece = △.NK
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false)
-    )
-  }
-
-  "△.NG (Promoted Gote Silver)" should "have correct movable scopes (same as Gote Gold)" in {
-    val piece = △.NG
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      (1, 0, false), (1, -1, false), (1, 1, false), (0, -1, false), (0, 1, false), (-1, 0, false)
-    )
-  }
-
-  "△.UM (Promoted Gote Bishop)" should "have correct movable scopes" in {
-    val piece = △.UM
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      // King moves (from △.OU)
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false),
-      (1, 0, false), (1, -1, false), (1, 1, false),
-      // Bishop moves (from △.KA)
-      (-1, -1, Rule.∞), (-1, 1, Rule.∞), (1, -1, Rule.∞), (1, 1, Rule.∞)
-    )
-  }
-
-  "△.RY (Promoted Gote Rook)" should "have correct movable scopes" in {
-    val piece = △.RY
-    val scopes = Rule.movableScopes(piece)
-    scopes should contain theSameElementsAs List(
-      // King moves (from △.OU)
-      (-1, 0, false), (-1, -1, false), (-1, 1, false), (0, -1, false), (0, 1, false),
-      (1, 0, false), (1, -1, false), (1, 1, false),
-      // Rook moves (from △.HI)
-      (-1, 0, Rule.∞), (1, 0, Rule.∞), (0, -1, Rule.∞), (0, 1, Rule.∞)
-    )
+  "Rule.movableScopes" should "return correct scopes for all piece types" in {
+    movableScopesTestData.foreach { case (piece, pieceName, expectedScopes) =>
+      withClue(s"For piece $pieceName:") {
+        val scopes = Rule.movableScopes(piece)
+        scopes should contain theSameElementsAs expectedScopes
+      }
+    }
   }
 
   // --- Helper for custom board setups ---

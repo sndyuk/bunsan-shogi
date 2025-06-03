@@ -44,10 +44,10 @@ object Position {
   implicit val positionMapKeyWrites: KeyWrites[Position] = (pos: Position) => s"${pos.x},${pos.y}"
 }
 
-// Minimal Piece enum (example pieces)
+// Updated Shogi-specific Piece enum
 object SimplePiece extends Enumeration {
   type SimplePieceType = Value
-  val KING, ROOK, BISHOP, GOLD, SILVER, KNIGHT, LANCE, PAWN = Value
+  val FU, KY, KE, GI, KI, KA, HI, OU = Value // Shogi pieces
 
   implicit val pieceFormat: Format[SimplePieceType] = new Format[SimplePieceType] {
     def reads(json: JsValue): JsResult[SimplePieceType] = json.validate[String].flatMap { s =>

@@ -42,6 +42,13 @@ import jp.sndyuk.shogi.player.Player
 import jp.sndyuk.shogi.player.Utils
 import jp.sndyuk.shogi.ai.AlphaBetaAI_V1
 
+// NEW IMPORTS for GameStateMapper and ShogiGameService
+import jp.sndyuk.shogi.core.GameStateMapper
+import jp.sndyuk.shogi.core.ShogiGameService
+import jp.sndyuk.shogi.kifu.KifuMapper // NEW Import for KifuMapper
+import jp.sndyuk.shogi.kifu.CSAExporter.{TempCore => KifuTempCore} // Re-added
+
+
 case class BoardView(blocks: Seq[Block], piecesOfPlayerA: List[Block], piecesOfPlayerB: List[Block])
 
 abstract class BoardPanel extends GridPanel(9, 9) {
@@ -49,6 +56,9 @@ abstract class BoardPanel extends GridPanel(9, 9) {
 }
 
 object Gui extends SimpleSwingApplication with Shogi {
+
+  // NEW: ShogiGameService instance
+  val shogiGameService = new ShogiGameService()
 
   private var boardLatch = new CountDownLatch(1)
 
@@ -81,7 +91,7 @@ object Gui extends SimpleSwingApplication with Shogi {
 
   val fontOfPiece = new Font("Osaka", Font.PLAIN, textSize)
 
-  val board = Board()
+  var board = CoreBoard() // Changed val to var, and used CoreBoard alias
 
   val commandReader = new CommandReader {
 
@@ -252,168 +262,11 @@ object Gui extends SimpleSwingApplication with Shogi {
   import scala.util.{Try, Success, Failure}
   import java.io.{File, PrintWriter, FileWriter} // For file writing in export
 
+  // Local mapping functions are removed as per refactoring plan. GameStateMapper will be used.
+  // --- End of removed local mapping functions for save/load ---
 
-  // --- Mapping Functions ---
-
-  // Core Turn (PlayerA/PlayerB) to SavedPlayer (SENTE/GOTE enum for JSON)
-  private def coreTurnToSavedPlayer(turn: CoreTurn): SavedPlayer.Value = turn match {
-    case PlayerA => SavedPlayer.SENTE
-    case PlayerB => SavedPlayer.GOTE
-  }
-
-  // Core Point (y,x) to SavedPosition (x,y for JSON)
-  private def corePointToSavedPosition(p: CorePoint): SavedPosition = SavedPosition(p.x, p.y)
-
-  // Core Piece (Int with flags) to SavedPieceEnum (generic piece type for JSON)
-  // This is lossy as player and promotion info are stripped for the SavedPieceEnum.
-  private def corePieceToSavedPieceEnum(cp: CorePiece): SavedPieceEnum.Value = {
-    import jp.sndyuk.shogi.core.Piece._ // Access to ▲, △, ◯ objects
-    generalize(cp) match { // generalize removes player info, then map to SavedPieceEnum
-      case ◯.OU => SavedPieceEnum.KING
-      case ◯.FU => SavedPieceEnum.PAWN
-      case ◯.KY => SavedPieceEnum.LANCE
-      case ◯.KE => SavedPieceEnum.KNIGHT
-      case ◯.GI => SavedPieceEnum.SILVER
-      case ◯.KI => SavedPieceEnum.GOLD
-      case ◯.KA => SavedPieceEnum.BISHOP
-      case ◯.HI => SavedPieceEnum.ROOK
-      // Promoted pieces in core map to their base types in SavedPieceEnum
-      // (e.g., TO, NG, RY, UM, NK, NY also map to PAWN, SILVER, ROOK, BISHOP, KNIGHT, LANCE)
-      // This detail depends on how `generalize` and `◯` types are defined.
-      // Assuming generalize(▲.TO) would be something like ◯.FU.
-      case _ => throw new IllegalArgumentException(s"Unknown core piece for SavedPieceEnum: $cp")
-    }
-  }
-
-  // Gui.board (CoreBoard) to Map[SavedPosition, SavedPieceEnum] for GameState.boardSetup
-  private def coreBoardToSavedBoardSetup(board: CoreBoard): Map[SavedPosition, SavedPieceEnum] = {
-    board.allBlocks.filter(_.piece != jp.sndyuk.shogi.core.Piece.❏).map { block =>
-      corePointToSavedPosition(block.point) -> corePieceToSavedPieceEnum(block.piece)
-    }.toMap
-  }
-
-  // Get captured pieces for a player as List[SavedPieceEnum]
-  private def getCapturedPieces(board: CoreBoard, turn: CoreTurn): List[SavedPieceEnum.Value] = {
-    board.capturedPieces.allPieceKinds(turn).flatMap { block =>
-      // allPieceKinds gives Block(CorePoint, CorePiece). CorePoint is special for captured.
-      // We need to know how many of each.
-      val pieceEnum = corePieceToSavedPieceEnum(block.piece)
-      val count = board.capturedPieces.count(turn, jp.sndyuk.shogi.core.Piece.generalize(block.piece))
-      List.fill(count)(pieceEnum)
-    }.toList
-  }
-
-  // CoreTransition to SavedTransition (for GameState.gameHistory)
-  // This is highly problematic due to SavedTransition's design.
-  private def coreTransitionToSavedTransition(ct: CoreTransition, boardAfterMove: CoreBoard): SavedTransition = {
-    // SavedTransition requires (move: String, boardStateAfterMove: Map[SavedPosition, SavedPieceEnum])
-    // The 'move' string is simple, but 'boardStateAfterMove' is an issue.
-    // Storing full board state per move in JSON is inefficient and not what core.Transition provides.
-    // For now, we'll use the provided boardAfterMove, which should be the state of the board *after* ct was applied.
-    SavedTransition(
-      move = s"${ct.oldPos.toString} -> ${ct.newPos.toString}${if (ct.nari) " 成" else ""}", // Example string
-      boardStateAfterMove = coreBoardToSavedBoardSetup(boardAfterMove) // This makes gameHistory very large
-    )
-  }
-
-  // TODO: Mappings for Kifu Exporters (Core types to KifuTempCore types)
-  // --- Mappings for Kifu Exporters ---
-
-  private def coreTurnToKifuPlayer(turn: CoreTurn): KifuTempCore.Player = turn match {
-    case PlayerA => KifuTempCore.SENTE
-    case PlayerB => KifuTempCore.GOTE
-  }
-
-  private def corePointToKifuPosition(p: CorePoint): KifuTempCore.Position = {
-    // KifuTempCore.Position(x, y) expects 1-indexed shogi board coordinates.
-    // CorePoint(y, x) is 0-indexed array coords.
-    // Shogi: x is 1-9 (right to left), y is 1-9 (top to bottom)
-    // CorePoint: x is 0-8 (left to right), y is 0-8 (top to bottom)
-    // KifuTempCore.Position(x,y) in CSAExporter was stringified as x.toString + y.toString
-    // For CSA: 11 is top-right (9,1 in shogi), 99 is bottom-left (1,9 in shogi)
-    // Let's assume KifuTempCore.Position also follows this (x=file, y=rank)
-    KifuTempCore.Position(9 - p.x, p.y + 1)
-  }
-
-  private def corePieceToKifuPiece(cp: CorePiece): KifuTempCore.Piece = {
-    import jp.sndyuk.shogi.core.Piece._
-    val isGote = △(cp)
-    val basePiece = generalize(cp) // Removes player and promotion information initially
-
-    // Map base piece to KifuTempCore piece (which has promoted versions)
-    // This relies on KifuTempCore.promote helper if we pass base piece + promote flag to KifuTempCore.Move
-    // Or, we map directly to promoted KifuTempCore pieces here.
-    // The KifuTempCore.Move constructor takes (player, from, to, piece, promote, isDrop)
-    // So, we should provide the base piece type and the promote flag.
-
-    basePiece match {
-      case ◯.OU => KifuTempCore.OU
-      case ◯.FU => KifuTempCore.FU
-      case ◯.KY => KifuTempCore.KY
-      case ◯.KE => KifuTempCore.KE
-      case ◯.GI => KifuTempCore.GI
-      case ◯.KI => KifuTempCore.KI
-      case ◯.KA => KifuTempCore.KA
-      case ◯.HI => KifuTempCore.HI
-      case _ => throw new IllegalArgumentException(s"Unknown core piece for Kifu: $cp")
-    }
-  }
-
-  private def coreTransitionToKifuMove(ct: CoreTransition, playerWhoseMoveItWas: CoreTurn): KifuTempCore.Move = {
-    import jp.sndyuk.shogi.core.Piece._
-
-    val fromPosOpt = if (CorePoint.isCaptured(ct.oldPos)) { // Is it a drop?
-      None // For drops, 'from' is None in KifuTempCore.Move
-    } else {
-      Some(corePointToKifuPosition(ct.oldPos))
-    }
-
-    val toPos = corePointToKifuPosition(ct.newPos)
-
-    // Determine the piece that moved/was dropped.
-    // If drop: oldPos encodes the piece type. Example: Point(9,2) for FU for PlayerA.
-    // If move: need to know what piece was at oldPos *before* the move.
-    // This information is not directly in CoreTransition if the board state before move is not passed.
-    // However, for kifu, we need the piece type *as it was on oldPos*.
-    // This requires looking up the piece on the board *before* this transition.
-    // This is a problem if we only have the list of transitions.
-    // Let's assume for now that ct.captured contains the piece that was captured AT newPos.
-    // The piece that MOVED is not in CoreTransition. This is a BIG GAP.
-    // Kifu needs the piece that MOVED. E.g. "+7776FU". FU is the piece at 77.
-    // The current Gui.board.squares.get(ct.newPos) gives piece *after* move.
-    // Workaround: We need to reconstruct the piece that moved.
-    // If ct.nari is true, then the piece at newPos is the promoted form. We need its base form.
-    // If it was a drop, oldPos tells us the piece.
-
-    val movedPieceCore: CorePiece = if (CorePoint.isCaptured(ct.oldPos)) {
-      // It's a drop. oldPos.x determines the piece type for PlayerA's perspective
-      // Point.ofCaptured maps general piece type (like ◯.FU) to a Point(9,x).
-      // We need to reverse this.
-      // Gui.this.board.capturedPieces.pointToPiece(ct.oldPos, playerWhoseMoveItWas) might work if ct.oldPos is that special point.
-      // Let's assume ct.oldPos for a drop is like Point(9, piece_code_for_player_A_perspective)
-      // Example: if playerWhoseMoveItWas is PlayerA, ct.oldPos.x = 2 means FU.
-      // If playerWhoseMoveItWas is PlayerB, ct.oldPos.x = 2 (still FU) needs to be △.FU.
-      // This is complex because ct.oldPos is just a point.
-      // A simpler way: The piece that lands on newPos IS the dropped piece.
-      Gui.this.board.squares.get(ct.newPos) // This is piece after move. For drop, this is the piece.
-    } else {
-      // It's a move from board. The piece at newPos, potentially un-promoted if ct.nari is true.
-      val pieceAtNewPos = Gui.this.board.squares.get(ct.newPos)
-      if (ct.nari) reverseIfPromoted(pieceAtNewPos) else pieceAtNewPos
-    }
-
-    val kifuPiece = corePieceToKifuPiece(movedPieceCore) // Base form
-    val kifuPlayer = coreTurnToKifuPlayer(playerWhoseMoveItWas)
-
-    KifuTempCore.Move(
-      player = kifuPlayer,
-      from = fromPosOpt,
-      to = toPos,
-      piece = kifuPiece,
-      promote = ct.nari,
-      isDrop = CorePoint.isCaptured(ct.oldPos)
-    )
-  }
+  // Kifu related local mapping functions will also be removed and KifuMapper used.
+  // --- End of removed local Kifu mapping functions ---
 
 
   override def top = new MainFrame {
@@ -455,35 +308,62 @@ object Gui extends SimpleSwingApplication with Shogi {
     if (fileChooser.showSaveDialog(boardPanel.peer) == FileChooser.Result.Approve) {
       val file = fileChooser.selectedFile
 
-      // Need to reconstruct board states for each step in history for SavedTransition
-      // This is very inefficient if not done carefully.
-      // For simplicity, GameState's SavedTransition stores board state *after* the move.
-      // We can iterate through history, apply moves to a temp board, and capture state.
-      var tempBoardForHistory = CoreBoard() // Initial board
-      val savedHistory = currState.history.reverse.map { coreTrans => // history is in reverse chronological
-        // Simulate move on tempBoard to get board state *after* this coreTrans
-        val playerForThisMove = if (tempBoardForHistory.squares.id() == Gui.this.board.squares.id()) currState.turn.change else currState.turn // This logic is tricky
-        // This is still not quite right. The turn for a history move is fixed.
-        // If history has N moves, first move is by Sente, second by Gote etc.
-        // We need to know who made coreTrans. Let's assume PlayerA (Sente) starts.
-        // The player for the i-th move (0-indexed) is PlayerA if i is even, PlayerB if i is odd.
-        // This requires knowing the index of coreTrans in the original sequence.
-        // This is getting overly complex due to SavedTransition's requirements.
-        // A simpler SavedTransition (e.g. just the move details) would be better.
-        // Given the current structure, we'll use the Gui.this.board for all boardStateAfterMove, which is wrong.
-        // THIS WILL BE A KNOWN BUG / LIMITATION due to SavedTransition structure.
-        // A correct way would be:
-        // val boardAfterThisTrans = CoreBoard(); state.history.take(indexOf(coreTrans)+1).reverse.foreach(m => boardAfterThisTrans.move(...))
-        // For now, using current board as a placeholder for boardStateAfterMove for all history items.
-        coreTransitionToSavedTransition(coreTrans, Gui.this.board)
-      }.toList.reverse // maintain original chronological order for saving
+      // History Mapping (adapted from ShogiGameService.getGameState)
+      val gameHistoryMapped: List[SavedSimpleTransition] = {
+        if (currState.history.isEmpty) {
+          Nil
+        } else {
+          // Determine initial board state for history replay.
+          // This is complex. For now, assume standard CoreBoard() was the start.
+          // This will be incorrect if the game was loaded from a custom state.
+          var tempBoard = CoreBoard()
+
+          // Determine the starting player of the game based on current state and history length
+          val gameStartingTurn = if (currState.history.length % 2 == 0) {
+            currState.turn
+          } else {
+            currState.turn.change
+          }
+
+          currState.history.reverse.zipWithIndex.map { case (coreTrans, index) =>
+            val boardBeforeThisMove = tempBoard.copy()
+            val playerForThisTransition = if (index % 2 == 0) gameStartingTurn else gameStartingTurn.change
+
+            val dummyStateForHistoryMove = CoreState(Nil, playerForThisTransition)
+            tempBoard.move(dummyStateForHistoryMove, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
+            // tempBoard is now boardAfterThisMove
+
+            GameStateMapper.coreTransitionToSimpleTransition(coreTrans, boardBeforeThisMove, tempBoard)
+          }.toList // Already in chronological order due to .reverse.map
+        }
+      }
+
+      val capturedSente = Piece.◯.all.flatMap { generalizedPiece =>
+        val count = Gui.this.board.capturedPieces.count(PlayerA, generalizedPiece)
+        List.fill(count)(
+          GameStateMapper.corePieceToSimplePieceTypeAndPlayer(generalizedPiece) match {
+            case Some((spt, _, _)) => spt
+            case None => throw new IllegalStateException(s"Cannot map core captured piece $generalizedPiece")
+          }
+        )
+      }.toList
+
+      val capturedGote = Piece.◯.all.flatMap { generalizedPiece =>
+        val count = Gui.this.board.capturedPieces.count(PlayerB, generalizedPiece)
+        List.fill(count)(
+          GameStateMapper.corePieceToSimplePieceTypeAndPlayer(generalizedPiece) match {
+            case Some((spt, _, _)) => spt
+            case None => throw new IllegalStateException(s"Cannot map core captured piece $generalizedPiece")
+          }
+        )
+      }.toList
 
       val gameStateToSave = SavedGameState(
-        boardSetup = coreBoardToSavedBoardSetup(Gui.this.board),
-        currentTurn = coreTurnToSavedPlayer(currState.turn),
-        capturedPiecesPlayer1 = getCapturedPieces(Gui.this.board, PlayerA),
-        capturedPiecesPlayer2 = getCapturedPieces(Gui.this.board, PlayerB),
-        gameHistory = savedHistory // This is the problematic part
+        boardSetup = GameStateMapper.coreBoardToBoardSetup(Gui.this.board),
+        currentTurn = GameStateMapper.coreTurnToPlayer(currState.turn), // Uses GameStateMapper
+        capturedPiecesPlayer1 = capturedSente,
+        capturedPiecesPlayer2 = capturedGote,
+        gameHistory = gameHistoryMapped
       )
 
       GameSaver.saveToFile(gameStateToSave, file.getAbsolutePath) match {
@@ -500,77 +380,46 @@ object Gui extends SimpleSwingApplication with Shogi {
       val file = fileChooser.selectedFile
       GameSaver.loadFromFile(file.getAbsolutePath) match {
         case Success(loadedGameState) =>
-          // Attempt to reconstruct Gui.this.board and Gui.this.currState from loadedGameState.
-          // WARNING: This is a simplified and potentially very lossy reconstruction due to
-          // the limitations of SavedGameState and SavedTransition.
+          // Prepare data for ShogiGameService.startNewGame
+          val initialBoardSetupForService: Map[SavedPosition, (SavedSimplePieceEnum.Value, SavedPlayerEnum.Value, Boolean)] =
+            loadedGameState.boardSetup.map { case (savedPos, savedPieceEnum) =>
+              // Infer player based on y-coordinate (crude, as per subtask)
+              // SavedPosition is (x,y), where y is 0-8 top to bottom.
+              // Sente typically at higher y-indices (e.g., y=6,7,8 for pawns, king row)
+              val player: SavedPlayerEnum.Value = if (savedPos.y >= 5) SavedPlayerEnum.SENTE else SavedPlayerEnum.GOTE
+              val isPromoted = false // SavedPieceEnum does not store promotion status
+              savedPos -> (savedPieceEnum, player, isPromoted)
+            }
 
-          // 1. Reset board to initial state
-          Gui.this.board.init() // Resets squares and captured pieces
+          // Call ShogiGameService to set its internal state
+          // Note: loadedGameState.currentTurn is SavedPlayerEnum.Value, which matches what ShogiGameService expects for firstPlayer.
+          shogiGameService.startNewGame(
+            initialBoardSetup = Some(initialBoardSetupForService),
+            initialSenteCaptured = loadedGameState.capturedPiecesPlayer1,
+            initialGoteCaptured = loadedGameState.capturedPiecesPlayer2,
+            firstPlayer = loadedGameState.currentTurn
+          )
 
-          // 2. Place pieces on the board from loadedGameState.boardSetup
-          // This is lossy: SavedPieceEnum doesn't have player or promotion.
-          // We infer player based on typical y-coordinate for shogi (Sente at higher y for 0-indexed array).
-          loadedGameState.boardSetup.foreach { case (savedPos, savedPieceEnum) =>
-            val coreY = savedPos.y // SavedPos is (x,y) from top-left, core is (y,x) from top-left
-            val coreX = savedPos.x
-            val player = if (coreY >= 5) PlayerA else PlayerB // Crude Sente/Gote determination
+          // Update Gui's internal board and state from the service's state
+          // This assumes shogiGameService.board and .currentState are accessible (e.g. public val)
+          Gui.this.board = shogiGameService.board.copy()
+          Gui.this.currState = shogiGameService.currentState.copy()
 
-            // Map SavedPieceEnum back to a base CorePiece type for that player
-            val baseCorePiece = savedPieceEnumToCorePiece(savedPieceEnum, player)
-            Gui.this.board.squares <+ (baseCorePiece, CorePoint(coreY, coreX))
-          }
+          // Refresh UI
+          // Determine which HumanPlayer object to pass based on current turn.
+          // The 'player' for afterMove is the one whose turn it *was* or who is active.
+          // After loading, it's start of new currentTurn.
+          val currentPlayerObject = if (Gui.this.currState.turn == PlayerA) Gui.this.playerA else Gui.this.playerB
+          afterMove(currentPlayerObject, null, null)
 
-          // 3. Restore captured pieces
-          loadedGameState.capturedPiecesPlayer1.foreach { savedPieceEnum =>
-            Gui.this.board.capturedPieces.put(savedPieceEnumToCorePiece(savedPieceEnum, PlayerA))
-          }
-          loadedGameState.capturedPiecesPlayer2.foreach { savedPieceEnum =>
-            Gui.this.board.capturedPieces.put(savedPieceEnumToCorePiece(savedPieceEnum, PlayerB))
-          }
-
-          // 4. History Reconstruction (Extremely difficult and not attempted here)
-          // loadedGameState.gameHistory is List[SavedTransition]
-          // Each SavedTransition has a 'move' string and a 'boardStateAfterMove' map.
-          // Parsing 'move' string to CoreTransition is complex.
-          // 'boardStateAfterMove' was also saved problematically.
-          // For now, history will be effectively lost or incorrect.
-          val reconstructedHistory: List[CoreTransition] = Nil // Placeholder
-
-          // 5. Set current turn
-          val newCoreTurn = loadedGameState.currentTurn match {
-            case SavedPlayer.SENTE => PlayerA
-            case SavedPlayer.GOTE  => PlayerB
-          }
-          currState = CoreState(reconstructedHistory, newCoreTurn)
-
-          // 6. Refresh UI
-          afterMove(player, null, null) // `player` here is the HumanPlayer, oldPos/newPos are null as it's a load
-
-          Dialog.showMessage(boardPanel.peer, "Game loaded. WARNING: Reconstruction is partial and may be inaccurate due to save format limitations.", title = "Load Complete")
+          Dialog.showMessage(boardPanel.peer, "Game loaded via ShogiGameService.", title = "Load Complete")
 
         case Failure(e) => Dialog.showMessage(boardPanel.peer, s"Failed to load game: ${e.getMessage}", title = "Load Error", messageType = Dialog.Message.Error)
       }
     }
   }
 
-  // Helper for loadGame: SavedPieceEnum to CorePiece (base form for a player)
-  private def savedPieceEnumToCorePiece(spe: SavedPieceEnum.Value, player: CoreTurn): CorePiece = {
-    import jp.sndyuk.shogi.core.Piece._
-    val baseGeneralized = spe match {
-      case SavedPieceEnum.KING   => ◯.OU
-      case SavedPieceEnum.ROOK   => ◯.HI
-      case SavedPieceEnum.BISHOP => ◯.KA
-      case SavedPieceEnum.GOLD   => ◯.KI
-      case SavedPieceEnum.SILVER => ◯.GI
-      case SavedPieceEnum.KNIGHT => ◯.KE
-      case SavedPieceEnum.LANCE  => ◯.KY
-      case SavedPieceEnum.PAWN   => ◯.FU
-    }
-    // Apply player to the generalized piece
-    if (player == PlayerA) baseGeneralized & ~bitsPlayerBPiece & ~bitsGeneralPiece // Make it Sente
-    else (baseGeneralized & ~bitsGeneralPiece) | bitsPlayerBPiece // Make it Gote
-  }
-
+  // Removed old savedPieceEnumToCorePiece helper function
 
   private def exportKifu(isCSA: Boolean): Unit = {
     if (currState == null || currState.history.isEmpty) {
@@ -583,45 +432,39 @@ object Gui extends SimpleSwingApplication with Shogi {
     if (fileChooser.showSaveDialog(boardPanel.peer) == FileChooser.Result.Approve) {
       val file = fileChooser.selectedFile
 
-      // TODO: Implement mappings from jp.sndyuk.shogi.core types to KifuTempCore types
-      // This involves:
-      // - Mapping CoreBoard to KifuTempCore.Board (mainly for initial setup if not standard)
-      // - Mapping List[CoreTransition] to Seq[KifuTempCore.Transition]
-      //    - Each CoreTransition needs to be converted to KifuTempCore.Move
-      //    - Need to determine player for each move in history.
-      // - Mapping CoreTurn to KifuTempCore.Turn
-      // - Game result (currently passing None)
+      // Determine initial board state for history replay for Kifu export.
+      // Assuming game started from standard CoreBoard() if not loaded otherwise.
+      // This is a simplification; a robust solution would track the true initial state.
+      var tempBoardForKifu = CoreBoard()
 
-      // val kifuBoard: KifuTempCore.Board = ??? // map from Gui.this.board (if needed for non-standard start)
-      // val kifuHistory: Seq[KifuTempCore.Transition] = ??? // map from currState.history
-      // Determine player for each move in history.
-      // currState.history is newest move first.
-      // Player for currState.history.head was currState.turn.change
-      // Player for currState.history(1) was currState.turn
-      // etc.
-      var playerForCurrentHistMove = currState.turn.change
-      val kifuHistoryMoves = currState.history.map { coreTrans =>
-        val kifuMove = coreTransitionToKifuMove(coreTrans, playerForCurrentHistMove)
-        playerForCurrentHistMove = playerForCurrentHistMove.change // Alternate for next older move
+      // Determine the starting player of the game.
+      val gameStartingTurnForKifu = if (currState.history.length % 2 == 0) {
+        currState.turn
+      } else {
+        currState.turn.change
+      }
+
+      val kifuHistoryMoves = currState.history.reverse.zipWithIndex.map { case (coreTrans, index) =>
+        val boardBeforeThisMove = tempBoardForKifu.copy()
+        val playerForThisMove = if (index % 2 == 0) gameStartingTurnForKifu else gameStartingTurnForKifu.change
+
+        val kifuMove = KifuMapper.coreTransitionToKifuMove(coreTrans, playerForThisMove, boardBeforeThisMove)
+
+        // Apply move to tempBoardForKifu to get state for the next iteration's boardBeforeThisMove
+        val dummyState = CoreState(Nil, playerForThisMove)
+        tempBoardForKifu.move(dummyState, coreTrans.oldPos, coreTrans.newPos, false, coreTrans.nari)
+
         KifuTempCore.Transition(kifuMove) // Assuming KifuTempCore.Transition just wraps a KifuTempCore.Move
-      }.reverse // Reverse to get chronological order (oldest first) for exporters
+      }.toList // Already chronological due to .reverse.map
 
       // Initial board state for kifu (usually for CSA non-standard starts)
-      // For simplicity, we'll assume standard Hirate, so exporters handle it.
-      // A full impl might convert Gui.this.board to KifuTempCore.Board if it's turn 0.
-      val kifuInitialBoard = KifuTempCore.Board(Map.empty, KifuTempCore.SENTE) // Placeholder
+      // Using a placeholder as KifuMapper.coreBoardToKifuBoard is not implemented.
+      val kifuInitialBoard = KifuTempCore.Board(Map.empty, KifuTempCore.SENTE)
 
       // Current turn for kifu (player whose turn it is *now*)
-      val kifuCurrentTurn = coreTurnToKifuPlayer(currState.turn)
+      val kifuCurrentTurn = KifuMapper.coreTurnToKifuPlayer(currState.turn)
 
-      // Game result (e.g., "%TORYO" for CSA, "まで77手で先手の勝ち" for KI2)
-      // This needs to be determined when a game actually ends. Placeholder for now.
-      val gameResult: Option[String] = None
-      // Example if game ended:
-      // if (currState.isCheckmate) { // Assuming State has such a field
-      //   gameResult = Some(if (isCSA) "%TORYO" else s"まで${currState.history.size}手で${if (currState.turn == PlayerB) "先手" else "後手"}の勝ち")
-      // }
-
+      val gameResult: Option[String] = None // Placeholder for game result
 
       val kifuString = if (isCSA) {
         CSAExporter.exportToString(kifuInitialBoard, kifuHistoryMoves, kifuCurrentTurn, gameResult)

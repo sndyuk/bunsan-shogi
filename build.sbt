@@ -17,7 +17,9 @@ lazy val commonSettings = Seq(
 lazy val root = (project in file("."))
   .aggregate(
     template,
-    core
+    core,
+    sample, // Re-enabled in aggregate
+    web
   )
 
 lazy val template = (project in file("src/template"))
@@ -33,13 +35,14 @@ lazy val core = (project in file("src/core"))
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.18" % "test",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "2.0.0", // Updated version
       "com.typesafe" % "config" % "1.4.3",
-      "com.typesafe.play" %% "play-json" % "2.9.4" // Added play-json dependency
+      "com.typesafe.play" %% "play-json" % "2.9.4"
     ),
   )
   .dependsOn(template)
 
+// Re-enabled the sample module definition
 lazy val sample = (project in file("src/sample"))
   .settings(
     commonSettings,
@@ -48,6 +51,22 @@ lazy val sample = (project in file("src/sample"))
       "org.scalatest" %% "scalatest" % "3.2.18" % "test",
       "ch.qos.logback" % "logback-classic" % "1.2.13",
       "org.scala-lang.modules" %% "scala-swing" % "2.1.1",
+    )
+  )
+  .dependsOn(core)
+
+lazy val web = (project in file("src/web"))
+  .settings(
+    commonSettings,
+    name := "bunsan-shogi-web",
+    libraryDependencies ++= Seq(
+      "org.scalatra" %% "scalatra" % "2.8.4",
+      "org.scalatra" %% "scalatra-scalatest" % "2.8.4" % "test",
+      "ch.qos.logback" % "logback-classic" % "1.2.13",
+      "org.eclipse.jetty" % "jetty-webapp" % "9.4.53.v20231009",
+      "org.eclipse.jetty" % "jetty-server" % "9.4.53.v20231009",
+      "org.eclipse.jetty" % "jetty-servlet" % "9.4.53.v20231009",
+      "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided"
     )
   )
   .dependsOn(core)

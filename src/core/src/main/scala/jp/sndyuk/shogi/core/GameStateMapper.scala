@@ -41,11 +41,13 @@ object GameStateMapper {
         case ◯.OU => SimplePiece.OU
         case _    => throw new IllegalArgumentException(s"Unknown generalized piece: $generalizedPiece, original core piece: $corePiece")
       }
-      Some((simplePieceType, gamePlayer, isPromotedFlag))
+      val finalPromotedFlag = if (simplePieceType == SimplePiece.OU) false else isPromotedFlag
+      Some((simplePieceType, gamePlayer, finalPromotedFlag))
     }
   }
 
   def simplePiecePlayerToCorePiece(simplePiece: GameSimplePieceType, player: GamePlayer, isPromotedFlag: Boolean): CorePieceType = {
+    val actualPromotedFlag = if (simplePiece == SimplePiece.OU) false else isPromotedFlag
     val baseGeneralizedPiece = simplePiece match {
       case SimplePiece.FU => ◯.FU
       case SimplePiece.KY => ◯.KY
@@ -58,7 +60,7 @@ object GameStateMapper {
     }
     val corePlayerTurn = playerToCoreTurn(player)
     val playerPiece = convert(baseGeneralizedPiece, corePlayerTurn)
-    if (isPromotedFlag) promote(playerPiece) else playerPiece
+    if (actualPromotedFlag) promote(playerPiece) else playerPiece
   }
 
   // --- Point <-> Position Mappings ---

@@ -614,4 +614,32 @@ class RuleSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     // Assert that no drop moves are generated for the King
     dropMoves shouldBe empty
   }
+
+  "Rule.movableScopes" should "return cached lists to avoid allocations" in {
+    val first = Rule.movableScopes(Piece.▲.FU)
+    val second = Rule.movableScopes(Piece.▲.FU)
+    (first eq second) shouldBe true
+  }
+
+  "Rule.isInCheck" should "detect when a king is attacked" in {
+    val kingPos = Point(4,4)
+    val rookPos = Point(4,0)
+    val board = createBoardWithHands(boardPieces = Seq(
+      (Piece.▲.OU, kingPos),
+      (Piece.△.HI, rookPos)
+    ))
+    Rule.isInCheck(board, PlayerA) shouldBe true
+  }
+
+  it should "return false when pieces block the attack" in {
+    val kingPos = Point(4,4)
+    val rookPos = Point(4,0)
+    val blocker = Point(4,2)
+    val board = createBoardWithHands(boardPieces = Seq(
+      (Piece.▲.OU, kingPos),
+      (Piece.△.HI, rookPos),
+      (Piece.▲.FU, blocker)
+    ))
+    Rule.isInCheck(board, PlayerA) shouldBe false
+  }
 }

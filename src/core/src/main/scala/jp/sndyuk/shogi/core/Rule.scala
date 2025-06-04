@@ -219,8 +219,8 @@ object Rule {
     // 2手単位
     // 0 <- 1 <- 2 <- 3 <- 4 <- 5
     // A <- B <- A <- B <- A <- B
-    if (same(his(size), his(size- 2)) && same(his(size), his(size - 4))
-      || same(his(size - 1), his(size - 3)) && same(his(size - 1), his(size - 5))) {
+    if (same(his(size - 1), his(size - 3)) && same(his(size - 1), his(size - 5))
+      || same(his(size - 2), his(size - 4)) && same(his(size - 2), his(size - 6))) {
       true
     }
 
@@ -230,9 +230,9 @@ object Rule {
     if (size <= 10) {
       return false
     }
-    if (same(his(size), his(size - 3)) && same(his(size), his(size - 6))
-      || same(his(size - 1), his(size - 4)) && same(his(size - 1), his(size - 7))
-      || same(his(size - 2), his(size - 5)) && same(his(size - 2), his(size - 8))) {
+    if (same(his(size - 1), his(size - 4)) && same(his(size - 1), his(size - 7))
+      || same(his(size - 2), his(size - 5)) && same(his(size - 2), his(size - 8))
+      || same(his(size - 3), his(size - 6)) && same(his(size - 3), his(size - 9))) {
       true
     }
     false

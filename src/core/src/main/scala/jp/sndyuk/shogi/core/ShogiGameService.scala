@@ -2,7 +2,7 @@ package jp.sndyuk.shogi.core
 
 import jp.sndyuk.shogi.core.Player.Player
 import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
-import jp.sndyuk.shogi.ai.{ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V3, AlphaBetaAI_V4, AlphaBetaAI_V5}
+import jp.sndyuk.shogi.ai.{ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V3, AlphaBetaAI_V4, AlphaBetaAI_V5, AlphaBetaAI_V6}
 import play.api.libs.json.{Json, JsValue, JsNumber, JsString, JsBoolean}
 
 object AIProvider {
@@ -13,6 +13,7 @@ object AIProvider {
       case "v3" => Some(new AlphaBetaAI_V3("AlphaBetaAI_V3", searchDepth))
       case "v4" => Some(new AlphaBetaAI_V4("AlphaBetaAI_V4", searchDepth))
       case "v5" => Some(new AlphaBetaAI_V5("AlphaBetaAI_V5", searchDepth))
+      case "v6" => Some(new AlphaBetaAI_V6("AlphaBetaAI_V6", searchDepth))
       case _    => None
     }
   }

@@ -61,6 +61,15 @@ object GameStateMapper {
     if (isPromotedFlag) promote(playerPiece) else playerPiece
   }
 
+  /**
+   * Adjusts a board position based on the player's perspective. The internal
+   * representation always assumes Sente at the bottom. When Gote is the active
+   * player, coordinates provided from their point of view need to be rotated
+   * 180 degrees.
+   */
+  def adjustPositionForPlayer(position: Position, player: GamePlayer): Position =
+    if (player == Player.GOTE) Position(x = 10 - position.x, y = 10 - position.y) else position
+
   // --- Point <-> Position Mappings ---
   def positionToCorePoint(position: Position): Point = {
     // GameState.Position(x: Int, y: Int) with x=file (1-9), y=rank (1-9 for a-i)

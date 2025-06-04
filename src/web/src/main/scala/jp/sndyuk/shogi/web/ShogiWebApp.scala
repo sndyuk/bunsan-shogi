@@ -5,7 +5,6 @@ import org.scalatra._
 // GameState, Position, ShogiGameService, SimplePiece are used.
 // SimpleTransition type will be fully qualified. Its JSON formatter is imported explicitly.
 import jp.sndyuk.shogi.core.{GameState, Position, ShogiGameService, SimplePiece}
-import jp.sndyuk.shogi.core.SimpleTransition.transitionFormat // Explicitly import the formatter
 import play.api.libs.json.{Json, Format, JsValue, Writes} // Play JSON imports
 
 // --- JSON Case Classes for API Requests ---

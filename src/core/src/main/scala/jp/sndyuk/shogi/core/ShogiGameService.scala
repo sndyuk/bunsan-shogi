@@ -292,9 +292,10 @@ class ShogiGameService {
             val toWebX = 9 - toCorePos.x
             val toWebY = toCorePos.y - 1
 
-            val pieceTypeStr: String = GameStateMapper.corePieceToSimplePieceTypeAndPlayer(coreTrans.piece) match {
+            val movingPiece: Piece = currentBoardCopy.piece(coreTrans.oldPos, turnForAI)
+            val pieceTypeStr: String = GameStateMapper.corePieceToSimplePieceTypeAndPlayer(movingPiece) match {
               case Some((spt, _, _)) => spt.toString
-              case None => coreTrans.piece.toString // Fallback, though should ideally map
+              case None => movingPiece.toString // Fallback, though should ideally map
             }
 
             val promotionBool: Boolean = coreTrans.nari

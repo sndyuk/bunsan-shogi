@@ -106,9 +106,13 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
   // (rowIndex, columnIndex)
   def find(piece: Piece): Option[Point] = allPoints.find(get(_) == piece)
 
-  def allPieces(turn: Turn): List[Block] = allPoints.foldLeft(List[Block]()) { (xs, point) =>
-    val piece = get(point)
-    if (▲△(piece, turn)) Block(point, piece) :: xs else xs
+  def allPieces(turn: Turn): List[Block] = {
+    val builder = List.newBuilder[Block]
+    allPoints.foreach { point =>
+      val piece = get(point)
+      if (▲△(piece, turn)) builder += Block(point, piece)
+    }
+    builder.result()
   }
 
   private class EmptyPointIterator() extends Iterator[Point] {

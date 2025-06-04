@@ -124,4 +124,27 @@ class BitSetSpec extends AnyFlatSpec with Matchers { // Restored name
     bs.intValue(spanValue) shouldBe 10     // Middle value updated
     bs.intValue(spanValue * 2) shouldBe 3  // Third value unchanged
   }
+
+  "BitSet" should "throw on out of range index" in {
+    val bs = new BitSet(20)()
+    assertThrows[IllegalArgumentException] {
+      bs.setInt(1, 60) // 60 + span(5) > capacity 64
+    }
+  }
+
+  "Squares.allPieces" should "list pieces for each player" in {
+    val board = Board()
+    val sente = board.squares.allPieces(PlayerA)
+    val gote  = board.squares.allPieces(PlayerB)
+    sente.length shouldBe 20
+    gote.length  shouldBe 20
+    sente.forall(b => Piece.▲(b.piece)) shouldBe true
+    gote.forall(b => Piece.△(b.piece))  shouldBe true
+  }
+
+  "Squares.allEmptyPoints" should "return all empty board locations" in {
+    val board = Board()
+    val empties = board.squares.allEmptyPoints().toList
+    empties.length shouldBe 41
+  }
 }

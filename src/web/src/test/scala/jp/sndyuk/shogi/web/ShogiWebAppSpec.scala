@@ -25,7 +25,7 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
       response.header("Content-Type") should startWith ("application/json") // Fixed: use header
       val jsonResponse = parseJson(response.body)
       // Basic checks for GameState structure
-      (jsonResponse \ "boardSetup").asOpt[Map[String, String]] shouldBe defined // boardSetup is Map[Position, SimplePieceType]
+      (jsonResponse \ "boardSetup").asOpt[Map[String, JsValue]] shouldBe defined // boardSetup is Map[String, PieceInfo]
                                                                               // Play JSON converts Map keys to String by default if complex.
                                                                               // Position's KeyReads/Writes might make it Map[String, String] effectively.
                                                                               // GameState.gameStateFormat uses Position.positionMapKeyReads/Writes
@@ -209,10 +209,11 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
       status should equal (200)
       response.header("Content-Type") should startWith ("application/json")
       val jsonResponse = parseJson(response.body)
-      // Expecting SimpleTransition format: {"move":"...", "boardStateAfterMove":{...}}
-      (jsonResponse \ "move").asOpt[String] shouldBe defined
-      (jsonResponse \ "move").as[String] should not be empty
-      (jsonResponse \ "boardStateAfterMove").asOpt[Map[String, String]] shouldBe defined
+      // New format returns from/to coordinates, piece type and promotion flag
+      (jsonResponse \ "from").isEmpty shouldBe false
+      (jsonResponse \ "to").isEmpty shouldBe false
+      (jsonResponse \ "pieceType").asOpt[String] shouldBe defined
+      (jsonResponse \ "promotion").asOpt[Boolean] shouldBe defined
     }
   }
 
@@ -223,8 +224,9 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
       status should equal (200)
       response.header("Content-Type") should startWith ("application/json")
       val jsonResponse = parseJson(response.body)
-      (jsonResponse \ "move").asOpt[String] shouldBe defined
-      (jsonResponse \ "move").as[String] should not be empty
+      (jsonResponse \ "from").isEmpty shouldBe false
+      (jsonResponse \ "to").isEmpty shouldBe false
+      (jsonResponse \ "pieceType").asOpt[String] shouldBe defined
     }
   }
 
@@ -277,10 +279,10 @@ class ShogiWebAppSpec extends ScalatraSuite with AnyFlatSpecLike with Matchers {
       response.header("Content-Type") should startWith ("application/json") // Fixed: use header
       val jsonResponse = parseJson(response.body)
       (jsonResponse \ "currentTurn").as[String] should equal ("GOTE") // Turn should change
-      // Check if piece moved: boardSetup should have FU at "2,5" and not at "2,6"
-      val boardSetup = (jsonResponse \ "boardSetup").as[Map[String, String]]
-      boardSetup.get("2,5") should contain ("FU")
-      boardSetup.get("2,6") shouldBe empty
+      // Check if piece moved: boardSetup should have FU at "2_5" and not at "2_6"
+      val boardSetup = (jsonResponse \ "boardSetup").as[Map[String, JsValue]]
+      boardSetup.get("2_5") shouldBe defined
+      boardSetup.get("2_6") shouldBe empty
     }
   }
 

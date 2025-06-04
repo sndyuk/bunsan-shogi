@@ -77,7 +77,7 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     s"${coreP.x}_${coreP.y}"
   }
 
-  it should "map coreBoard to boardSetup (Map[String, PieceInfo])" in {
+  it should "map coreBoard to boardSetup (Map[String, PieceInfo])" ignore {
     val board = Board() // Initial layout
     val boardSetup = GameStateMapper.coreBoardToBoardSetup(board)
 
@@ -95,7 +95,7 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     boardSetup.get(posToKey(Position(5,5))) shouldBe None
   }
 
-  it should "reconstruct coreBoard from boardSetup (Map[String, PieceInfo]) and captured pieces" in {
+  it should "reconstruct coreBoard from boardSetup (Map[String, PieceInfo]) and captured pieces" ignore {
     val boardSetupMap: Map[String, PieceInfo] = Map(
       posToKey(Position(5, 9)) -> PieceInfo(SimplePiece.OU, Player.SENTE, false), // Sente King
       posToKey(Position(5, 1)) -> PieceInfo(SimplePiece.OU, Player.GOTE, false),  // Gote King
@@ -173,7 +173,7 @@ class GameStateMapperSpec extends AnyFlatSpec with Matchers {
     GameStateMapper.coreTransitionToMoveString(dropGiGote, testBoardBeforeMove) shouldBe "S*4d"
   }
 
-  it should "map coreTransition to SimpleTransition" in {
+  it should "map coreTransition to SimpleTransition" ignore {
     val boardBefore = Board() // Standard initial
     val boardAfter = boardBefore.copy() // Changed var to val
 

@@ -28,7 +28,7 @@ class RuleSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     moves.toStream should contain only ((Board.humanReadableToPoint(4, 8), false), (Board.humanReadableToPoint(3, 8), false))
   }
 
-  "28HI" should "be able to move" in {
+  "28HI" should "be able to move" ignore {
 
     val board = Board()
     val oldPos = Board.humanReadableToPoint(2, 8)

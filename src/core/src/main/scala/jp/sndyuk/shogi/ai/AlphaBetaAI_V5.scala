@@ -3,8 +3,9 @@ package jp.sndyuk.shogi.ai
 import jp.sndyuk.shogi.core.{State, Board, Turn, Transition, ID}
 
 /**
- * AlphaBetaAI_V5 adds Null Move Pruning on top of the V4 transposition table
- * search, allowing deeper searches with better pruning.
+ * AlphaBetaAI_V5 adds Null Move Pruning and killer move heuristics on top of
+ * the V4 transposition table search, allowing deeper searches with better
+ * pruning and move ordering.
  */
 class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) extends ShogiAI {
 
@@ -20,6 +21,7 @@ class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) exte
     var nodesVisitedTotal: Long = 0L
 
     TranspositionTable.clear()
+    AlphaBetaSearchNMP.clearKillers()
 
     var depth = 1
     while (depth <= currentSearchDepth) {

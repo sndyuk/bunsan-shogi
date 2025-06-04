@@ -166,8 +166,10 @@ class ShogiGameService {
     droppedPieceType: Option[SimplePieceType] = None
   ): Either[String, GameState] = {
 
-    val newCorePoint = GameStateMapper.positionToCorePoint(toPos)
+    var adjustedFrom = fromPos
+    var adjustedTo = toPos
     var pieceToMove: Piece = Piece.❏
+    var op = GameStateMapper.positionToCorePoint(adjustedFrom)
     val oldCorePoint: Point = droppedPieceType match {
       case Some(spt) =>
         val turn = this.currentState.turn
@@ -175,14 +177,31 @@ class ShogiGameService {
         pieceToMove = corePieceDropped
         Point.ofCaptured(Piece.generalize(corePieceDropped))
       case None =>
-        val op = GameStateMapper.positionToCorePoint(fromPos)
-        // Use board.piece to correctly fetch from board OR captured set if op indicates a captured piece
         pieceToMove = this.board.piece(op, this.currentState.turn)
-        if (pieceToMove == Piece.❏) { // Check if the determined piece is empty
-             return Left(s"Invalid move: No piece at source position $fromPos (x=${fromPos.x}, y=${fromPos.y}; core op: x=${op.x}, y=${op.y}) or specified captured piece not available.")
+        if (pieceToMove == Piece.❏) {
+          // Try interpreting coordinates from the opposite perspective (180-degree rotation)
+          val altFrom = GameStateMapper.adjustPositionForPlayer(fromPos, Player.GOTE)
+          val altOp = GameStateMapper.positionToCorePoint(altFrom)
+          val altPiece = this.board.piece(altOp, this.currentState.turn)
+          if (altPiece != Piece.❏) {
+            adjustedFrom = altFrom
+            adjustedTo = GameStateMapper.adjustPositionForPlayer(toPos, Player.GOTE)
+            op = altOp
+            pieceToMove = altPiece
+          } else {
+            // There might still be an opponent piece at the location, so check directly on board
+            this.board.pieceOnBoardNotEmpty(op) match {
+              case Some(_) =>
+                return Left(s"Invalid move: The piece at $fromPos is not yours to move.")
+              case None =>
+                return Left(s"Invalid move: No piece at source position $fromPos (x=${fromPos.x}, y=${fromPos.y}; core op: x=${op.x}, y=${op.y}) or specified captured piece not available.")
+            }
+          }
         }
         op
     }
+
+    val newCorePoint = GameStateMapper.positionToCorePoint(adjustedTo)
 
     if (pieceToMove == Piece.❏) { // Should be caught by specific drop/move logic, but as a safeguard
         return Left("Invalid move: Selected piece is empty or could not be determined.")

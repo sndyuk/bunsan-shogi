@@ -14,7 +14,7 @@ import jp.sndyuk.shogi.core.Transition
 import jp.sndyuk.shogi.player.CommandReader
 import jp.sndyuk.shogi.core.PlayerB // Gote (second player)
 // import jp.sndyuk.shogi.core.PlayerA // Sente (first player) - Unused import
-import jp.sndyuk.shogi.ai.{AlphaBetaAI_V4} // Use stronger AI implementation with TT
+import jp.sndyuk.shogi.ai.{AlphaBetaAI_V5} // Use strongest AI implementation with TT and NMP
 
 object Console extends App with Shogi {
 
@@ -67,8 +67,8 @@ object Console extends App with Shogi {
   // override val playerA: Player = new AIPlayer("AI_PlayerA (Sente)", PlayerA, new AlphaBetaAI_V1(name = "AI_A", searchDepth = 1), 1)
 
 
-  // Player B (Gote) is an AI player using the stronger AlphaBetaAI_V4.
-  override val playerB: Player = new AIPlayer("AI_PlayerB (Gote)", PlayerB, new AlphaBetaAI_V4(name = "AI_B", searchDepth = 2), 2)
+  // Player B (Gote) is an AI player using the stronger AlphaBetaAI_V5.
+  override val playerB: Player = new AIPlayer("AI_PlayerB (Gote)", PlayerB, new AlphaBetaAI_V5(name = "AI_B", searchDepth = 2), 2)
   // To make Player B a Human Player:
   // override val playerB: Player = new HumanPlayer("Human_PlayerB (Gote)", board, commandReader, true)
   // To use a different AI or search depth for Player B:

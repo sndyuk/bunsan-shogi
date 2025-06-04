@@ -4,7 +4,7 @@ import jp.sndyuk.shogi.core.Transition
 
 import scala.collection.mutable
 
-/** Simple transposition table used by AlphaBetaAI_V4 to cache evaluated states. */
+/** Simple transposition table used by AlphaBetaAI_V4/V5 to cache evaluated states. */
 object TranspositionTable {
   case class Entry(value: Int, depth: Int, bestMove: Option[Transition])
 

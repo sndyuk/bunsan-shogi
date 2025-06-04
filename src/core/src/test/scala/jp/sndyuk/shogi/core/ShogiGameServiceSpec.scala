@@ -3,7 +3,7 @@ package jp.sndyuk.shogi.core
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 // Unused aliases GamePlayer and GameSimplePieceType were removed. Direct usages like Player.SENTE and SimplePiece.FU are preferred.
-import jp.sndyuk.shogi.ai.{AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V3}
+import jp.sndyuk.shogi.ai.{AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V3, AlphaBetaAI_V4}
 // SENTE/GOTE imports were already removed. Player.SENTE/Player.GOTE is used directly.
 
 
@@ -33,13 +33,13 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.getGameState().currentTurn shouldBe Player.SENTE // Initial turn is still Sente
   }
 
-  it should "start a game using the stronger v3 AI" in {
+  it should "start a game using the stronger v4 AI" in {
     val service = new ShogiGameService()
-    service.startNewGame(gameMode = "hva_sente", aiType = "v3", aiSearchDepth = 2)
+    service.startNewGame(gameMode = "hva_sente", aiType = "v4", aiSearchDepth = 2)
 
     service.gameMode shouldBe "hva_sente"
     service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V3]
+    service.aiOpponent.get shouldBe an [AlphaBetaAI_V4]
     service.aiSearchDepth shouldBe 2
   }
 

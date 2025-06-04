@@ -184,6 +184,9 @@ class ShogiGameService {
           val altOp = GameStateMapper.positionToCorePoint(altFrom)
           val altPiece = this.board.piece(altOp, this.currentState.turn)
           if (altPiece != Piece.❏) {
+            if (!Piece.▲△(altPiece, this.currentState.turn)) {
+              return Left(s"Invalid move: The piece at $fromPos is not yours to move.")
+            }
             adjustedFrom = altFrom
             adjustedTo = GameStateMapper.adjustPositionForPlayer(toPos, Player.GOTE)
             op = altOp
@@ -197,6 +200,8 @@ class ShogiGameService {
                 return Left(s"Invalid move: No piece at source position $fromPos (x=${fromPos.x}, y=${fromPos.y}; core op: x=${op.x}, y=${op.y}) or specified captured piece not available.")
             }
           }
+        } else if (!Piece.▲△(pieceToMove, this.currentState.turn)) {
+          return Left(s"Invalid move: The piece at $fromPos is not yours to move.")
         }
         op
     }

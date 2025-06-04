@@ -363,7 +363,7 @@ case class Board(squares: Squares = Squares(), val capturedPieces: CapturedPiece
     if (freeze) throw new IllegalStateException
     val pieceOldPos = pieceOnBoardNotEmpty(newPos)
     if (!move(oldPos, newPos, state.turn, validation, nari)) {
-      throw new IllegalStateException(s"Cound not move $oldPos to $newPos, Turn: ${state.turn}")
+      throw new IllegalStateException(s"Could not move $oldPos to $newPos, Turn: ${state.turn}")
     }
     State(Transition(oldPos, newPos, nari, pieceOldPos) :: state.history, state.turn.change)
   }

@@ -2,7 +2,7 @@ package jp.sndyuk.shogi.core
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import jp.sndyuk.shogi.ai.{AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V4, AlphaBetaAI_V5}
+import jp.sndyuk.shogi.ai.{AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V4, AlphaBetaAI_V5, AlphaBetaAI_V6}
 
 
 class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
@@ -46,6 +46,16 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.gameMode shouldBe "hva_sente"
     service.aiOpponent shouldBe defined
     service.aiOpponent.get shouldBe an [AlphaBetaAI_V5]
+    service.aiSearchDepth shouldBe 2
+  }
+
+  it should "start a game using the new v6 AI" in {
+    val service = new ShogiGameService()
+    service.startNewGame(gameMode = "hva_sente", aiType = "v6", aiSearchDepth = 2)
+
+    service.gameMode shouldBe "hva_sente"
+    service.aiOpponent shouldBe defined
+    service.aiOpponent.get shouldBe an [AlphaBetaAI_V6]
     service.aiSearchDepth shouldBe 2
   }
 

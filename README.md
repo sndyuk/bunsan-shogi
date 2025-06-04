@@ -5,6 +5,7 @@ Shogi library for Scala.
 - **Core Shogi Logic:** Full implementation of Shogi rules, including board representation, piece movement, drops, promotion, check, and mate detection.
 - **AI Opponent:** Play against a built-in AI.
 - **Advanced AI Version 5:** Utilizes a transposition table, Null Move Pruning, and killer move heuristics for stronger play.
+- **Advanced AI Version 6:** Adds quiescence search to V5's techniques for even deeper tactical strength.
 - **Kifu Parsing:** Support for reading game records in CSA and KI2 formats.
 - **Player Management:** Code structure for managing human and AI players.
 - **Sample GUI Application:** Includes a basic graphical interface to demonstrate library usage.

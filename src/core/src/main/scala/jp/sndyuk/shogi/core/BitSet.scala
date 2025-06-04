@@ -21,6 +21,7 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def setInt(updates: Int, index: Int): Unit = {
+    assert((index % 64) + BitSet.span <= 64, s"BitSet.setInt called with global index ${index} (local index ${index % 64}) which is too high for span ${BitSet.span} within a single Long.")
     // assert((index % 64 + span) < 64, index) // overflow check
     bits(index / 64) = updateBits(bits(index / 64), updates, index % 64)
   }
@@ -30,12 +31,14 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def intValue(i: Int): Int = {
+    assert((i % 64) + BitSet.span <= 64, s"BitSet.intValue called with global index ${i} (local index ${i % 64}) which is too high for span ${BitSet.span} within a single Long.")
     // assert((i % 64 + span) < 64) // overflow check
     val l = bits(i / 64)
     ((l >>> (64 - ((i % 64) + span))) & ((1 << span) - 1)).toInt
   }
 
   def replaceIntValue(updates: Long, i: Int): Int = {
+    assert((i % 64) + BitSet.span <= 64, s"BitSet.replaceIntValue called with global index ${i} (local index ${i % 64}) which is too high for span ${BitSet.span} within a single Long.")
     val l = bits(i / 64)
     val index = i % 64
     val mask = masks(index)
@@ -64,7 +67,8 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def copy(): BitSet = {
-    new BitSet(length)(bits.clone())
+  val newBitsArray = this.bits.clone()
+    new BitSet(this.length)(newBitsArray)
   }
 
   override def toString(): String = {

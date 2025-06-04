@@ -40,14 +40,16 @@ case class Point(y: Int, x: Int) extends Serializable {
     if (Point.isCaptured(this))
       s"持駒: ${
         x match {
-          case 0 => "玉"
-          case 1 => "金"
-          case 2 => "歩"
-          case 3 => "銀"
-          case 4 => "飛"
-          case 5 => "角"
-          case 6 => "桂"
-          case 7 => "香"
+          // Values based on Point.ofCaptured
+          case 1 => "金" // KI
+          case 2 => "歩" // FU
+          case 3 => "銀" // GI
+          case 4 => "飛" // HI
+          case 5 => "角" // KA
+          case 6 => "桂" // KE
+          case 7 => "香" // KY
+          case 8 => "玉" // OU - This was missing
+          case _ => "?"  // Fallback for unexpected x values
         }
       }"
     else
@@ -74,6 +76,8 @@ private[core] case class Squares(private[core] val bits: BitSet = BitSet(9 * 9 *
     val s = (p.y * 9) + p.x
     (s * BitSet.span) + ((s / 12) * 4)
   }
+
+  // def getPosOfBitsForTest(p: Point): Int = posOfBits(p) // Removed test accessor
 
   def <+(piece: Piece, p: Point): Squares = {
     // assert(p.y < 9)
@@ -195,9 +199,7 @@ case class CapturedPieces(private[core] var playerA: Int = 0, private[core] var 
     val piece = pointToPiece(pos, turn)
     val player = if (▲(piece)) playerA else playerB
     val gpiece = generalize(piece)
-    if (gpiece == 32) {
-      println(piece)
-    }
+    // Removed debug println for gpiece == 32
     val amount = count(player, find(gpiece))
     if (amount > 0) {
       val updated = add(player, gpiece, -1)

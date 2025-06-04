@@ -12,6 +12,13 @@ object Rule {
 
   val logger = Logger(LoggerFactory.getLogger(this.getClass().getName()))
 
+  case class GameStateDigest(
+    boardPieces: IndexedSeq[IndexedSeq[Piece]],
+    senteHand: Map[Piece, Int],
+    goteHand: Map[Piece, Int],
+    nextTurn: Turn
+  )
+
   /**
    * 駒が指定された場所に移動可能ならtrue
    */
@@ -34,10 +41,12 @@ object Rule {
    */
   def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn, includePromoted: Boolean): Iterator[Move] = {
     val scopes = movableScopes(piece)
-    (if (Point.isCaptured(oldPos)) {
+    (if (Point.isCaptured(oldPos)) { // This means it's a drop from hand
       board.allEmptyPoints().filter { np =>
-        !is2FU(board, piece, np, turn) && canMoveAtNextTurn(np, scopes)
-      }.map { (_, false) }
+        Piece.generalize(piece) != Piece.◯.OU && // ADDED: Cannot drop a King
+        !is2FU(board, piece, np, turn) &&
+        canMoveAtNextTurn(np, scopes)
+      }.map { (_, false) } // Drops are never promotions
     } else {
       generateMovePoints(board, piece, oldPos, turn, includePromoted, scopes, scopes)
     })
@@ -208,34 +217,8 @@ object Rule {
   /**
    *  千日手判定
    */
-  def isThreefoldRepetition(board: Board, state: State): Boolean = {
-    val size = state.history.size
-    if (size <= 7) {
-      return false
-    }
-    @inline def same = (a: Transition, b: Transition) => a.newPos == b.newPos
-
-    val his = state.history
-    // 2手単位
-    // 0 <- 1 <- 2 <- 3 <- 4 <- 5
-    // A <- B <- A <- B <- A <- B
-    if (same(his(size), his(size- 2)) && same(his(size), his(size - 4))
-      || same(his(size - 1), his(size - 3)) && same(his(size - 1), his(size - 5))) {
-      true
-    }
-
-    // 3手単位
-    // 0 <- 1 <- 2 <- 3 <- 4 <= 5 <- 6 <- 7 <- 8
-    // A <- B <- C <- A <- B <- C <- A <- B <- C
-    if (size <= 10) {
-      return false
-    }
-    if (same(his(size), his(size - 3)) && same(his(size), his(size - 6))
-      || same(his(size - 1), his(size - 4)) && same(his(size - 1), his(size - 7))
-      || same(his(size - 2), his(size - 5)) && same(his(size - 2), his(size - 8))) {
-      true
-    }
-    false
+  def isThreefoldRepetition(currentBoardStateDigest: GameStateDigest, historyOfDigests: Seq[GameStateDigest]): Boolean = {
+    historyOfDigests.count(_ == currentBoardStateDigest) >= 3
   }
 
   /**
@@ -251,5 +234,41 @@ object Rule {
       } else {
         newPos.y >= 6
       })))
+  }
+
+  /**
+   * Checks if the specified player's King is currently in check.
+   * @param board The current board state.
+   * @param playerWhoseKingIsChecked The player whose King's safety is being checked.
+   * @return True if playerWhoseKingIsChecked's King is under attack, false otherwise.
+   */
+  def isInCheck(board: Board, playerWhoseKingIsChecked: Turn): Boolean = {
+    // 1. Find the King of 'playerWhoseKingIsChecked'
+    val kingPiece = Piece.convert(Piece.◯.OU, playerWhoseKingIsChecked)
+    board.squares.find(kingPiece) match {
+      case None =>
+        // King is not on the board, so it cannot be in check from an on-board piece.
+        // This scenario implies the game might have already ended or is in an invalid state.
+        false
+      case Some(kingPos) =>
+        // 2. Check if any of the opponent's pieces can attack the King's position.
+        val opponentTurn = playerWhoseKingIsChecked.change
+
+        for (y <- 0 to 8; x <- 0 to 8) {
+          val currentPiecePoint = Point(y,x)
+          val currentPiece = board.squares.get(currentPiecePoint)
+
+          // If it's an opponent's piece
+          if (currentPiece != Piece.❏ && Piece.▲△(currentPiece, opponentTurn)) {
+            // Generate its moves (non-promoting moves are sufficient for checking attack)
+            val movesForThisOpponentPiece = generateMovablePoints(board, currentPiecePoint, currentPiece, opponentTurn, false)
+            if (movesForThisOpponentPiece.exists { case (newPos, _) => newPos == kingPos }) {
+              return true // King is attacked by this piece
+            }
+          }
+        }
+        // No opponent piece found that can attack the King's position
+        false
+    }
   }
 }

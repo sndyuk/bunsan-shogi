@@ -114,8 +114,9 @@ class ShogiWebApp extends ScalatraServlet {
     // This method shogiGameService.suggestMove(aiType, depth) needs to be implemented in ShogiGameService
     // It should return Either[String, SimpleTransition]
     shogiGameService.suggestMove(aiTypeParam, aiSearchDepthParam) match {
-      case Right(simpleTrans: jp.sndyuk.shogi.core.SimpleTransition) => Json.toJson(simpleTrans).toString() // Use FQN for type
-      case Left(errorMsg)     => BadRequest(Json.obj("error" -> errorMsg).toString())
+      // The type of suggestionData is now Map[String, JsValue]
+      case Right(suggestionData) => Json.toJson(suggestionData).toString() // MODIFIED LINE
+      case Left(errorMsg)     => BadRequest(Json.obj("error" -> errorMsg).toString()) // No change
     }
   }
 

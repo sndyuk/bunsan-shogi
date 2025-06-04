@@ -3,6 +3,7 @@ package jp.sndyuk.shogi.core
 import jp.sndyuk.shogi.core.Player.Player
 import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
 import jp.sndyuk.shogi.ai.{ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2}
+import play.api.libs.json.{Json, JsValue, JsNumber, JsString, JsBoolean} // Added
 // Removed: import jp.sndyuk.shogi.core.Transition // This was causing "permanently hidden" error
 
 object AIProvider {
@@ -270,24 +271,45 @@ class ShogiGameService {
     }
   }
 
-  def suggestMove(aiType: String, searchDepth: Int): Either[String, jp.sndyuk.shogi.core.SimpleTransition] = { // FQN for SimpleTransition
+  def suggestMove(aiType: String, searchDepth: Int): Either[String, Map[String, JsValue]] = { // Changed return type
     AIProvider.getAI(aiType = aiType, searchDepth = searchDepth) match {
       case None => Left(s"Unknown AI type: $aiType")
       case Some(ai) =>
-        val currentBoardCopy = this.board.copy()
-        val currentStateCopy = this.currentState.copy()
-        val turnForAI = this.currentState.turn
+        val currentBoardCopy = this.board.copy() // No change
+        val currentStateCopy = this.currentState.copy() // No change
+        val turnForAI = this.currentState.turn // No change
 
-        val (optTransition, nodesVisited) = ai.findBestMove(currentStateCopy, currentBoardCopy, turnForAI, searchDepth)
+        val (optTransition, nodesVisited) = ai.findBestMove(currentStateCopy, currentBoardCopy, turnForAI, searchDepth) // No change
 
         optTransition match {
-          case Some(coreTrans: jp.sndyuk.shogi.core.Transition) => // FQN for Transition
-            val tempBoardAfterMove = currentBoardCopy.copy()
-            tempBoardAfterMove.move(currentStateCopy, coreTrans.oldPos, coreTrans.newPos, validation = false, nari = coreTrans.nari)
-            val simpleTrans = GameStateMapper.coreTransitionToSimpleTransition(coreTrans, currentBoardCopy, tempBoardAfterMove)
-            Right(simpleTrans)
+          case Some(coreTrans: jp.sndyuk.shogi.core.Transition) => // No change
+            // Start of new mapping logic
+            val fromCorePos: Position = GameStateMapper.corePointToPosition(coreTrans.oldPos)
+            val toCorePos: Position = GameStateMapper.corePointToPosition(coreTrans.newPos)
+
+            val fromWebX = 9 - fromCorePos.x
+            val fromWebY = fromCorePos.y - 1
+            val toWebX = 9 - toCorePos.x
+            val toWebY = toCorePos.y - 1
+
+            val pieceTypeStr: String = GameStateMapper.corePieceToSimplePieceTypeAndPlayer(coreTrans.piece) match {
+              case Some((spt, _, _)) => spt.toString
+              case None => coreTrans.piece.toString // Fallback, though should ideally map
+            }
+
+            val promotionBool: Boolean = coreTrans.nari
+
+            val suggestionMap = Map[String, JsValue](
+              "from" -> Json.obj("x" -> JsNumber(fromWebX), "y" -> JsNumber(fromWebY)),
+              "to" -> Json.obj("x" -> JsNumber(toWebX), "y" -> JsNumber(toWebY)),
+              "pieceType" -> JsString(pieceTypeStr),
+              "promotion" -> JsBoolean(promotionBool)
+            )
+            Right(suggestionMap)
+            // End of new mapping logic
+
           case None =>
-            Left("AI could not suggest a valid move (game might be at an end state or AI error).")
+            Left("AI could not suggest a valid move (game might be at an end state or AI error).") // No change
         }
     }
   }

@@ -53,7 +53,7 @@ lazy val sample = (project in file("src/sample"))
       "org.scala-lang.modules" %% "scala-swing" % "2.1.1",
     ),
     // Exclude Gui.scala from compilation as per README suggestion that it's disabled
-    excludeFilter in Compile := HiddenFileFilter || GlobFilter("Gui.scala")
+    // excludeFilter in Compile := HiddenFileFilter || GlobFilter("Gui.scala")
   )
   .dependsOn(core)
 

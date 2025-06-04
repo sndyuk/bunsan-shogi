@@ -6,7 +6,9 @@ import java.nio.file.{Files, Path}
 import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
 // PieceInfo is now part of GameState, so if GameState is imported, PieceInfo should be accessible.
 // Or import jp.sndyuk.shogi.core.GameState.PieceInfo if needed, assuming it's defined in GameState object
-// For SavedTransition, boardStateAfterMove now uses Map[String, SimplePieceType] as per recent changes
+// For SavedTransition, boardStateAfterMove now uses Map[String, PieceInfo] as per recent changes
+// We need PieceInfo for the updated boardSetup types.
+import jp.sndyuk.shogi.core.PieceInfo
 import jp.sndyuk.shogi.core.{SimpleTransition => SavedTransition}
 
 
@@ -24,33 +26,33 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
   // Helper to convert Position (1-indexed) to "x_y" string key (0-indexed core Point x,y)
   private def posToKey(pos: Position): String = s"${9 - pos.x}_${pos.y - 1}"
 
-  // Sample data for board setup using SimplePieceType
-  val sampleBoardSetup: Map[String, SimplePieceType] = Map(
-    posToKey(Position(1, 1)) -> SimplePiece.KY,
-    posToKey(Position(1, 2)) -> SimplePiece.KE,
-    posToKey(Position(5, 5)) -> SimplePiece.OU
+  // Sample data for board setup using PieceInfo
+  val sampleBoardSetup: Map[String, PieceInfo] = Map(
+    posToKey(Position(1, 1)) -> PieceInfo(SimplePiece.KY, Player.SENTE, isPromoted = false),
+    posToKey(Position(1, 2)) -> PieceInfo(SimplePiece.KE, Player.SENTE, isPromoted = false),
+    posToKey(Position(5, 5)) -> PieceInfo(SimplePiece.OU, Player.SENTE, isPromoted = false)
   )
 
-  val sampleBoardSetupMidGame: Map[String, SimplePieceType] = Map(
-    posToKey(Position(7, 6)) -> SimplePiece.FU,
-    posToKey(Position(3, 4)) -> SimplePiece.FU,
-    posToKey(Position(5, 8)) -> SimplePiece.OU,
-    posToKey(Position(5, 2)) -> SimplePiece.OU,
-    posToKey(Position(2, 2)) -> SimplePiece.HI,
-    posToKey(Position(8, 8)) -> SimplePiece.KA
+  val sampleBoardSetupMidGame: Map[String, PieceInfo] = Map(
+    posToKey(Position(7, 6)) -> PieceInfo(SimplePiece.FU, Player.SENTE, isPromoted = false), // Sente FU
+    posToKey(Position(3, 4)) -> PieceInfo(SimplePiece.FU, Player.GOTE, isPromoted = false),  // Gote FU
+    posToKey(Position(5, 8)) -> PieceInfo(SimplePiece.OU, Player.SENTE, isPromoted = false), // Sente OU
+    posToKey(Position(5, 2)) -> PieceInfo(SimplePiece.OU, Player.GOTE, isPromoted = false),  // Gote OU
+    posToKey(Position(2, 2)) -> PieceInfo(SimplePiece.HI, Player.GOTE, isPromoted = false),  // Gote HI
+    posToKey(Position(8, 8)) -> PieceInfo(SimplePiece.KA, Player.SENTE, isPromoted = false)  // Sente KA
   )
 
-  // For history, boardStateAfterMove now expects Map[String, SimplePieceType]
+  // For history, boardStateAfterMove now expects Map[String, PieceInfo]
   val sampleHistory: List[SavedTransition] = List(
-    SavedTransition("7g7f", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> SimplePiece.FU)),
-    SavedTransition("3c3d", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> SimplePiece.FU) - posToKey(Position(3,3)) + (posToKey(Position(3,4)) -> SimplePiece.FU))
+    SavedTransition("7g7f", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> PieceInfo(SimplePiece.FU, Player.SENTE, false))),
+    SavedTransition("3c3d", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> PieceInfo(SimplePiece.FU, Player.SENTE, false)) - posToKey(Position(3,3)) + (posToKey(Position(3,4)) -> PieceInfo(SimplePiece.FU, Player.GOTE, false)))
   )
 
   val emptyHistory: List[SavedTransition] = Nil
 
   "GameSaver" should "save and load a simple game state correctly" in withTempFile { filePath =>
     val originalGameState = GameState(
-      boardSetup = sampleBoardSetup,
+      boardSetup = sampleBoardSetup, // This is now Map[String, PieceInfo]
       currentTurn = Player.SENTE,
       capturedPiecesPlayer1 = List(SimplePiece.KA, SimplePiece.FU),
       capturedPiecesPlayer2 = List(SimplePiece.HI),
@@ -64,21 +66,22 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
     loadResult should be a 'success
 
     val loadedGameState = loadResult.get
-    // Custom equality check if default .equals for Map[String, PieceInfo] is problematic or if order matters anywhere (though Maps are unordered)
+    // Custom equality check for PieceInfo maps
     loadedGameState.boardSetup.keys should contain theSameElementsAs originalGameState.boardSetup.keys
     originalGameState.boardSetup.keys.foreach { k =>
         loadedGameState.boardSetup(k) shouldEqual originalGameState.boardSetup(k)
     }
+    // Compare other fields after emptying boardSetup for simplicity if direct GameState equality fails due to Map comparison
     loadedGameState.copy(boardSetup = Map.empty) shouldEqual originalGameState.copy(boardSetup = Map.empty)
   }
 
   it should "save and load an initial game state" in withTempFile { filePath =>
-    val initialBoard: Map[String, SimplePieceType] = Map(
-      posToKey(Position(1,1)) -> SimplePiece.KY, posToKey(Position(2,1)) -> SimplePiece.KE,
-      posToKey(Position(9,9)) -> SimplePiece.KY, posToKey(Position(8,9)) -> SimplePiece.KE
+    val initialBoard: Map[String, PieceInfo] = Map(
+      posToKey(Position(1,1)) -> PieceInfo(SimplePiece.KY, Player.SENTE, false), posToKey(Position(2,1)) -> PieceInfo(SimplePiece.KE, Player.SENTE, false),
+      posToKey(Position(9,9)) -> PieceInfo(SimplePiece.KY, Player.GOTE, false), posToKey(Position(8,9)) -> PieceInfo(SimplePiece.KE, Player.GOTE, false)
     )
     val originalGameState = GameState(
-      boardSetup = initialBoard,
+      boardSetup = initialBoard, // This is now Map[String, PieceInfo]
       currentTurn = Player.SENTE,
       capturedPiecesPlayer1 = Nil,
       capturedPiecesPlayer2 = Nil,
@@ -95,14 +98,14 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "save and load a mid-game state with more complex data" in withTempFile { filePath =>
-    // boardStateAfterMove now expects Map[String, SimplePieceType]
+    // boardStateAfterMove now expects Map[String, PieceInfo]
     val complexHistory = List(
-        SavedTransition("7g7f", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> SimplePiece.FU)),
-        SavedTransition("3c3d", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> SimplePiece.FU) - posToKey(Position(3,3)) + (posToKey(Position(3,4)) -> SimplePiece.FU)),
-        SavedTransition("2h7h", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> SimplePiece.FU) - posToKey(Position(3,3)) + (posToKey(Position(3,4)) -> SimplePiece.FU) - posToKey(Position(2,8)) + (posToKey(Position(7,8)) -> SimplePiece.KA))
+        SavedTransition("7g7f", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> PieceInfo(SimplePiece.FU, Player.SENTE, false))),
+        SavedTransition("3c3d", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> PieceInfo(SimplePiece.FU, Player.SENTE, false)) - posToKey(Position(3,3)) + (posToKey(Position(3,4)) -> PieceInfo(SimplePiece.FU, Player.GOTE, false))),
+        SavedTransition("2h7h", sampleBoardSetupMidGame - posToKey(Position(7,7)) + (posToKey(Position(7,6)) -> PieceInfo(SimplePiece.FU, Player.SENTE, false)) - posToKey(Position(3,3)) + (posToKey(Position(3,4)) -> PieceInfo(SimplePiece.FU, Player.GOTE, false)) - posToKey(Position(2,8)) + (posToKey(Position(7,8)) -> PieceInfo(SimplePiece.KA, Player.SENTE, false)))
     )
     val originalGameState = GameState(
-      boardSetup = sampleBoardSetupMidGame, // This is now Map[String, SimplePieceType]
+      boardSetup = sampleBoardSetupMidGame, // This is now Map[String, PieceInfo]
       currentTurn = Player.GOTE,
       capturedPiecesPlayer1 = List(SimplePiece.FU, SimplePiece.FU, SimplePiece.KY),
       capturedPiecesPlayer2 = List(SimplePiece.GI),
@@ -118,6 +121,7 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
         loadedTrans.move shouldEqual origTrans.move
         loadedTrans.boardStateAfterMove.keys should contain theSameElementsAs origTrans.boardStateAfterMove.keys
         origTrans.boardStateAfterMove.keys.foreach { k =>
+            // Assuming PieceInfo has a sensible equals method or is a case class
             loadedTrans.boardStateAfterMove(k) shouldEqual origTrans.boardStateAfterMove(k)
         }
     }
@@ -126,7 +130,7 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
 
   it should "save and load a game state with empty history" in withTempFile { filePath =>
     val originalGameState = GameState(
-      boardSetup = sampleBoardSetup,
+      boardSetup = sampleBoardSetup, // This is now Map[String, PieceInfo]
       currentTurn = Player.SENTE,
       capturedPiecesPlayer1 = List(SimplePiece.KI),
       capturedPiecesPlayer2 = Nil,
@@ -144,11 +148,11 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
   it should "save and load with captured pieces for both players" in withTempFile { filePath =>
     // King on 5,5
     val originalGameState = GameState(
-      boardSetup = Map(posToKey(Position(5,5)) -> SimplePiece.OU),
+      boardSetup = Map(posToKey(Position(5,5)) -> PieceInfo(SimplePiece.OU, Player.SENTE, false)), // Sente King
       currentTurn = Player.GOTE,
       capturedPiecesPlayer1 = List(SimplePiece.HI, SimplePiece.KA, SimplePiece.FU, SimplePiece.FU),
       capturedPiecesPlayer2 = List(SimplePiece.KI, SimplePiece.GI, SimplePiece.KE, SimplePiece.KY),
-      gameHistory = sampleHistory
+      gameHistory = sampleHistory // sampleHistory already uses PieceInfo in its boardStateAfterMove
     )
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success
     val loadedGameState = GameSaver.loadFromFile(filePath.toString).get

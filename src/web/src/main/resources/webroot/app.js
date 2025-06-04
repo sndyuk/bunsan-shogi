@@ -36,6 +36,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
+    function convertBoardSetup(boardSetup) {
+        const converted = {};
+        for (const key in boardSetup) {
+            const [cx, cy] = key.split('_').map(Number);
+            const wx = 8 - cx; // Convert core x (0=rightmost) to web x (0=leftmost)
+            converted[`${wx}_${cy}`] = boardSetup[key];
+        }
+        return converted;
+    }
+
     async function fetchGameState() {
         try {
             const response = await fetch('/api/game/state');
@@ -45,9 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const gameState = await response.json();
 
             currentTurn = gameState.currentTurn;
-            boardState = gameState.boardSetup; // Expects map like {"0_0": {pieceType:"KY",...}, "0_1":{pieceType:"KE",...}}
+            boardState = convertBoardSetup(gameState.boardSetup); // convert coordinates for the web UI
 
-            renderBoard(gameState.boardSetup); // boardSetup is Map<String, PieceInfo>
+            renderBoard(boardState); // use converted board state
             renderCapturedPieces(gameState.capturedPiecesPlayer1, gameState.capturedPiecesPlayer2);
             updateGameStatus(`Turn: ${currentTurn}. History moves: ${gameState.gameHistory.length}`);
             clearHighlights();

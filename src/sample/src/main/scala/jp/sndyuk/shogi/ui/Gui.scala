@@ -16,13 +16,13 @@ import scala.swing.Dialog
 import scala.swing.GridPanel
 import scala.swing._
 import scala.swing.event.ButtonClicked
-import scala.swing.event.Key._
+import scala.swing.event.{Key, KeyPressed} // Specific import for Key, KeyPressed for onKeyPress
 import scala.swing.event.MouseDragged
 import scala.swing.event.MouseEntered
 import scala.swing.event.MouseReleased
 
 import jp.sndyuk.shogi.core.Block
-import jp.sndyuk.shogi.core.Board
+// import jp.sndyuk.shogi.core.Board // Unused import
 import jp.sndyuk.shogi.core.Piece
 import jp.sndyuk.shogi.core.Piece.▲
 import jp.sndyuk.shogi.core.Piece.△
@@ -45,7 +45,10 @@ import jp.sndyuk.shogi.ai.AlphaBetaAI_V1
 // Import alias for CoreBoard at the top
 import jp.sndyuk.shogi.core.{Board => CoreBoard}
 // NEW IMPORTS for GameStateMapper and ShogiGameService
-import jp.sndyuk.shogi.core.GameStateMapper
+import jp.sndyuk.shogi.core.GameStateMapper // GameStateMapper object
+// import jp.sndyuk.shogi.core.SimplePiece // Unused import
+// import jp.sndyuk.shogi.core.{Player => CorePlayer} // Unused import
+import jp.sndyuk.shogi.core.SimpleTransition // For SimpleTransition case class
 import jp.sndyuk.shogi.core.ShogiGameService
 import jp.sndyuk.shogi.kifu.KifuMapper // NEW Import for KifuMapper
 // Corrected import for KifuTempCore
@@ -241,10 +244,11 @@ object Gui extends SimpleSwingApplication with Shogi {
   import jp.sndyuk.shogi.core.{
     GameState => SavedGameState, // The GameState case class for serialization
     GameSaver,
-    Player => SavedPlayer, // The Player enum in GameState.scala (SENTE, GOTE)
-    Position => SavedPosition, // The Position case class in GameState.scala (x, y)
-    Piece => SavedPieceEnum, // The Piece enum in GameState.scala (KING, ROOK, etc.)
-    Transition => SavedTransition // The Transition case class in GameState.scala (move string, board map)
+    // Player => SavedPlayer, // Will use CorePlayer.Player (aliased)
+    // Position => SavedPosition, // Unused import
+    // Piece => SavedPieceEnum, // Will use SimplePiece.SimplePieceType
+    // Transition => SavedTransition // Will use SimpleTransition
+    PieceInfo // Case class for board setup serialization
   }
   import jp.sndyuk.shogi.kifu.{CSAExporter, KI2Exporter}
   // Kifu exporters currently use their own TempCore, we need to map to that.
@@ -256,16 +260,19 @@ object Gui extends SimpleSwingApplication with Shogi {
   // The CoreBoard alias is moved to the top. Other specific aliases can remain if used locally.
   import jp.sndyuk.shogi.core.{
     // Board => CoreBoard, // Alias moved to top
-    Piece => CorePiece,
-    Point => CorePoint,
-    State => CoreState,
-    Transition => CoreTransition,
-    Turn => CoreTurn,
-    PlayerA, // Represents Sente in core logic
-    PlayerB // Represents Gote in core logic
+    Piece => CorePiece, // Alias for jp.sndyuk.shogi.core.Piece
+    Point => CorePoint, // Alias for jp.sndyuk.shogi.core.Point
+    State => CoreState, // Alias for jp.sndyuk.shogi.core.State
+    // Transition => CoreTransition, // Unused import
+    Turn => CoreTurn, // Alias for jp.sndyuk.shogi.core.Turn
+    PlayerA, // Represents Sente in core logic (jp.sndyuk.shogi.core.PlayerA)
+    PlayerB // Represents Gote in core logic (jp.sndyuk.shogi.core.PlayerB)
+    // SavedSimpleTransition, // Removed, using SimpleTransition
+    // SavedPieceEnum,      // Removed, using SimplePiece.SimplePieceType
+    // SavedPlayerEnum      // Removed, using CorePlayer.Player
   }
   import scala.util.{Try, Success, Failure}
-  import java.io.{File, PrintWriter, FileWriter} // For file writing in export
+  import java.io.{PrintWriter, FileWriter} // Re-add import for file operations, remove File
 
   // Local mapping functions are removed as per refactoring plan. GameStateMapper will be used.
   // --- End of removed local mapping functions for save/load ---
@@ -310,18 +317,18 @@ object Gui extends SimpleSwingApplication with Shogi {
     }
     val fileChooser = new FileChooser
     fileChooser.title = "Save Game State"
-    if (fileChooser.showSaveDialog(boardPanel.peer) == FileChooser.Result.Approve) {
+    if (fileChooser.showSaveDialog(boardPanel) == FileChooser.Result.Approve) { // Pass boardPanel directly
       val file = fileChooser.selectedFile
 
       // History Mapping (adapted from ShogiGameService.getGameState)
-      val gameHistoryMapped: List[SavedSimpleTransition] = {
+      val gameHistoryMapped: List[SimpleTransition] = { // Use SimpleTransition
         if (currState.history.isEmpty) {
           Nil
         } else {
           // Determine initial board state for history replay.
           // This is complex. For now, assume standard CoreBoard() was the start.
           // This will be incorrect if the game was loaded from a custom state.
-          var tempBoard = CoreBoard()
+          val tempBoard = CoreBoard() // Changed var to val
 
           // Determine the starting player of the game based on current state and history length
           val gameStartingTurn = if (currState.history.length % 2 == 0) {
@@ -343,31 +350,31 @@ object Gui extends SimpleSwingApplication with Shogi {
         }
       }
 
-      val capturedSente = Piece.◯.all.flatMap { generalizedPiece =>
+      val capturedSente = jp.sndyuk.shogi.core.Piece.◯.all.flatMap { generalizedPiece => // Use fully qualified Piece
         val count = Gui.this.board.capturedPieces.count(PlayerA, generalizedPiece)
         List.fill(count)(
           GameStateMapper.corePieceToSimplePieceTypeAndPlayer(generalizedPiece) match {
-            case Some((spt, _, _)) => spt
+            case Some((spt, _, _)) => spt // spt is SimplePiece.SimplePieceType
             case None => throw new IllegalStateException(s"Cannot map core captured piece $generalizedPiece")
           }
         )
       }.toList
 
-      val capturedGote = Piece.◯.all.flatMap { generalizedPiece =>
+      val capturedGote = jp.sndyuk.shogi.core.Piece.◯.all.flatMap { generalizedPiece => // Use fully qualified Piece
         val count = Gui.this.board.capturedPieces.count(PlayerB, generalizedPiece)
         List.fill(count)(
           GameStateMapper.corePieceToSimplePieceTypeAndPlayer(generalizedPiece) match {
-            case Some((spt, _, _)) => spt
+            case Some((spt, _, _)) => spt // spt is SimplePiece.SimplePieceType
             case None => throw new IllegalStateException(s"Cannot map core captured piece $generalizedPiece")
           }
         )
       }.toList
 
       val gameStateToSave = SavedGameState(
-        boardSetup = GameStateMapper.coreBoardToBoardSetup(Gui.this.board),
-        currentTurn = GameStateMapper.coreTurnToPlayer(currState.turn), // Uses GameStateMapper
-        capturedPiecesPlayer1 = capturedSente,
-        capturedPiecesPlayer2 = capturedGote,
+        boardSetup = GameStateMapper.coreBoardToBoardSetup(Gui.this.board), // Returns Map[String, PieceInfo]
+        currentTurn = GameStateMapper.coreTurnToPlayer(currState.turn), // Returns CorePlayer.Player
+        capturedPiecesPlayer1 = capturedSente, // List[SimplePiece.SimplePieceType]
+        capturedPiecesPlayer2 = capturedGote, // List[SimplePiece.SimplePieceType]
         gameHistory = gameHistoryMapped
       )
 
@@ -381,25 +388,20 @@ object Gui extends SimpleSwingApplication with Shogi {
   private def loadGame(): Unit = {
     val fileChooser = new FileChooser
     fileChooser.title = "Load Game State"
-    if (fileChooser.showOpenDialog(boardPanel.peer) == FileChooser.Result.Approve) {
+    if (fileChooser.showOpenDialog(boardPanel) == FileChooser.Result.Approve) { // Pass boardPanel directly
       val file = fileChooser.selectedFile
       GameSaver.loadFromFile(file.getAbsolutePath) match {
         case Success(loadedGameState) =>
           // Prepare data for ShogiGameService.startNewGame
-          val initialBoardSetupForService: Map[SavedPosition, (SavedSimplePieceEnum.Value, SavedPlayerEnum.Value, Boolean)] =
-            loadedGameState.boardSetup.map { case (savedPos, savedPieceEnum) =>
-              // Infer player based on y-coordinate (crude, as per subtask)
-              // SavedPosition is (x,y), where y is 0-8 top to bottom.
-              // Sente typically at higher y-indices (e.g., y=6,7,8 for pawns, king row)
-              val player: SavedPlayerEnum.Value = if (savedPos.y >= 5) SavedPlayerEnum.SENTE else SavedPlayerEnum.GOTE
-              val isPromoted = false // SavedPieceEnum does not store promotion status
-              savedPos -> (savedPieceEnum, player, isPromoted)
-            }
+          // loadedGameState.boardSetup is already Map[String, PieceInfo]
+          // PieceInfo has pieceType: SimplePiece.SimplePieceType, player: CorePlayer.Player, isPromoted: Boolean
+          // ShogiGameService expects Option[Map[String, PieceInfo]]
+          val initialBoardSetupForService: Map[String, PieceInfo] = loadedGameState.boardSetup
 
           // Call ShogiGameService to set its internal state
-          // Note: loadedGameState.currentTurn is SavedPlayerEnum.Value, which matches what ShogiGameService expects for firstPlayer.
+          // Note: loadedGameState.currentTurn is CorePlayer.Player, which matches what ShogiGameService expects for firstPlayer.
           shogiGameService.startNewGame(
-            initialBoardSetup = Some(initialBoardSetupForService),
+            initialBoardSetup = Some(initialBoardSetupForService), // Pass the correctly typed map
             initialSenteCaptured = loadedGameState.capturedPiecesPlayer1,
             initialGoteCaptured = loadedGameState.capturedPiecesPlayer2,
             firstPlayer = loadedGameState.currentTurn
@@ -417,9 +419,9 @@ object Gui extends SimpleSwingApplication with Shogi {
           val currentPlayerObject = if (Gui.this.currState.turn == PlayerA) Gui.this.playerA else Gui.this.playerB
           afterMove(currentPlayerObject, null, null)
 
-          Dialog.showMessage(boardPanel.peer, "Game loaded via ShogiGameService.", title = "Load Complete")
+          Dialog.showMessage(boardPanel, "Game loaded via ShogiGameService.", title = "Load Complete") // Pass boardPanel directly
 
-        case Failure(e) => Dialog.showMessage(boardPanel.peer, s"Failed to load game: ${e.getMessage}", title = "Load Error", messageType = Dialog.Message.Error)
+        case Failure(e) => Dialog.showMessage(boardPanel, s"Failed to load game: ${e.getMessage}", title = "Load Error", messageType = Dialog.Message.Error) // Pass boardPanel directly
       }
     }
   }
@@ -428,19 +430,19 @@ object Gui extends SimpleSwingApplication with Shogi {
 
   private def exportKifu(isCSA: Boolean): Unit = {
     if (currState == null || currState.history.isEmpty) {
-      Dialog.showMessage(boardPanel.peer, "No game history to export.", title = "Export Kifu", messageType = Dialog.Message.Info)
+      Dialog.showMessage(boardPanel, "No game history to export.", title = "Export Kifu", messageType = Dialog.Message.Info) // Pass boardPanel directly
       return
     }
     val fileChooser = new FileChooser
     val format = if (isCSA) "CSA" else "KI2"
     fileChooser.title = s"Export Kifu to $format"
-    if (fileChooser.showSaveDialog(boardPanel.peer) == FileChooser.Result.Approve) {
+    if (fileChooser.showSaveDialog(boardPanel) == FileChooser.Result.Approve) { // Pass boardPanel directly
       val file = fileChooser.selectedFile
 
       // Determine initial board state for history replay for Kifu export.
       // Assuming game started from standard CoreBoard() if not loaded otherwise.
       // This is a simplification; a robust solution would track the true initial state.
-      var tempBoardForKifu = CoreBoard()
+      val tempBoardForKifu = CoreBoard() // Changed var to val
 
       // Determine the starting player of the game.
       val gameStartingTurnForKifu = if (currState.history.length % 2 == 0) {
@@ -482,8 +484,8 @@ object Gui extends SimpleSwingApplication with Shogi {
         pw.write(kifuString)
         pw.close()
       } match {
-        case Success(_) => Dialog.showMessage(boardPanel.peer, s"$format kifu exported successfully.", title = "Export Success")
-        case Failure(e) => Dialog.showMessage(boardPanel.peer, s"Failed to export $format kifu: ${e.getMessage}", title = "Export Error", messageType = Dialog.Message.Error)
+        case Success(_) => Dialog.showMessage(boardPanel, s"$format kifu exported successfully.", title = "Export Success") // Pass boardPanel directly
+        case Failure(e) => Dialog.showMessage(boardPanel, s"Failed to export $format kifu: ${e.getMessage}", title = "Export Error", messageType = Dialog.Message.Error) // Pass boardPanel directly
       }
     }
   }
@@ -583,6 +585,7 @@ object Gui extends SimpleSwingApplication with Shogi {
       (blockSize + blockMargin) * 9)
 
     focusable = true
+    listenTo(keys) // Need to listen to key events
 
     def rebuild = {
       contents.clear
@@ -596,12 +599,16 @@ object Gui extends SimpleSwingApplication with Shogi {
       g fillRect (0, 0, size.width, size.height)
     }
 
-    def onKeyPress(keyCode: Value) = keyCode match {
-      case Left => println(keyCode)
-      case Right => println(keyCode)
-      case Up => println(keyCode)
-      case Down => println(keyCode)
-      case Space => println(keyCode)
+    reactions += { // Add reaction for key presses
+      case kp: KeyPressed => onKeyPress(kp.key)
+    }
+
+    def onKeyPress(keyCode: Key.Value): Unit = keyCode match { // Use Key.Value and Unit return type
+      case Key.Left => println(keyCode)
+      case Key.Right => println(keyCode)
+      case Key.Up => println(keyCode)
+      case Key.Down => println(keyCode)
+      case Key.Space => println(keyCode)
       case _ => println(keyCode)
     }
 
@@ -677,19 +684,19 @@ object Gui extends SimpleSwingApplication with Shogi {
     }
   }
 
-  private def turn(player: Player): Turn = if (player == playerA) PlayerA else PlayerB
+  private def turn(p: jp.sndyuk.shogi.player.Player): CoreTurn = if (p == playerA) PlayerA else PlayerB // Use aliased CoreTurn, clarify jp.sndyuk.shogi.player.Player
 
-  private def chooseIfPieceCanBePromoted(piece: Piece, oldPos: Point, newPos: Point): Boolean = {
+  private def chooseIfPieceCanBePromoted(piece: CorePiece, oldPos: CorePoint, newPos: CorePoint): Boolean = { // Use aliased types
     if (Rule.canBePromoted(board, oldPos, newPos, piece)) {
       if (Rule.canMoveAtNextTurn(piece, newPos)) { // Check if the piece *can* move if it doesn't promote (e.g. Keima in last rank must promote)
-        Dialog.showConfirmation(parent = boardPanel.peer, title = "成駒確認", message = "成りますか。") == Dialog.Result.Ok
+        Dialog.showConfirmation(parent = boardPanel, title = "成駒確認", message = "成りますか。") == Dialog.Result.Ok // Pass boardPanel directly
       } else {
         true // Must promote
       }
     } else false
   }
 
-  override def afterMove(player: Player, oldPos: Point, newPos: Point): Unit = {
+  override def afterMove(shogiPlayer: jp.sndyuk.shogi.player.Player, oldPos: CorePoint, newPos: CorePoint): Unit = { // Use aliased types, clarify jp.sndyuk.shogi.player.Player
     println(board.toString) // Log board state to console
     boardPanel.rebuild
     capturedPiecesByComponent.clear // Reset for InfoPanels
@@ -705,22 +712,22 @@ object Gui extends SimpleSwingApplication with Shogi {
     turnBInfoPanel.repaint
   }
 
-  override def beforeMove(player: Player): Unit = {
-    this.player = player
+  override def beforeMove(shogiPlayer: jp.sndyuk.shogi.player.Player): Unit = { // Clarify jp.sndyuk.shogi.player.Player
+    this.player = shogiPlayer
   }
 
-  override def done(player: Player, oldPos: Point, newPos: Point, winner: Player): Unit = {
+  override def done(shogiPlayer: jp.sndyuk.shogi.player.Player, oldPos: CorePoint, newPos: CorePoint, winner: jp.sndyuk.shogi.player.Player): Unit = { // Use aliased types, clarify jp.sndyuk.shogi.player.Player
     // TODO: Store game result properly for export
     val resultMessage = s"${winner}の勝ちです。"
-    Dialog.showMessage(parent = boardPanel.peer, title = "終局", message = resultMessage)
+    Dialog.showMessage(parent = boardPanel, title = "終局", message = resultMessage) // Pass boardPanel directly
   }
 
-  override def failToMove(player: Player, oldPos: Point, newPos: Point): Unit = {
-    Dialog.showMessage(parent = boardPanel.peer, title = "移動不可", message = "そこには置けません。")
+  override def failToMove(shogiPlayer: jp.sndyuk.shogi.player.Player, oldPos: CorePoint, newPos: CorePoint): Unit = { // Use aliased types, clarify jp.sndyuk.shogi.player.Player
+    Dialog.showMessage(parent = boardPanel, title = "移動不可", message = "そこには置けません。") // Pass boardPanel directly
   }
 
-  override def onError(e: Exception): Unit = {
-    Dialog.showMessage(parent = boardPanel.peer, title = "エラー", message = e.getMessage, messageType = Dialog.Message.Error)
+  override def onError(e: Exception): Unit = { // Clarify Player type if used here, though not directly in method signature
+    Dialog.showMessage(parent = boardPanel, title = "エラー", message = e.getMessage, messageType = Dialog.Message.Error) // Pass boardPanel directly
     // TODO for debug. remove if not needed
     e.printStackTrace()
   }

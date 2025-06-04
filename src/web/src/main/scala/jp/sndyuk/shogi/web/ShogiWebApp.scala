@@ -76,7 +76,7 @@ class ShogiWebApp extends ScalatraServlet {
     val body = request.body
     if (body.trim.isEmpty) {
       // No body, start a default game
-      val newGameState = shogiGameService.startNewGame(gameMode = "hvh", aiType = "v2", aiSearchDepth = 3) // Default HVH
+      val newGameState = shogiGameService.startNewGame(gameMode = "hvh", aiType = "v4", aiSearchDepth = 3) // Default HVH
       Json.toJson(newGameState).toString()
     } else {
       // Body present, try to parse as NewGameRequest
@@ -89,7 +89,7 @@ class ShogiWebApp extends ScalatraServlet {
       jsonBody.validate[NewGameRequest].asOpt match {
         case Some(req) =>
           val gameMode = req.gameMode.getOrElse("hvh")
-          val aiType = req.aiType.getOrElse("v2")
+          val aiType = req.aiType.getOrElse("v4")
           val aiSearchDepth = req.aiSearchDepth.getOrElse(3)
 
           val newGameState = shogiGameService.startNewGame(
@@ -107,7 +107,7 @@ class ShogiWebApp extends ScalatraServlet {
 
   // GET /game/suggest_move
   get("/game/suggest_move") {
-    val aiTypeParam = params.get("aiType").getOrElse("v2")
+    val aiTypeParam = params.get("aiType").getOrElse("v4")
     val aiSearchDepthParam = params.getAs[Int]("aiSearchDepth").getOrElse(3)
 
     // This method shogiGameService.suggestMove(aiType, depth) needs to be implemented in ShogiGameService

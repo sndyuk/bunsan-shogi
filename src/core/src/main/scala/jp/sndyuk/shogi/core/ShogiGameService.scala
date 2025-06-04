@@ -2,22 +2,21 @@ package jp.sndyuk.shogi.core
 
 import jp.sndyuk.shogi.core.Player.Player
 import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
-import jp.sndyuk.shogi.ai.{ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2}
-import play.api.libs.json.{Json, JsValue, JsNumber, JsString, JsBoolean} // Added
-// Removed: import jp.sndyuk.shogi.core.Transition // This was causing "permanently hidden" error
+import jp.sndyuk.shogi.ai.{ShogiAI, AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V3, AlphaBetaAI_V4}
+import play.api.libs.json.{Json, JsValue, JsNumber, JsString, JsBoolean}
 
 object AIProvider {
   def getAI(aiType: String, searchDepth: Int): Option[ShogiAI] = {
     aiType.toLowerCase match {
       case "v1" => Some(new AlphaBetaAI_V1("AlphaBetaAI_V1", searchDepth))
       case "v2" => Some(new AlphaBetaAI_V2("AlphaBetaAI_V2", searchDepth))
+      case "v3" => Some(new AlphaBetaAI_V3("AlphaBetaAI_V3", searchDepth))
+      case "v4" => Some(new AlphaBetaAI_V4("AlphaBetaAI_V4", searchDepth))
       case _    => None
     }
   }
 }
 
-// NOTE: The `suggestMove` method has been moved into ShogiGameService class.
-// This comment block is a placeholder for the removed incorrect placement.
 
 class ShogiGameService {
 
@@ -34,7 +33,7 @@ class ShogiGameService {
 
 
   // Initialize a new game upon service creation using default parameters
-  startNewGame(gameMode = "hvh", aiType = "v2", aiSearchDepth = 3)
+  startNewGame(gameMode = "hvh", aiType = "v4", aiSearchDepth = 3)
 
   def startNewGame(
     initialBoardSetup: Option[Map[String, PieceInfo]] = None, // Updated type
@@ -42,7 +41,7 @@ class ShogiGameService {
     initialGoteCaptured: List[SimplePieceType] = Nil,
     firstPlayer: Player = Player.SENTE,
     gameMode: String = "hvh",
-    aiType: String = "v2",
+    aiType: String = "v4",
     aiSearchDepth: Int = 3
   ): GameState = {
     // Store initial parameters for potential future use (e.g. robust history replay)

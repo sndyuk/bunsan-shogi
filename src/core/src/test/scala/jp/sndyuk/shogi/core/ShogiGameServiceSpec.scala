@@ -2,9 +2,7 @@ package jp.sndyuk.shogi.core
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-// Unused aliases GamePlayer and GameSimplePieceType were removed. Direct usages like Player.SENTE and SimplePiece.FU are preferred.
-import jp.sndyuk.shogi.ai.{AlphaBetaAI_V1, AlphaBetaAI_V2}
-// SENTE/GOTE imports were already removed. Player.SENTE/Player.GOTE is used directly.
+import jp.sndyuk.shogi.ai.{AlphaBetaAI_V1, AlphaBetaAI_V2, AlphaBetaAI_V4}
 
 
 class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
@@ -12,7 +10,6 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
   "ShogiGameService (Initialization with AI)" should "start a new game with AI as Sente" in {
     val service = new ShogiGameService()
     service.startNewGame(gameMode = "hva_sente", aiType = "v2", aiSearchDepth = 2)
-    // val gameState = service.getGameState() // Unused variable
 
     service.gameMode shouldBe "hva_sente"
     service.aiOpponent shouldBe defined
@@ -24,7 +21,6 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
   it should "start a new game with AI as Gote" in {
     val service = new ShogiGameService()
     service.startNewGame(gameMode = "hva_gote", aiType = "v1", aiSearchDepth = 4, firstPlayer = Player.SENTE)
-    // val gameState = service.getGameState() // Unused variable
 
     service.gameMode shouldBe "hva_gote"
     service.aiOpponent shouldBe defined
@@ -33,10 +29,19 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.getGameState().currentTurn shouldBe Player.SENTE // Initial turn is still Sente
   }
 
+  it should "start a game using the stronger v4 AI" in {
+    val service = new ShogiGameService()
+    service.startNewGame(gameMode = "hva_sente", aiType = "v4", aiSearchDepth = 2)
+
+    service.gameMode shouldBe "hva_sente"
+    service.aiOpponent shouldBe defined
+    service.aiOpponent.get shouldBe an [AlphaBetaAI_V4]
+    service.aiSearchDepth shouldBe 2
+  }
+
   it should "start a new game in Human vs Human (HVH) mode" in {
     val service = new ShogiGameService()
     service.startNewGame(gameMode = "hvh") // Default AI type and depth don't matter here
-    // val gameState = service.getGameState() // Unused variable
 
     service.gameMode shouldBe "hvh"
     service.aiOpponent shouldBe None
@@ -46,7 +51,6 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
   it should "default to HVH mode if gameMode is not specified" in {
     val service = new ShogiGameService()
     service.startNewGame()
-    // val gameState = service.getGameState() // Unused variable
 
     service.gameMode shouldBe "hvh" // Default in startNewGame signature
     service.aiOpponent shouldBe None // Because it's hvh

@@ -23,18 +23,16 @@ object AlphaBetaSearchNMP {
     Piece.◯.KI -> 500,
     Piece.◯.KA -> 800,
     Piece.◯.HI -> 900,
-    Piece.◯.TO -> 550,
-    Piece.◯.NY -> 530,
-    Piece.◯.NK -> 530,
-    Piece.◯.NG -> 550,
-    Piece.◯.UM -> 1200,
-    Piece.◯.RY -> 1300,
     Piece.◯.OU -> Int.MaxValue
   ).withDefaultValue(0)
 
   def clearKillers(): Unit = {
-    java.util.Arrays.fill(killerMoves1.asInstanceOf[Array[AnyRef]], null)
-    java.util.Arrays.fill(killerMoves2.asInstanceOf[Array[AnyRef]], null)
+    var i = 0
+    while (i < MAX_DEPTH) {
+      killerMoves1(i) = None
+      killerMoves2(i) = None
+      i += 1
+    }
   }
 
   private def updateKillers(depth: Int, move: Transition): Unit = {

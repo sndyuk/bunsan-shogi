@@ -37,13 +37,22 @@ object Console extends App with Shogi {
 
     def read(state: State): Transition = {
       val inputLine = scala.Console.in.readLine
-      val routeRegex(a, b, c, d, e) = inputLine
-      // Board.humanReadableToPoint converts the 1-indexed (file, rank) from human input
-      // to the 0-indexed internal representation used by the Board.
-      val oldPos = Board.humanReadableToPoint(a.toInt, b.toInt)
-      val newPos = Board.humanReadableToPoint(c.toInt, d.toInt)
-      // Removed debug println for promotion flag 'e'
-      Transition(oldPos, newPos, e != null && e == "+", board.pieceOnBoardNotEmpty(newPos))
+      routeRegex.findFirstMatchIn(inputLine) match {
+        case Some(m) =>
+          val a = m.group(1)
+          val b = m.group(2)
+          val c = m.group(3)
+          val d = m.group(4)
+          val e = m.group(5) // This can be null if the '+' is not present
+
+          // Board.humanReadableToPoint converts the 1-indexed (file, rank) from human input
+          // to the 0-indexed internal representation used by the Board.
+          val oldPos = Board.humanReadableToPoint(a.toInt, b.toInt)
+          val newPos = Board.humanReadableToPoint(c.toInt, d.toInt)
+          Transition(oldPos, newPos, e != null && e == "+", board.pieceOnBoardNotEmpty(newPos))
+        case None =>
+          throw new IllegalArgumentException("Invalid command format. Please use (file,rank)(file,rank)[+].")
+      }
     }
   }
 
@@ -105,19 +114,27 @@ object Console extends App with Shogi {
 
   /** Called when an error occurs during input parsing or game processing. */
   override def onError(e: Exception): Unit = {
-    println(s"\nAn error occurred: ${e.getMessage}")
-    println("Could not parse your command or an internal error occurred.")
-    println("Retry with a valid move? (Y/N) or show stack trace and exit (X)")
-    scala.Console.in.readLine().trim().toUpperCase() match {
-      case "N" =>
+    e match {
+      case _: java.util.NoSuchElementException | _: java.io.EOFException =>
+        println("\nInput stream ended unexpectedly (e.g., Ctrl+D). This usually means no more input can be read.")
+        println("This can happen if the program is expecting input but the source is closed.")
         println("Exiting game.")
-        sys.exit
-      case "X" =>
-        e.printStackTrace()
-        println("Exiting game due to error.")
-        sys.exit
-      case _ => // Default to retry
-        println("Please try your move again.")
+        sys.exit(1)
+      case _ =>
+        println(s"\nAn error occurred: ${e.getMessage}")
+        println("Could not parse your command or an internal error occurred.")
+        println("Retry with a valid move? (Y/N) or show stack trace and exit (X)")
+        scala.Console.in.readLine().trim().toUpperCase() match {
+          case "N" =>
+            println("Exiting game.")
+            sys.exit
+          case "X" =>
+            e.printStackTrace()
+            println("Exiting game due to error.")
+            sys.exit
+          case _ => // Default to retry
+            println("Please try your move again.")
+        }
     }
   }
 

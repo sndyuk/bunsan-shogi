@@ -36,8 +36,12 @@ object WebServer {
       server.start()
       println("Server started. Base URL for API: http://localhost:8080/api/")
       println("Static files (e.g. index.html) should be at: http://localhost:8080/")
-      println("Press any key to stop server.")
-      System.in.read() // Keep server running
+      println("Server running. Press Ctrl+C to stop.")
+      // In environments without a standard console (e.g. when launched from a
+      // service runner), reading from System.in immediately returns -1 which
+      // stops the server right after startup.  Using join() keeps the thread
+      // alive until the process receives a termination signal.
+      server.join() // Keep server running
     } catch {
       case e: Exception =>
         e.printStackTrace()

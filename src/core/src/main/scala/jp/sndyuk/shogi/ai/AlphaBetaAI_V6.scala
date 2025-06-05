@@ -39,7 +39,7 @@ class AlphaBetaAI_V6(val name: String = "AlphaBetaAI_V6", searchDepth: Int) exte
         beta = beta,
         maximizingPlayer = true,
         rootPlayerTurn = turn,
-        evalFunc = EvaluationV2.evaluate,
+        evalFunc = EvaluationV6.evaluate,
         transpositionTable = TranspositionTable
       )
 

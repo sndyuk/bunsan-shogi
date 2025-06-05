@@ -104,7 +104,8 @@ The project includes a comprehensive suite of unit tests. To execute these tests
 
 1.  Open your terminal or command prompt.
 2.  Navigate to the root directory of the project.
-3.  Run the following command:
+3.  Ensure `sbt` is installed (see the [Building from Source](#building-from-source) section).
+4.  Run the following command:
 
     ```sh
     sbt test

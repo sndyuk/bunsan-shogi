@@ -23,11 +23,9 @@ object QuiescenceSearch {
       depth: Int = 0
   ): (Int, Long) = {
     var nodesVisited: Long = 1L
-
     if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
       return (0, nodesVisited)
     }
-
     if (depth >= MAX_DEPTH) {
       val standPatEval = evalFunc(currentBoard, rootPlayerTurn)
       return (standPatEval, nodesVisited)

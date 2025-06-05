@@ -415,6 +415,40 @@ class EvaluationV2Spec extends AnyFlatSpec with Matchers {
   }
 }
 
+class EvaluationV6Spec extends AnyFlatSpec with Matchers {
+  import TestBoardUtils._
+  private val MOBILITY_BONUS_PER_MOVE = 2
+  private val CENTER_SQUARE_BONUS = 10
+
+  it should "apply PST score for Gold" in {
+    val board = createBoardWithHands(boardPieces = Seq((Piece.▲.KI, Point(2,4))))
+    val base = EvaluationV1.evaluate(board, PlayerA)
+    val mobility = Rule.generateMovablePoints(board, Point(2,4), Piece.▲.KI, PlayerA, false).size * MOBILITY_BONUS_PER_MOVE
+    val goldPst = 3
+    EvaluationV6.evaluate(board, PlayerA) shouldBe (base + mobility + goldPst)
+  }
+
+  it should "apply PST score for Silver" in {
+    val playerA = PlayerA; val playerB = PlayerB
+    val boardCenter = createBoardWithHands(boardPieces = Seq((Piece.▲.OU, Point(8,8)), (Piece.▲.GI, Point(4,4)), (Piece.△.OU, Point(0,0))))
+    val baseCenter = EvaluationV1.evaluate(boardCenter, playerA)
+    val mobilityCenter = (Rule.generateMovablePoints(boardCenter, Point(8,8), Piece.▲.OU, playerA, false).size +
+      Rule.generateMovablePoints(boardCenter, Point(4,4), Piece.▲.GI, playerA, false).size) * MOBILITY_BONUS_PER_MOVE
+    val pstCenter = 5; val ccCenter = CENTER_SQUARE_BONUS
+    val oppMobilityCenter = Rule.generateMovablePoints(boardCenter, Point(0,0), Piece.△.OU, playerB, false).size * MOBILITY_BONUS_PER_MOVE
+    val totalCenter = baseCenter + (mobilityCenter - oppMobilityCenter) + pstCenter + ccCenter
+    EvaluationV6.evaluate(boardCenter, playerA) shouldBe totalCenter
+
+    val boardBack = createBoardWithHands(boardPieces = Seq((Piece.▲.OU, Point(8,8)), (Piece.▲.GI, Point(8,4)), (Piece.△.OU, Point(0,0))))
+    val baseBack = EvaluationV1.evaluate(boardBack, playerA)
+    val mobilityBack = (Rule.generateMovablePoints(boardBack, Point(8,8), Piece.▲.OU, playerA, false).size +
+      Rule.generateMovablePoints(boardBack, Point(8,4), Piece.▲.GI, playerA, false).size) * MOBILITY_BONUS_PER_MOVE
+    val oppMobilityBack = Rule.generateMovablePoints(boardBack, Point(0,0), Piece.△.OU, playerB, false).size * MOBILITY_BONUS_PER_MOVE
+    val totalBack = baseBack + (mobilityBack - oppMobilityBack)
+    EvaluationV6.evaluate(boardBack, playerA) shouldBe totalBack
+  }
+}
+
 class AlphaBetaAI_V2_Spec extends AnyFlatSpec with Matchers {
   import TestBoardUtils._
 

@@ -8,6 +8,8 @@ import jp.sndyuk.shogi.player.Utils
  * Used by AlphaBetaAI_V6 to reduce the horizon effect.
  */
 object QuiescenceSearch {
+  private val MAX_DEPTH = 16
+
   def search(
       currentState: State,
       currentBoard: Board,
@@ -16,9 +18,15 @@ object QuiescenceSearch {
       beta: Int,
       maximizingPlayer: Boolean,
       rootPlayerTurn: Turn,
-      evalFunc: (Board, Turn) => Int
+      evalFunc: (Board, Turn) => Int,
+      depth: Int = 0
   ): (Int, Long) = {
     var nodesVisited: Long = 1L
+
+    if (depth >= MAX_DEPTH) {
+      val standPatEval = evalFunc(currentBoard, rootPlayerTurn)
+      return (standPatEval, nodesVisited)
+    }
 
     // Stand pat evaluation from the perspective of rootPlayerTurn
     val standPat = evalFunc(currentBoard, rootPlayerTurn)
@@ -42,7 +50,7 @@ object QuiescenceSearch {
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
         val nextID = ID(tempBoard)
-        val (score, childNodes) = search(nextState, tempBoard, nextID, alphaVar, b, maximizingPlayer = false, rootPlayerTurn, evalFunc)
+        val (score, childNodes) = search(nextState, tempBoard, nextID, alphaVar, b, maximizingPlayer = false, rootPlayerTurn, evalFunc, depth + 1)
         nodesVisited += childNodes
         if (score > bestEval) bestEval = score
         if (score > alphaVar) alphaVar = score
@@ -56,7 +64,7 @@ object QuiescenceSearch {
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
         val nextID = ID(tempBoard)
-        val (score, childNodes) = search(nextState, tempBoard, nextID, a, betaVar, maximizingPlayer = true, rootPlayerTurn, evalFunc)
+        val (score, childNodes) = search(nextState, tempBoard, nextID, a, betaVar, maximizingPlayer = true, rootPlayerTurn, evalFunc, depth + 1)
         nodesVisited += childNodes
         if (score < bestEval) bestEval = score
         if (score < betaVar) betaVar = score

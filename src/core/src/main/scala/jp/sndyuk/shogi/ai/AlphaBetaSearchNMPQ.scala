@@ -72,7 +72,7 @@ object AlphaBetaSearchNMPQ {
     }
 
     if (depth == 0) {
-      val (score, qNodes) = QuiescenceSearch.search(currentState, currentBoard, currentBoardID, alpha, beta, maximizingPlayer, rootPlayerTurn, evalFunc)
+      val (score, qNodes) = QuiescenceSearch.search(currentState, currentBoard, currentBoardID, alpha, beta, maximizingPlayer, rootPlayerTurn, evalFunc, 0)
       nodesVisited += qNodes - 1
       transpositionTable.put(ttKey, score, depth, None)
       return (score, None, nodesVisited)

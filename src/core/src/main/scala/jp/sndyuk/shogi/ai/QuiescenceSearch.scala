@@ -19,10 +19,13 @@ object QuiescenceSearch {
       maximizingPlayer: Boolean,
       rootPlayerTurn: Turn,
       evalFunc: (Board, Turn) => Int,
+      gamePathHistoryIDs: List[ID] = Nil,
       depth: Int = 0
   ): (Int, Long) = {
     var nodesVisited: Long = 1L
-
+    if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
+      return (0, nodesVisited)
+    }
     if (depth >= MAX_DEPTH) {
       val standPatEval = evalFunc(currentBoard, rootPlayerTurn)
       return (standPatEval, nodesVisited)
@@ -50,7 +53,9 @@ object QuiescenceSearch {
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
         val nextID = ID(tempBoard)
-        val (score, childNodes) = search(nextState, tempBoard, nextID, alphaVar, b, maximizingPlayer = false, rootPlayerTurn, evalFunc, depth + 1)
+        val (score, childNodes) = search(nextState, tempBoard, nextID, alphaVar, b,
+          maximizingPlayer = false, rootPlayerTurn, evalFunc,
+          currentBoardID :: gamePathHistoryIDs, depth + 1)
         nodesVisited += childNodes
         if (score > bestEval) bestEval = score
         if (score > alphaVar) alphaVar = score
@@ -64,7 +69,9 @@ object QuiescenceSearch {
         val tempBoard = currentBoard.copy()
         val nextState = tempBoard.move(currentState, move.oldPos, move.newPos, false, move.nari)
         val nextID = ID(tempBoard)
-        val (score, childNodes) = search(nextState, tempBoard, nextID, a, betaVar, maximizingPlayer = true, rootPlayerTurn, evalFunc, depth + 1)
+        val (score, childNodes) = search(nextState, tempBoard, nextID, a, betaVar,
+          maximizingPlayer = true, rootPlayerTurn, evalFunc,
+          currentBoardID :: gamePathHistoryIDs, depth + 1)
         nodesVisited += childNodes
         if (score < bestEval) bestEval = score
         if (score < betaVar) betaVar = score

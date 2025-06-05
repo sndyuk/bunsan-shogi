@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newGameBtn = document.getElementById('new-game-btn');
     const battleModeSelect = document.getElementById('battle-mode');
     const suggestMoveBtn = document.getElementById('suggest-move-btn');
+    const evaluationScoreDiv = document.getElementById('evaluation-score');
 
     let selectedPiece = null; // { x, y, pieceType, player, isPromoted } or { pieceTypeToDrop, player }
     let currentTurn = null;   // Will be 'SENTE' or 'GOTE' (string based on Player enum)
@@ -60,9 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBoard(boardState); // use converted board state
             renderCapturedPieces(gameState.capturedPiecesPlayer1, gameState.capturedPiecesPlayer2);
             updateGameStatus(`Turn: ${currentTurn}. History moves: ${gameState.gameHistory.length}`);
+            updateEvaluationScore(gameState.evaluationScore);
             clearHighlights();
             selectedPiece = null;
             currentBattleMode = battleModeSelect.value; // Ensure mode is current
+
+            if (currentBattleMode === 'AI_VS_AI') {
+                setTimeout(requestAIMove, 100);
+            }
 
         } catch (error) {
             console.error('Failed to fetch game state:', error);
@@ -289,6 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Optionally, specify AI type and depth if desired from frontend
                 // requestBody.aiType = "v2";
                 // requestBody.aiSearchDepth = 3;
+            } else if (currentBattleMode === 'AI_VS_AI') {
+                requestBody.gameMode = 'ava';
             } else { // HUMAN_VS_HUMAN
                 requestBody.gameMode = 'hvh';
             }
@@ -308,6 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // currentBattleMode is already updated from selector value above
             updateGameStatus(`New game started. Mode: ${currentBattleMode}. Turn: ${newGameState.currentTurn}`);
             await fetchGameState(); // Refresh state (this will also update currentTurn from gameState)
+            if (currentBattleMode === 'AI_VS_AI') {
+                setTimeout(requestAIMove, 100);
+            }
         } catch (error) {
             console.error('Failed to start new game:', error);
             updateGameStatus(`New game error: ${error.message}`);
@@ -318,6 +329,10 @@ document.addEventListener('DOMContentLoaded', () => {
         gameStatusDiv.innerHTML = `<p>${message}</p>`;
     }
 
+    function updateEvaluationScore(score) {
+        evaluationScoreDiv.textContent = `Evaluation: ${score}`;
+    }
+
     async function requestAIMove() {
         if (currentTurn === null) {
             console.log("Cannot request AI move, current turn is null.");
@@ -326,7 +341,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Determine which player is AI based on currentBattleMode and currentTurn
         // For now, assuming Sente is Human and Gote is AI in HUMAN_VS_AI mode
         // This logic might need adjustment if player roles can be swapped.
-        const isAIsTurn = (currentBattleMode === 'HUMAN_VS_AI' && currentTurn === 'GOTE'); // Example: Gote is AI
+        const isAIsTurn = (
+            (currentBattleMode === 'HUMAN_VS_AI' && currentTurn === 'GOTE') ||
+            currentBattleMode === 'AI_VS_AI'
+        );
 
         if (!isAIsTurn) {
             console.log("Not AI's turn or not in AI mode.");
@@ -347,6 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateGameStatus(`AI (${currentTurn}) moved. Turn: ${result.currentTurn}.`);
             await fetchGameState(); // Refresh entire state after AI move
+            if (currentBattleMode === 'AI_VS_AI') {
+                setTimeout(requestAIMove, 100);
+            }
         } catch (error) {
             console.error('AI move failed:', error);
             updateGameStatus(`AI move error: ${error.message}. Turn: ${currentTurn}.`);

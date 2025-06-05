@@ -60,6 +60,9 @@ object CoreAIBattleSim extends App { // Changed object name
 
         currentState = board.move(currentState, move.oldPos, move.newPos, false, move.nari)
 
+        val evalScore = EvaluationV2.evaluate(board, currentState.turn)
+        println(s"Evaluation for ${currentState.turn}: $evalScore")
+
         val newBoardSquaresId = board.squares.id()
         val newCapturedPiecesId = board.capturedPieces.id()
         val newPositionKey = (newBoardSquaresId, newCapturedPiecesId, currentState.turn)

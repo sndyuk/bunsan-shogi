@@ -55,7 +55,8 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
       currentTurn = Player.SENTE,
       capturedPiecesPlayer1 = List(SimplePiece.KA, SimplePiece.FU),
       capturedPiecesPlayer2 = List(SimplePiece.HI),
-      gameHistory = sampleHistory
+      gameHistory = sampleHistory,
+      evaluationScore = 0
     )
 
     val saveResult = GameSaver.saveToFile(originalGameState, filePath.toString)
@@ -84,7 +85,8 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
       currentTurn = Player.SENTE,
       capturedPiecesPlayer1 = Nil,
       capturedPiecesPlayer2 = Nil,
-      gameHistory = emptyHistory
+      gameHistory = emptyHistory,
+      evaluationScore = 0
     )
 
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success
@@ -108,7 +110,8 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
       currentTurn = Player.GOTE,
       capturedPiecesPlayer1 = List(SimplePiece.FU, SimplePiece.FU, SimplePiece.KY),
       capturedPiecesPlayer2 = List(SimplePiece.GI),
-      gameHistory = complexHistory
+      gameHistory = complexHistory,
+      evaluationScore = 0
     )
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success
     val loadedGameState = GameSaver.loadFromFile(filePath.toString).get
@@ -133,7 +136,8 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
       currentTurn = Player.SENTE,
       capturedPiecesPlayer1 = List(SimplePiece.KI),
       capturedPiecesPlayer2 = Nil,
-      gameHistory = emptyHistory
+      gameHistory = emptyHistory,
+      evaluationScore = 0
     )
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success
     val loadedGameState = GameSaver.loadFromFile(filePath.toString).get
@@ -151,7 +155,8 @@ class GameSaverSpec extends AnyFlatSpec with Matchers {
       currentTurn = Player.GOTE,
       capturedPiecesPlayer1 = List(SimplePiece.HI, SimplePiece.KA, SimplePiece.FU, SimplePiece.FU),
       capturedPiecesPlayer2 = List(SimplePiece.KI, SimplePiece.GI, SimplePiece.KE, SimplePiece.KY),
-      gameHistory = sampleHistory // sampleHistory already uses PieceInfo in its boardStateAfterMove
+      gameHistory = sampleHistory, // sampleHistory already uses PieceInfo in its boardStateAfterMove
+      evaluationScore = 0
     )
     GameSaver.saveToFile(originalGameState, filePath.toString) should be a 'success
     val loadedGameState = GameSaver.loadFromFile(filePath.toString).get

@@ -24,8 +24,9 @@ class ShogiGameService {
 
   var board: Board = _
   var currentState: State = _
-  var aiOpponent: Option[ShogiAI] = None
-  var gameMode: String = "hvh" // "hvh", "hva_sente", "hva_gote"
+  var aiOpponentSente: Option[ShogiAI] = None
+  var aiOpponentGote: Option[ShogiAI] = None
+  var gameMode: String = "hvh" // "hvh", "hva_sente", "hva_gote", "ava"
   var aiSearchDepth: Int = 3
   // Store the initial setup parameters to aid history replay
   private var initialGameFirstPlayer: Player = Player.SENTE
@@ -55,14 +56,19 @@ class ShogiGameService {
     this.gameMode = gameMode
     this.aiSearchDepth = aiSearchDepth
 
-    if (gameMode == "hva_sente" || gameMode == "hva_gote") {
-      this.aiOpponent = AIProvider.getAI(aiType, this.aiSearchDepth)
-      if (this.aiOpponent.isEmpty) {
-        println(s"Warning: Could not initialize AI with type '$aiType'. Game will be Human vs Human.")
-        // For now, it will default to no AI opponent.
-      }
-    } else {
-      this.aiOpponent = None
+    this.aiOpponentSente = None
+    this.aiOpponentGote = None
+
+    gameMode match {
+      case "hva_sente" =>
+        this.aiOpponentSente = AIProvider.getAI(aiType, this.aiSearchDepth)
+      case "hva_gote" =>
+        this.aiOpponentGote = AIProvider.getAI(aiType, this.aiSearchDepth)
+      case "ava" =>
+        this.aiOpponentSente = AIProvider.getAI(aiType, this.aiSearchDepth)
+        this.aiOpponentGote = AIProvider.getAI(aiType, this.aiSearchDepth)
+      case _ =>
+        // hvh or unknown -> no AI players
     }
 
     this.board = initialBoardSetup match {
@@ -157,7 +163,8 @@ class ShogiGameService {
       currentTurn = currentTurnPlayer,
       capturedPiecesPlayer1 = senteCapturedPieces,
       capturedPiecesPlayer2 = goteCapturedPieces,
-      gameHistory = gameHistoryMapped
+      gameHistory = gameHistoryMapped,
+      evaluationScore = jp.sndyuk.shogi.ai.EvaluationV2.evaluate(this.board, this.currentState.turn)
     )
   }
 
@@ -242,11 +249,14 @@ class ShogiGameService {
 
   def requestAIMove(): Either[String, GameState] = {
     val currentPlayer = GameStateMapper.coreTurnToPlayer(this.currentState.turn)
-    val isAISenteTurn = gameMode == "hva_sente" && currentPlayer == Player.SENTE
-    val isAIGoteTurn = gameMode == "hva_gote" && currentPlayer == Player.GOTE
+    val aiForTurnOpt: Option[ShogiAI] = currentPlayer match {
+      case Player.SENTE if gameMode == "hva_sente" || gameMode == "ava" => aiOpponentSente
+      case Player.GOTE  if gameMode == "hva_gote" || gameMode == "ava" => aiOpponentGote
+      case _ => None
+    }
 
-    if (aiOpponent.isDefined && (isAISenteTurn || isAIGoteTurn)) {
-      aiOpponent.get.findBestMove(this.currentState, this.board, this.currentState.turn, this.aiSearchDepth) match {
+    if (aiForTurnOpt.isDefined) {
+      aiForTurnOpt.get.findBestMove(this.currentState, this.board, this.currentState.turn, this.aiSearchDepth) match {
         case (Some(transition: jp.sndyuk.shogi.core.Transition), nodesVisited) => // FQN for Transition
           // println(s"AI (${if (isAISenteTurn) "SENTE" else "GOTE"}) found move: $transition, Nodes visited: $nodesVisited")
 

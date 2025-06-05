@@ -68,7 +68,8 @@ case class GameState(
     currentTurn: Player, // Player whose turn it is
     capturedPiecesPlayer1: List[SimplePieceType], // Captured pieces by Player 1
     capturedPiecesPlayer2: List[SimplePieceType], // Captured pieces by Player 2
-    gameHistory: List[SimpleTransition] // List of moves or Transition objects
+    gameHistory: List[SimpleTransition], // List of moves or Transition objects
+    evaluationScore: Int // Board evaluation from the perspective of the player to move
 )
 
 object GameState {

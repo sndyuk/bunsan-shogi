@@ -375,7 +375,8 @@ object Gui extends SimpleSwingApplication with Shogi {
         currentTurn = GameStateMapper.coreTurnToPlayer(currState.turn), // Returns CorePlayer.Player
         capturedPiecesPlayer1 = capturedSente, // List[SimplePiece.SimplePieceType]
         capturedPiecesPlayer2 = capturedGote, // List[SimplePiece.SimplePieceType]
-        gameHistory = gameHistoryMapped
+        gameHistory = gameHistoryMapped,
+        evaluationScore = 0
       )
 
       GameSaver.saveToFile(gameStateToSave, file.getAbsolutePath) match {

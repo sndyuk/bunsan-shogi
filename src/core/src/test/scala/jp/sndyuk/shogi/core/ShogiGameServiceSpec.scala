@@ -12,8 +12,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame(gameMode = "hva_sente", aiType = "v2", aiSearchDepth = 2)
 
     service.gameMode shouldBe "hva_sente"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V2]
+    service.aiOpponentSente shouldBe defined
+    service.aiOpponentSente.get shouldBe an [AlphaBetaAI_V2]
     service.aiSearchDepth shouldBe 2 // Check the service's field
     service.getGameState().currentTurn shouldBe Player.SENTE // Initial turn is Sente
   }
@@ -23,8 +23,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame(gameMode = "hva_gote", aiType = "v1", aiSearchDepth = 4, firstPlayer = Player.SENTE)
 
     service.gameMode shouldBe "hva_gote"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V1]
+    service.aiOpponentGote shouldBe defined
+    service.aiOpponentGote.get shouldBe an [AlphaBetaAI_V1]
     service.aiSearchDepth shouldBe 4 // Check the service's field
     service.getGameState().currentTurn shouldBe Player.SENTE // Initial turn is still Sente
   }
@@ -34,8 +34,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame(gameMode = "hva_sente", aiType = "v4", aiSearchDepth = 2)
 
     service.gameMode shouldBe "hva_sente"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V4]
+    service.aiOpponentSente shouldBe defined
+    service.aiOpponentSente.get shouldBe an [AlphaBetaAI_V4]
     service.aiSearchDepth shouldBe 2
   }
 
@@ -44,8 +44,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame(gameMode = "hva_sente", aiType = "v5", aiSearchDepth = 2)
 
     service.gameMode shouldBe "hva_sente"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V5]
+    service.aiOpponentSente shouldBe defined
+    service.aiOpponentSente.get shouldBe an [AlphaBetaAI_V5]
     service.aiSearchDepth shouldBe 2
   }
 
@@ -54,8 +54,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame(gameMode = "hva_sente", aiType = "v6", aiSearchDepth = 2)
 
     service.gameMode shouldBe "hva_sente"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V6]
+    service.aiOpponentSente shouldBe defined
+    service.aiOpponentSente.get shouldBe an [AlphaBetaAI_V6]
     service.aiSearchDepth shouldBe 2
   }
 
@@ -64,7 +64,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame(gameMode = "hvh") // Default AI type and depth don't matter here
 
     service.gameMode shouldBe "hvh"
-    service.aiOpponent shouldBe None
+    service.aiOpponentSente shouldBe None
+    service.aiOpponentGote shouldBe None
     service.getGameState().currentTurn shouldBe Player.SENTE
   }
 
@@ -73,21 +74,22 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     service.startNewGame()
 
     service.gameMode shouldBe "hvh" // Default in startNewGame signature
-    service.aiOpponent shouldBe None // Because it's hvh
+    service.aiOpponentSente shouldBe None // Because it's hvh
+    service.aiOpponentGote shouldBe None
   }
 
   it should "use the specified aiType and aiSearchDepth when AI is configured" in {
     val service = new ShogiGameService()
     service.startNewGame(gameMode = "hva_sente", aiType = "v1", aiSearchDepth = 1)
     service.gameMode shouldBe "hva_sente"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V1]
+    service.aiOpponentSente shouldBe defined
+    service.aiOpponentSente.get shouldBe an [AlphaBetaAI_V1]
     service.aiSearchDepth shouldBe 1 // Check the service's field
 
     service.startNewGame(gameMode = "hva_gote", aiType = "v2", aiSearchDepth = 5)
     service.gameMode shouldBe "hva_gote"
-    service.aiOpponent shouldBe defined
-    service.aiOpponent.get shouldBe an [AlphaBetaAI_V2]
+    service.aiOpponentGote shouldBe defined
+    service.aiOpponentGote.get shouldBe an [AlphaBetaAI_V2]
     service.aiSearchDepth shouldBe 5 // Check the service's field
   }
 
@@ -96,7 +98,8 @@ class ShogiGameServiceSpec extends AnyFlatSpec with Matchers {
     // Suppress warning output during test if any, though current implementation doesn't log to console
     service.startNewGame(gameMode = "hva_sente", aiType = "non_existent_ai", aiSearchDepth = 3)
     service.gameMode shouldBe "hva_sente" // mode is set
-    service.aiOpponent shouldBe None // AI opponent is None due to invalid type
+    service.aiOpponentSente shouldBe None // AI opponent is None due to invalid type
+    service.aiOpponentGote shouldBe None
   }
 
   "ShogiGameService (AI Moves - requestAIMove)" should "allow AI Sente to make the first move" in {

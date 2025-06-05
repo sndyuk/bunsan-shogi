@@ -106,6 +106,9 @@ object AIBattleSim extends App {
         // After board.move, currentState.turn is updated to be the *next* player's turn.
         // The board object itself has been mutated by the move.
 
+        val evalScore = EvaluationV2.evaluate(board, currentState.turn)
+        println(s"Evaluation for ${currentState.turn}: $evalScore")
+
         // Sennichite (Four-fold repetition) check:
         // A game position is defined by the placement of pieces on the board, the pieces in each player's hand, and whose turn it is to move.
         // If the exact same game position occurs four times, the game is a draw due to Sennichite.

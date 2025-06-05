@@ -23,7 +23,7 @@ object QuiescenceSearch {
       depth: Int = 0
   ): (Int, Long) = {
     var nodesVisited: Long = 1L
-    if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
+    if (gamePathHistoryIDs.contains(currentBoardID)) {
       return (0, nodesVisited)
     }
     if (depth >= MAX_DEPTH) {

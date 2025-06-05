@@ -67,7 +67,7 @@ object AlphaBetaSearchNMPQ {
     }
     val ttMove = ttEntryOpt.flatMap(_.bestMove)
 
-    if (gamePathHistoryIDs.count(_ == currentBoardID) >= 2) {
+    if (gamePathHistoryIDs.contains(currentBoardID)) {
       return (0, None, nodesVisited)
     }
 

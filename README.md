@@ -6,6 +6,7 @@ Shogi library for Scala.
 - **AI Opponent:** Play against a built-in AI.
 - **Advanced AI Version 5:** Utilizes a transposition table, Null Move Pruning, and killer move heuristics for stronger play.
 - **Advanced AI Version 6:** Adds quiescence search to V5's techniques for even deeper tactical strength.
+- **Advanced AI Version 7:** Uses a small built-in opening book before searching, improving early play.
 - **Kifu Parsing:** Support for reading game records in CSA and KI2 formats.
 - **Player Management:** Code structure for managing human and AI players.
 - **Sample GUI Application:** Includes a basic graphical interface to demonstrate library usage.

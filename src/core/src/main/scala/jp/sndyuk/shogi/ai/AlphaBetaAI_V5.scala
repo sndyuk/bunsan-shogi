@@ -3,9 +3,8 @@ package jp.sndyuk.shogi.ai
 import jp.sndyuk.shogi.core.{State, Board, Turn, Transition, ID}
 
 /**
- * AlphaBetaAI_V5 adds Null Move Pruning and killer move heuristics on top of
- * the V4 transposition table search, allowing deeper searches with better
- * pruning and move ordering.
+ * AlphaBetaAI_V5 builds upon V4 by integrating EvaluationV3 for improved heuristics
+ * and enabling killer-move support in AlphaBetaSearchTT.
  */
 class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) extends ShogiAI {
 
@@ -21,7 +20,7 @@ class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) exte
     var nodesVisitedTotal: Long = 0L
 
     TranspositionTable.clear()
-    AlphaBetaSearchNMP.clearKillers()
+    AlphaBetaSearchTT.clearKillerMoves()
 
     var depth = 1
     while (depth <= currentSearchDepth) {
@@ -29,7 +28,7 @@ class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) exte
       val beta = Int.MaxValue - MATE_SCORE_GUARD
       val initialBoardID = ID(board)
 
-      val (_, moveOpt, nodesVisited) = AlphaBetaSearchNMP.search(
+      val (_, moveOpt, nodesVisited) = AlphaBetaSearchTT.search(
         currentState = state,
         currentBoard = board,
         currentBoardID = initialBoardID,
@@ -39,14 +38,12 @@ class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) exte
         beta = beta,
         maximizingPlayer = true,
         rootPlayerTurn = turn,
-        evalFunc = EvaluationV2.evaluate,
+        evalFunc = EvaluationV3.evaluate,
         transpositionTable = TranspositionTable
       )
 
       nodesVisitedTotal += nodesVisited
-      if (moveOpt.isDefined) {
-        bestMove = moveOpt
-      }
+      if (moveOpt.isDefined) bestMove = moveOpt
 
       depth += 1
     }
@@ -54,5 +51,5 @@ class AlphaBetaAI_V5(val name: String = "AlphaBetaAI_V5", searchDepth: Int) exte
     (bestMove, nodesVisitedTotal)
   }
 
-  override def toString: String = s"$name(depth=$searchDepth)"
+  override def toString: String = s"AlphaBetaAI_V5(name=$name, depth=$searchDepth)"
 }

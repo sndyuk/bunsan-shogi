@@ -45,14 +45,17 @@ object AIBattleSim extends App {
   var currentState = State(Nil, PlayerA) // Player A (Sente) starts
 
   // gamePositionHistory is used to detect Sennichite (four-fold repetition).
-  // It stores a history of board states (pieces on board, pieces in hand, and current turn).
-  // Each element is a tuple: (squares.id, capturedPieces.id, turnToPlay).
-  var gamePositionHistory: List[(String, String, Turn)] = List()
+  // It maps a game position key to a list of which player (if any) was giving
+  // check when that position occurred. Tracking the player giving check allows
+  // us to distinguish ordinary repetition from a loss by perpetual check.
+  // Key tuple: (squares.id, capturedPieces.id, turnToPlay).
+  var gamePositionHistory: Map[(String, String, Turn), List[Option[Turn]]] = Map()
   var gameRunning = true
   var moveCount = 0
 
-  // Record initial position for Sennichite check
-  gamePositionHistory = (board.squares.id(), board.capturedPieces.id(), currentState.turn) :: gamePositionHistory
+  // Record initial position for Sennichite check. No player is giving check at the very start.
+  val initialKey = (board.squares.id(), board.capturedPieces.id(), currentState.turn)
+  gamePositionHistory += initialKey -> List(None)
 
   // Main game loop: continues as long as 'gameRunning' is true and 'moveCount' is less than 'MAX_MOVES'.
   while (gameRunning && moveCount < MAX_MOVES) {
@@ -116,14 +119,24 @@ object AIBattleSim extends App {
         val newCapturedPiecesId = board.capturedPieces.id() // Unique identifier for pieces in hand for both players.
         val newPositionKey = (newBoardSquaresId, newCapturedPiecesId, currentState.turn) // The key representing the current game position.
 
-        // Add the new position to the history.
-        gamePositionHistory = newPositionKey :: gamePositionHistory
+        // Determine if the move just played gives check to the next player.
+        val checkByOpt = if (Rule.isInCheck(board, currentState.turn)) Some(currentAiPlayer) else None
+
+        // Add the new position and who gave check (if any) to the history.
+        val updatedList = checkByOpt :: gamePositionHistory.getOrElse(newPositionKey, Nil)
+        gamePositionHistory += newPositionKey -> updatedList
 
         // Count how many times this exact position has occurred.
-        val occurrences = gamePositionHistory.count(_ == newPositionKey)
+        val occurrences = updatedList.length
 
         if (occurrences >= 4) {
-          println(s"\nSENNICHITE! Position repeated 4 times. Game is a draw.") // Clear Sennichite message.
+          val checkers = updatedList.take(4).flatten
+          if (checkers.length == 4 && checkers.distinct.length == 1) {
+            // Perpetual check: the checking side loses
+            println(s"\nSENNICHITE by perpetual check! Player ${checkers.head} loses!")
+          } else {
+            println(s"\nSENNICHITE! Position repeated 4 times. Game is a draw.")
+          }
           println(s"Board ID: $newBoardSquaresId, Captured ID: $newCapturedPiecesId, Turn: ${currentState.turn}")
           gameRunning = false // End the game.
         } else {

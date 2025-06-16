@@ -8,7 +8,7 @@ import jp.sndyuk.shogi.core.Point
 
   trait KifuStatement
 
-  case class Kifu(version: Option[Version], kifuData: List[KifuStatement], startState: StartState, moves: List[KifuStatement], winner: Turn) extends KifuStatement
+  case class Kifu(version: Option[Version], kifuData: List[KifuStatement], startState: StartState, moves: List[KifuStatement], winner: Option[Turn]) extends KifuStatement
 
   case class Move(player: Turn, oldPos: Point, newPos: Point, piece: Piece, elapsed: Option[Elapsed]) extends KifuStatement
   case class SpMove(command: String) extends KifuStatement

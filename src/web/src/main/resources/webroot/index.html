@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shogi Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Shogi Game</h1>
+
+    <div class="game-container">
+        <div id="gote-captured" class="captured-pieces-area">
+            <p>Gote's Captured:</p>
+            <!-- Captured pieces for Gote will be populated here -->
+        </div>
+
+        <div id="shogi-board">
+            <!-- Board will be generated here by JavaScript -->
+        </div>
+
+        <div id="sente-captured" class="captured-pieces-area">
+            <p>Sente's Captured:</p>
+            <!-- Captured pieces for Sente will be populated here -->
+        </div>
+    </div>
+
+    <div id="game-status">
+        <p>Welcome! Loading game state...</p>
+    </div>
+
+    <div id="game-controls">
+        <div id="battle-mode-selector">
+            <label for="battle-mode">Battle Mode:</label>
+            <select id="battle-mode">
+                <option value="HUMAN_VS_HUMAN" selected>Human vs Human</option>
+                <option value="HUMAN_VS_AI">Human vs AI</option>
+                <option value="AI_VS_AI">AI vs AI</option>
+            </select>
+        </div>
+        <button id="suggest-move-btn">Suggest Move</button>
+    </div>
+
+    <div id="evaluation-score"></div>
+
+    <button id="new-game-btn">New Game</button>
+
+    <script src="app.js"></script>
+</body>
+</html>

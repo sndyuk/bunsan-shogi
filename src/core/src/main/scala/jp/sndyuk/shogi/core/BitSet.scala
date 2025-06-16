@@ -20,22 +20,33 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
     cleared | shifted
   }
 
+  private val capacity = bits.length * 64
+
+  @inline private def validateIndex(i: Int): Unit = {
+    require(i >= 0 && i + span <= capacity,
+      s"BitSet index $i out of bounds for capacity $capacity")
+    assert((i % 64) + BitSet.span <= 64,
+      s"BitSet index $i (local ${i % 64}) too high for span ${BitSet.span}")
+  }
+
   def setInt(updates: Int, index: Int): Unit = {
-    // assert((index % 64 + span) < 64, index) // overflow check
+    validateIndex(index)
     bits(index / 64) = updateBits(bits(index / 64), updates, index % 64)
   }
 
   def value(index: Int): Int = {
+    validateIndex(index)
     (bits(index / 64) >>> (64 - (index % 64)) & 1).toInt
   }
 
   def intValue(i: Int): Int = {
-    // assert((i % 64 + span) < 64) // overflow check
+    validateIndex(i)
     val l = bits(i / 64)
     ((l >>> (64 - ((i % 64) + span))) & ((1 << span) - 1)).toInt
   }
 
   def replaceIntValue(updates: Long, i: Int): Int = {
+    validateIndex(i)
     val l = bits(i / 64)
     val index = i % 64
     val mask = masks(index)
@@ -64,7 +75,8 @@ case class BitSet(val length: Int)(private val bits: Array[Long] = Array.fill(le
   }
 
   def copy(): BitSet = {
-    new BitSet(length)(bits.clone())
+  val newBitsArray = this.bits.clone()
+    new BitSet(this.length)(newBitsArray)
   }
 
   override def toString(): String = {

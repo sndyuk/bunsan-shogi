@@ -12,6 +12,13 @@ object Rule {
 
   val logger = Logger(LoggerFactory.getLogger(this.getClass().getName()))
 
+  case class GameStateDigest(
+    boardPieces: IndexedSeq[IndexedSeq[Piece]],
+    senteHand: Map[Piece, Int],
+    goteHand: Map[Piece, Int],
+    nextTurn: Turn
+  )
+
   /**
    * 駒が指定された場所に移動可能ならtrue
    */
@@ -34,10 +41,12 @@ object Rule {
    */
   def generateMovablePoints(board: Board, oldPos: Point, piece: Piece, turn: Turn, includePromoted: Boolean): Iterator[Move] = {
     val scopes = movableScopes(piece)
-    (if (Point.isCaptured(oldPos)) {
+    (if (Point.isCaptured(oldPos)) { // This means it's a drop from hand
       board.allEmptyPoints().filter { np =>
-        !is2FU(board, piece, np, turn) && canMoveAtNextTurn(np, scopes)
-      }.map { (_, false) }
+        Piece.generalize(piece) != Piece.◯.OU && // ADDED: Cannot drop a King
+        !is2FU(board, piece, np, turn) &&
+        canMoveAtNextTurn(np, scopes)
+      }.map { (_, false) } // Drops are never promotions
     } else {
       generateMovePoints(board, piece, oldPos, turn, includePromoted, scopes, scopes)
     })
@@ -156,39 +165,54 @@ object Rule {
   // 無限に移動可能
   val ∞ = true
 
-  def movableScopes(piece: Piece): List[Scope] = {
-    piece match {
-      case ▲.OU => List((-1, 0, false), (-1, 1, false), (0, 1, false), (1, 1, false), (1, 0, false), (1, -1, false), (0, -1, false), (-1, -1, false))
-      case ▲.FU => List((-1, 0, false))
-      case ▲.KI => List((1, 0, false), (0, 1, false), (-1, 1, false), (-1, 0, false), (-1, -1, false), (0, -1, false))
-      case ▲.GI => List((-1, 0, false), (-1, 1, false), (1, 1, false), (1, -1, false), (-1, -1, false))
-      case ▲.HI => List((1, 0, true), (0, 1, true), (-1, 0, true), (0, -1, true))
-      case ▲.KA => List((1, 1, true), (-1, 1, true), (-1, -1, true), (1, -1, true))
-      case ▲.KE => List((-2, 1, false), (-2, -1, false))
-      case ▲.KY => List((-1, 0, true))
-      case ▲.TO => movableScopes(▲.KI)
-      case ▲.NG => movableScopes(▲.KI)
-      case ▲.RY => movableScopes(▲.OU) ::: movableScopes(▲.HI)
-      case ▲.UM => movableScopes(▲.OU) ::: movableScopes(▲.KA)
-      case ▲.NK => movableScopes(▲.KI)
-      case ▲.NY => movableScopes(▲.KI)
+  // Pre-computed movement scopes for each piece to avoid repeated List allocations
+  private val scopesSenteOU = List((-1, 0, false), (-1, 1, false), (0, 1, false), (1, 1, false), (1, 0, false), (1, -1, false), (0, -1, false), (-1, -1, false))
+  private val scopesSenteFU = List((-1, 0, false))
+  private val scopesSenteKI = List((1, 0, false), (0, 1, false), (-1, 1, false), (-1, 0, false), (-1, -1, false), (0, -1, false))
+  private val scopesSenteGI = List((-1, 0, false), (-1, 1, false), (1, 1, false), (1, -1, false), (-1, -1, false))
+  private val scopesSenteHI = List((1, 0, true), (0, 1, true), (-1, 0, true), (0, -1, true))
+  private val scopesSenteKA = List((1, 1, true), (-1, 1, true), (-1, -1, true), (1, -1, true))
+  private val scopesSenteKE = List((-2, 1, false), (-2, -1, false))
+  private val scopesSenteKY = List((-1, 0, true))
+  private val scopesGoteOU  = List((1, 0, false), (1, 1, false), (0, 1, false), (-1, 1, false), (-1, 0, false), (-1, -1, false), (0, -1, false), (1, -1, false))
+  private val scopesGoteFU  = List((1, 0, false))
+  private val scopesGoteKI  = List((1, 0, false), (1, 1, false), (0, 1, false), (-1, 0, false), (0, -1, false), (1, -1, false))
+  private val scopesGoteGI  = List((1, 0, false), (1, 1, false), (-1, 1, false), (-1, -1, false), (1, -1, false))
+  private val scopesGoteHI  = scopesSenteHI
+  private val scopesGoteKA  = scopesSenteKA
+  private val scopesGoteKE  = List((2, 1, false), (2, -1, false))
+  private val scopesGoteKY  = List((1, 0, true))
 
-      case ❏ => Nil
-      case △.OU => List((1, 0, false), (1, 1, false), (0, 1, false), (-1, 1, false), (-1, 0, false), (-1, -1, false), (0, -1, false), (1, -1, false))
-      case △.FU => List((1, 0, false))
-      case △.KI => List((1, 0, false), (1, 1, false), (0, 1, false), (-1, 0, false), (0, -1, false), (1, -1, false))
-      case △.GI => List((1, 0, false), (1, 1, false), (-1, 1, false), (-1, -1, false), (1, -1, false))
-      case △.HI => List((1, 0, true), (0, 1, true), (-1, 0, true), (0, -1, true))
-      case △.KA => List((1, 1, true), (-1, 1, true), (-1, -1, true), (1, -1, true))
-      case △.KE => List((2, 1, false), (2, -1, false))
-      case △.KY => List((1, 0, true))
-      case △.TO => movableScopes(△.KI)
-      case △.NG => movableScopes(△.KI)
-      case △.RY => movableScopes(△.OU) ::: movableScopes(△.HI)
-      case △.UM => movableScopes(△.OU) ::: movableScopes(△.KA)
-      case △.NK => movableScopes(△.KI)
-      case △.NY => movableScopes(△.KI)
-    }
+  // Promoted pieces reuse existing base piece scopes
+  private val scopesSentePromotedKI = scopesSenteKI
+  private val scopesGotePromotedKI  = scopesGoteKI
+  private val scopesPromotedOU_HI = scopesSenteOU ::: scopesSenteHI
+  private val scopesPromotedOU_KA = scopesSenteOU ::: scopesSenteKA
+
+  def movableScopes(piece: Piece): List[Scope] = piece match {
+    case ▲.OU => scopesSenteOU
+    case ▲.FU => scopesSenteFU
+    case ▲.KI => scopesSenteKI
+    case ▲.GI => scopesSenteGI
+    case ▲.HI => scopesSenteHI
+    case ▲.KA => scopesSenteKA
+    case ▲.KE => scopesSenteKE
+    case ▲.KY => scopesSenteKY
+    case ▲.TO | ▲.NG | ▲.NK | ▲.NY => scopesSentePromotedKI
+    case ▲.RY => scopesPromotedOU_HI
+    case ▲.UM => scopesPromotedOU_KA
+    case ❏    => Nil
+    case △.OU => scopesGoteOU
+    case △.FU => scopesGoteFU
+    case △.KI => scopesGoteKI
+    case △.GI => scopesGoteGI
+    case △.HI => scopesGoteHI
+    case △.KA => scopesGoteKA
+    case △.KE => scopesGoteKE
+    case △.KY => scopesGoteKY
+    case △.TO | △.NG | △.NK | △.NY => scopesGotePromotedKI
+    case △.RY => scopesPromotedOU_HI
+    case △.UM => scopesPromotedOU_KA
   }
 
   private val _0_8 = (0 to 8)
@@ -208,34 +232,13 @@ object Rule {
   /**
    *  千日手判定
    */
-  def isThreefoldRepetition(board: Board, state: State): Boolean = {
-    val size = state.history.size
-    if (size <= 7) {
-      return false
+  def isThreefoldRepetition(currentBoardStateDigest: GameStateDigest, historyOfDigests: Seq[GameStateDigest]): Boolean = {
+    var cnt = 0
+    val it = historyOfDigests.iterator
+    while (it.hasNext && cnt < 3) {
+      if (it.next() == currentBoardStateDigest) cnt += 1
     }
-    @inline def same = (a: Transition, b: Transition) => a.newPos == b.newPos
-
-    val his = state.history
-    // 2手単位
-    // 0 <- 1 <- 2 <- 3 <- 4 <- 5
-    // A <- B <- A <- B <- A <- B
-    if (same(his(size), his(size- 2)) && same(his(size), his(size - 4))
-      || same(his(size - 1), his(size - 3)) && same(his(size - 1), his(size - 5))) {
-      true
-    }
-
-    // 3手単位
-    // 0 <- 1 <- 2 <- 3 <- 4 <= 5 <- 6 <- 7 <- 8
-    // A <- B <- C <- A <- B <- C <- A <- B <- C
-    if (size <= 10) {
-      return false
-    }
-    if (same(his(size), his(size - 3)) && same(his(size), his(size - 6))
-      || same(his(size - 1), his(size - 4)) && same(his(size - 1), his(size - 7))
-      || same(his(size - 2), his(size - 5)) && same(his(size - 2), his(size - 8))) {
-      true
-    }
-    false
+    cnt >= 3
   }
 
   /**
@@ -251,5 +254,23 @@ object Rule {
       } else {
         newPos.y >= 6
       })))
+  }
+
+  /**
+   * Checks if the specified player's King is currently in check.
+   * @param board The current board state.
+   * @param playerWhoseKingIsChecked The player whose King's safety is being checked.
+   * @return True if playerWhoseKingIsChecked's King is under attack, false otherwise.
+   */
+  def isInCheck(board: Board, playerWhoseKingIsChecked: Turn): Boolean = {
+    val kingPiece = Piece.convert(Piece.◯.OU, playerWhoseKingIsChecked)
+    board.squares.find(kingPiece) match {
+      case None => false
+      case Some(kingPos) =>
+        val opponentTurn = playerWhoseKingIsChecked.change
+        board.squares.allPieces(opponentTurn).exists { block =>
+          canMove(board, block.piece, block.point, kingPos, opponentTurn)
+        }
+    }
   }
 }

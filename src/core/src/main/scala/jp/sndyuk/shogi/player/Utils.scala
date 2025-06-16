@@ -31,8 +31,10 @@ object Utils {
         rest match {
           case Block(point, piece) :: xs =>
             rest = xs
+            // board here is the state *before* the current piece moves.
+            // So, board.pieceOnBoardNotEmpty(newPos) will give the piece to be captured.
             cache = Rule.generateMovablePoints(board, point, piece, state.turn, true).map {
-              case (newPos, nari) => Transition(point, newPos, nari, None)
+              case (newPos, nari) => Transition(point, newPos, nari, board.pieceOnBoardNotEmpty(newPos))
             }
             hasNext
           case _ => false

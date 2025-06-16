@@ -1,0 +1,114 @@
+package jp.sndyuk.shogi.core
+
+import jp.sndyuk.shogi.core.SimplePiece.SimplePieceType
+import jp.sndyuk.shogi.core.Player.Player
+import play.api.libs.json._
+// import play.api.libs.functional.syntax._ // For custom Reads/Writes using functional syntax // Not used
+
+import java.io.{File, PrintWriter}
+import scala.io.Source
+import scala.util.{Try, Success, Failure} // Re-add Success and Failure
+
+// Minimal Player enum (assuming SENTE/GOTE)
+object Player extends Enumeration {
+  type Player = Value
+  val SENTE, GOTE = Value
+
+  implicit val playerFormat: Format[Player] = new Format[Player] {
+    def reads(json: JsValue): JsResult[Player] = json.validate[String].flatMap { s =>
+      Try(Player.withName(s)).map(JsSuccess(_)).getOrElse(JsError(s"Unknown Player: $s"))
+    }
+    def writes(player: Player): JsValue = JsString(player.toString)
+  }
+}
+
+// Minimal Position case class
+case class Position(x: Int, y: Int)
+
+object Position {
+  // Format for Position when it's a standalone object or value
+  implicit val positionJsonFormat: Format[Position] = Json.format[Position]
+
+  // positionMapKeyReads and positionMapKeyWrites are removed as Map[Position, _]
+  // is no longer used for boardSetup in GameState or SimpleTransition.
+  // String keys are used directly now.
+}
+
+// Updated Shogi-specific Piece enum
+object SimplePiece extends Enumeration {
+  type SimplePieceType = Value
+  val FU, KY, KE, GI, KI, KA, HI, OU = Value // Shogi pieces
+
+  implicit val pieceFormat: Format[SimplePieceType] = new Format[SimplePieceType] {
+    def reads(json: JsValue): JsResult[SimplePieceType] = json.validate[String].flatMap { s =>
+      Try(SimplePiece.withName(s)).map(JsSuccess(_)).getOrElse(JsError(s"Unknown Piece: $s"))
+    }
+    def writes(piece: SimplePieceType): JsValue = JsString(piece.toString)
+  }
+}
+
+// Case class to hold detailed info about a piece on the board
+case class PieceInfo(pieceType: SimplePieceType, player: Player, isPromoted: Boolean)
+object PieceInfo {
+  implicit val pieceInfoFormat: Format[PieceInfo] = Json.format[PieceInfo]
+}
+
+// Minimal Transition class
+// boardStateAfterMove is now Map[String, PieceInfo] as per the new return type of coreBoardToBoardSetup
+case class SimpleTransition(move: String, boardStateAfterMove: Map[String, PieceInfo])
+
+object SimpleTransition {
+  // For Map[String, PieceInfo], Play JSON uses default Map format as PieceInfo has a formatter (pieceInfoFormat).
+  implicit val transitionFormat: Format[SimpleTransition] = Json.format[SimpleTransition]
+}
+
+
+case class GameState(
+    boardSetup: Map[String, PieceInfo], // Pieces and their positions, keyed by "x_y" string
+    currentTurn: Player, // Player whose turn it is
+    capturedPiecesPlayer1: List[SimplePieceType], // Captured pieces by Player 1
+    capturedPiecesPlayer2: List[SimplePieceType], // Captured pieces by Player 2
+    gameHistory: List[SimpleTransition], // List of moves or Transition objects
+    evaluationScore: Int // Board evaluation from the perspective of the player to move
+)
+
+object GameState {
+  // For boardSetup (Map[String, PieceInfo]), Play JSON uses default Map format
+  // as PieceInfo has a formatter (pieceInfoFormat).
+  // Player.playerFormat, SimplePiece.pieceFormat are used for other fields.
+  implicit val gameStateFormat: Format[GameState] = Json.format[GameState]
+}
+
+object GameSaver {
+
+  def saveToFile(gameState: GameState, filePath: String): Try[Unit] = {
+    var writer: PrintWriter = null
+    try {
+      val jsonString = Json.prettyPrint(Json.toJson(gameState))
+      writer = new PrintWriter(new File(filePath))
+      writer.write(jsonString)
+      Success(())
+    } catch {
+      case e: Throwable => Failure(e)
+    } finally {
+      if (writer != null) writer.close()
+    }
+  }
+
+  def loadFromFile(filePath: String): Try[GameState] = {
+    var source: Source = null
+    try {
+      source = Source.fromFile(filePath)
+      val jsonString = source.mkString
+      Json.parse(jsonString).validate[GameState] match {
+        case JsSuccess(gs, _) => Success(gs)
+        case JsError(errors) =>
+          Failure(new RuntimeException(s"Failed to parse GameState from JSON: ${errors.mkString(", ")}"))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    } finally {
+      if (source != null) source.close()
+    }
+  }
+}

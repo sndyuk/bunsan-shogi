@@ -41,7 +41,8 @@ object CSAParser extends RegexParsers {
   private def startStateOfBoard: Parser[KifuStatement] = comment.? ~> (pI | pN | pP)
 
   // 平手(と駒落ち)表現
-  private def pI: Parser[PI] = s"PI$char+".r <~ sep ^^ PI
+  // Allow "PI" or "PI" followed by characters
+  private def pI: Parser[PI] = ("PI" ~> s"$char*".r) <~ sep ^^ { handiStr => PI("PI" + handiStr) }
 
   // 一括表現
   private def pN: Parser[PN] = rep(s"P[1-9]$char+".r <~ sep) ^^ PN
@@ -56,7 +57,7 @@ object CSAParser extends RegexParsers {
   private def move: Parser[KifuStatement] = comment.? ~> (transition | specialMove)
 
   private def transition: Parser[Move] =
-    ("-" | "+") ~ "[1-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ s"$char{2}".r ~ sep ~ elapsed.? ^^ {
+    ("-" | "+") ~ "[0-9]".r ~ "[0-9]".r ~ "[1-9]".r ~ "[1-9]".r ~ s"$char{2}".r ~ sep ~ elapsed.? ^^ { // Changed [1-9] to [0-9] for from_x and from_y
       case p ~ s1 ~ s2 ~ s3 ~ s4 ~ s5 ~ _ ~ elaplsed => {
         val turn = if (p == "+") PlayerA else PlayerB
         val piece = s5 match {
@@ -94,7 +95,7 @@ object CSAParser extends RegexParsers {
   private def comment: Parser[List[Comment]] = rep(s"'$char*".r <~ sep ^^ Comment)
 
   private def statement: Parser[Kifu] = comment.? ~> version.? ~ kifDataFactors ~ startState ~ moves <~ comment.? ^^ {
-    case version ~ kifDataFactors ~ startState ~ moves => Kifu(version, kifDataFactors, startState, moves, moves.collectFirst { case Move(p, _, _, _, _) => p }.get)
+    case version ~ kifDataFactors ~ startState ~ moves => Kifu(version, kifDataFactors, startState, moves, moves.collectFirst { case Move(p, _, _, _, _) => p })
 
   }
   private def kifu: Parser[Kifu] = statement
